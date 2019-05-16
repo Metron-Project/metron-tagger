@@ -8,6 +8,7 @@ verify_ssl = true
 [packages]
 configparser = "*"
 natsort = "*"
+pillow = "*"
 
 [requires]
 python_version = "3.7"
