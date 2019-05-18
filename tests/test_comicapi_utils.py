@@ -11,7 +11,7 @@ class TestUtils(unittest.TestCase):
 
     def test_list_to_string(self):
         thislist = ["apple", "banana", "cherry"]
-        expected_result = "apple, banana, cherry"
+        expected_result = "apple; banana; cherry"
 
         list_string = listToString(thislist)
         self.assertEqual(list_string, expected_result)
