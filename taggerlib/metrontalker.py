@@ -80,13 +80,20 @@ class MetronTalker:
             issue_results["cover_date"]
         )
 
+        metadata.comments = issue_results["desc"]
+
         d = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         metadata.notes = (
             f"Tagged with MetronTagger using info from Metron.cloud on {d}. "
             + f"[Issue ID {issue_results['id']}]"
         )
 
-        # TODO: Add credits to metadata
+        person_credits = issue_results["credits"]
+        for person in person_credits:
+            if "role" in person:
+                roles = person["role"]
+                for role in roles:
+                    metadata.addCredit(person["creator"], role["name"], False)
 
         character_credits = issue_results["characters"]
         character_list = []
