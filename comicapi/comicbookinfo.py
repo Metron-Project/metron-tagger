@@ -22,14 +22,13 @@ from . import utils
 
 
 class ComicBookInfo:
-
     def metadataFromString(self, string):
 
-        cbi_container = json.loads(str(string, 'utf-8'))
+        cbi_container = json.loads(str(string, "utf-8"))
 
         metadata = GenericMetadata()
 
-        cbi = cbi_container['ComicBookInfo/1.0']
+        cbi = cbi_container["ComicBookInfo/1.0"]
 
         # helper func
         # If item is not in CBI, return None
@@ -39,22 +38,22 @@ class ComicBookInfo:
             else:
                 return None
 
-        metadata.series = xlate('series')
-        metadata.title = xlate('title')
-        metadata.issue = xlate('issue')
-        metadata.publisher = xlate('publisher')
-        metadata.month = xlate('publicationMonth')
-        metadata.year = xlate('publicationYear')
-        metadata.issueCount = xlate('numberOfIssues')
-        metadata.comments = xlate('comments')
-        metadata.credits = xlate('credits')
-        metadata.genre = xlate('genre')
-        metadata.volume = xlate('volume')
-        metadata.volumeCount = xlate('numberOfVolumes')
-        metadata.language = xlate('language')
-        metadata.country = xlate('country')
-        metadata.criticalRating = xlate('rating')
-        metadata.tags = xlate('tags')
+        metadata.series = xlate("series")
+        metadata.title = xlate("title")
+        metadata.issue = xlate("issue")
+        metadata.publisher = xlate("publisher")
+        metadata.month = xlate("publicationMonth")
+        metadata.year = xlate("publicationYear")
+        metadata.issueCount = xlate("numberOfIssues")
+        metadata.comments = xlate("comments")
+        metadata.credits = xlate("credits")
+        metadata.genre = xlate("genre")
+        metadata.volume = xlate("volume")
+        metadata.volumeCount = xlate("numberOfVolumes")
+        metadata.language = xlate("language")
+        metadata.country = xlate("country")
+        metadata.criticalRating = xlate("rating")
+        metadata.tags = xlate("tags")
 
         # make sure credits and tags are at least empty lists and not None
         if metadata.credits is None:
@@ -68,7 +67,7 @@ class ComicBookInfo:
             pattern = metadata.language
             metadata.language = None
             for key in utils.getLanguageDict():
-                if utils.getLanguageDict()[key] == pattern.encode('utf-8'):
+                if utils.getLanguageDict()[key] == pattern.encode("utf-8"):
                     metadata.language = key
                     break
 
@@ -89,15 +88,17 @@ class ComicBookInfo:
         except:
             return False
 
-        return ('ComicBookInfo/1.0' in cbi_container)
+        return "ComicBookInfo/1.0" in cbi_container
 
     def createJSONDictionary(self, metadata):
         """Create the dictionary that we will convert to JSON text"""
 
         cbi = dict()
-        cbi_container = {'appID': 'ComicTagger/' + '1.0.0',  # ctversion.version,
-                         'lastModified': str(datetime.now()),
-                         'ComicBookInfo/1.0': cbi}
+        cbi_container = {
+            "appID": "ComicTagger/" + "1.0.0",  # ctversion.version,
+            "lastModified": str(datetime.now()),
+            "ComicBookInfo/1.0": cbi,
+        }
 
         # helper func
         def assign(cbi_entry, md_entry):
@@ -114,22 +115,22 @@ class ComicBookInfo:
                     pass
             return i
 
-        assign('series', metadata.series)
-        assign('title', metadata.title)
-        assign('issue', metadata.issue)
-        assign('publisher', metadata.publisher)
-        assign('publicationMonth', toInt(metadata.month))
-        assign('publicationYear', toInt(metadata.year))
-        assign('numberOfIssues', toInt(metadata.issueCount))
-        assign('comments', metadata.comments)
-        assign('genre', metadata.genre)
-        assign('volume', toInt(metadata.volume))
-        assign('numberOfVolumes', toInt(metadata.volumeCount))
-        assign('language', utils.getLanguageFromISO(metadata.language))
-        assign('country', metadata.country)
-        assign('rating', metadata.criticalRating)
-        assign('credits', metadata.credits)
-        assign('tags', metadata.tags)
+        assign("series", metadata.series)
+        assign("title", metadata.title)
+        assign("issue", metadata.issue)
+        assign("publisher", metadata.publisher)
+        assign("publicationMonth", toInt(metadata.month))
+        assign("publicationYear", toInt(metadata.year))
+        assign("numberOfIssues", toInt(metadata.issueCount))
+        assign("comments", metadata.comments)
+        assign("genre", metadata.genre)
+        assign("volume", toInt(metadata.volume))
+        assign("numberOfVolumes", toInt(metadata.volumeCount))
+        assign("language", utils.getLanguageFromISO(metadata.language))
+        assign("country", metadata.country)
+        assign("rating", metadata.criticalRating)
+        assign("credits", metadata.credits)
+        assign("tags", metadata.tags)
 
         return cbi_container
 
@@ -137,6 +138,6 @@ class ComicBookInfo:
 
         cbi_container = self.createJSONDictionary(metadata)
 
-        f = open(filename, 'w')
+        f = open(filename, "w")
         f.write(json.dumps(cbi_container, indent=4))
         f.close

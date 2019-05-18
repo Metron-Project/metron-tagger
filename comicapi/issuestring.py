@@ -22,7 +22,6 @@ comics industry throws at us.
 
 
 class IssueString:
-
     def __init__(self, text):
 
         # break up the issue number string into 2 parts: the numeric and suffix string.
@@ -43,7 +42,7 @@ class IssueString:
         text = str(text)
 
         # skip the minus sign if it's first
-        if text[0] == '-':
+        if text[0] == "-":
             start = 1
         else:
             start = 0
@@ -75,7 +74,7 @@ class IssueString:
                 idx = 0
 
             part1 = text[0:idx]
-            part2 = text[idx:len(text)]
+            part2 = text[idx : len(text)]
 
             if part1 != "":
                 self.num = float(part1)
@@ -117,9 +116,9 @@ class IssueString:
         # return the float, with no suffix
         if self.suffix == "½":
             if self.num is not None:
-                return self.num + .5
+                return self.num + 0.5
             else:
-                return .5
+                return 0.5
         return self.num
 
     def asInt(self):

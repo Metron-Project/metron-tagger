@@ -31,10 +31,10 @@ from .genericmetadata import GenericMetadata
 
 try:
     from PIL import Image
+
     pil_available = True
 except ImportError:
     pil_available = False
-
 
 
 sys.path.insert(0, os.path.abspath("."))
@@ -43,7 +43,7 @@ sys.path.insert(0, os.path.abspath("."))
 class MetaDataStyle:
     CBI = 0
     CIX = 1
-    name = ['ComicBookLover', 'ComicRack']
+    name = ["ComicBookLover", "ComicRack"]
 
 
 class ZipArchiver:
@@ -54,32 +54,36 @@ class ZipArchiver:
         self.path = path
 
     def getArchiveComment(self):
-        zf = zipfile.ZipFile(self.path, 'r')
+        zf = zipfile.ZipFile(self.path, "r")
         comment = zf.comment
         zf.close()
         return comment
 
     def setArchiveComment(self, comment):
-        zf = zipfile.ZipFile(self.path, 'a')
-        zf.comment = bytes(comment, 'utf-8')
+        zf = zipfile.ZipFile(self.path, "a")
+        zf.comment = bytes(comment, "utf-8")
         zf.close()
         return True
 
     def readArchiveFile(self, archive_file):
         data = ""
-        zf = zipfile.ZipFile(self.path, 'r')
+        zf = zipfile.ZipFile(self.path, "r")
 
         try:
             data = zf.read(archive_file)
         except zipfile.BadZipfile as e:
-            print("bad zipfile [{0}]: {1} :: {2}".format(
-                e, self.path, archive_file), file=sys.stderr)
+            print(
+                "bad zipfile [{0}]: {1} :: {2}".format(e, self.path, archive_file),
+                file=sys.stderr,
+            )
             zf.close()
             raise IOError
         except Exception as e:
             zf.close()
-            print("bad zipfile [{0}]: {1} :: {2}".format(
-                e, self.path, archive_file), file=sys.stderr)
+            print(
+                "bad zipfile [{0}]: {1} :: {2}".format(e, self.path, archive_file),
+                file=sys.stderr,
+            )
             raise IOError
         finally:
             zf.close()
@@ -102,10 +106,8 @@ class ZipArchiver:
 
             # now just add the archive file as a new one
             zf = zipfile.ZipFile(
-                self.path,
-                mode='a',
-                allowZip64=True,
-                compression=zipfile.ZIP_DEFLATED)
+                self.path, mode="a", allowZip64=True, compression=zipfile.ZIP_DEFLATED
+            )
             zf.writestr(archive_file, data)
             zf.close()
             return True
@@ -114,13 +116,15 @@ class ZipArchiver:
 
     def getArchiveFilenameList(self):
         try:
-            zf = zipfile.ZipFile(self.path, 'r')
+            zf = zipfile.ZipFile(self.path, "r")
             namelist = zf.namelist()
             zf.close()
             return namelist
         except Exception as e:
-            print("Unable to get zipfile list [{0}]: {1}".format(
-                e, self.path), file=sys.stderr)
+            print(
+                "Unable to get zipfile list [{0}]: {1}".format(e, self.path),
+                file=sys.stderr,
+            )
             return []
 
     def rebuildZipFile(self, exclude_list):
@@ -136,11 +140,11 @@ class ZipArchiver:
         tmp_fd, tmp_name = tempfile.mkstemp(dir=os.path.dirname(self.path))
         os.close(tmp_fd)
 
-        zin = zipfile.ZipFile(self.path, 'r')
-        zout = zipfile.ZipFile(tmp_name, 'w', allowZip64=True)
+        zin = zipfile.ZipFile(self.path, "r")
+        zout = zipfile.ZipFile(tmp_name, "w", allowZip64=True)
         for item in zin.infolist():
             buffer = zin.read(item.filename)
-            if (item.filename not in exclude_list):
+            if item.filename not in exclude_list:
                 zout.writestr(item, buffer)
 
         # preserve the old comment
@@ -184,7 +188,7 @@ class ZipArchiver:
                 value = fo.read(4)
 
                 # look for the end of central directory signature
-                if bytearray(value) == bytearray([0x50, 0x4b, 0x05, 0x06]):
+                if bytearray(value) == bytearray([0x50, 0x4B, 0x05, 0x06]):
                     found = True
                 else:
                     # not found, step back another byte
@@ -198,10 +202,10 @@ class ZipArchiver:
                 fo.seek(pos, 2)
 
                 # Pack the length of the comment string
-                format_h = "H"                   # one 2-byte integer
+                format_h = "H"  # one 2-byte integer
                 comment_length = struct.pack(
-                    format_h,
-                    len(comment))  # pack integer in a binary string
+                    format_h, len(comment)
+                )  # pack integer in a binary string
 
                 # write out the length
                 fo.write(comment_length)
@@ -212,7 +216,7 @@ class ZipArchiver:
                 fo.truncate()
                 fo.close()
             else:
-                raise Exception('Failed to write comment to zip file!')
+                raise Exception("Failed to write comment to zip file!")
         except Exception as e:
             return False
         else:
@@ -222,7 +226,7 @@ class ZipArchiver:
         """Replace the current zip with one copied from another archive"""
 
         try:
-            zout = zipfile.ZipFile(self.path, 'w', allowZip64=True)
+            zout = zipfile.ZipFile(self.path, "w", allowZip64=True)
             for fname in otherArchive.getArchiveFilenameList():
                 data = otherArchive.readArchiveFile(fname)
                 if data is not None:
@@ -235,8 +239,9 @@ class ZipArchiver:
                 if not self.writeZipComment(self.path, comment):
                     return False
         except Exception as e:
-            print("Error while copying to {0}: {1}".format(
-                self.path, e), file=sys.stderr)
+            print(
+                "Error while copying to {0}: {1}".format(self.path, e), file=sys.stderr
+            )
             return False
         else:
             return True
@@ -284,7 +289,7 @@ class ComicArchive:
     def __init__(self, path):
         self.path = path
 
-        self.ci_xml_filename = 'ComicInfo.xml'
+        self.ci_xml_filename = "ComicInfo.xml"
         self.resetCache()
 
         self.archive_type = self.ArchiveType.Unknown
@@ -333,7 +338,7 @@ class ComicArchive:
 
     def seemsToBeAComicArchive(self):
 
-        if ((self.isZip()) and (self.getNumberOfPages() > 0)):
+        if (self.isZip()) and (self.getNumberOfPages() > 0):
             return True
         else:
             return False
@@ -383,8 +388,7 @@ class ComicArchive:
             try:
                 image_data = self.archiver.readArchiveFile(filename)
             except IOError:
-                print("Error reading in page.",
-                      file=sys.stderr)
+                print("Error reading in page.", file=sys.stderr)
 
         return image_data
 
@@ -425,11 +429,8 @@ class ComicArchive:
 
         # sort by most common
         sorted_buckets = sorted(
-            iter(length_buckets.items()),
-            key=lambda k_v: (
-                k_v[1],
-                k_v[0]),
-            reverse=True)
+            iter(length_buckets.items()), key=lambda k_v: (k_v[1], k_v[0]), reverse=True
+        )
 
         # statistical mode occurence is first
         mode_length = sorted_buckets[0][0]
@@ -465,6 +466,7 @@ class ComicArchive:
             # seems like some archive creators are on  Windows, and don't know
             # about case-sensitivity!
             if sort_list:
+
                 def keyfunc(k):
                     # hack to account for some weird scanner ID pages
                     # basename=os.path.split(k)[1]
@@ -477,11 +479,10 @@ class ComicArchive:
             # make a sub-list of image files
             self.page_list = []
             for name in files:
-                if (name[-4:].lower() in [".jpg",
-                                          "jpeg",
-                                          ".png",
-                                          ".gif",
-                                          "webp"] and os.path.basename(name)[0] != "."):
+                if (
+                    name[-4:].lower() in [".jpg", "jpeg", ".png", ".gif", "webp"]
+                    and os.path.basename(name)[0] != "."
+                ):
                     self.page_list.append(name)
 
         return self.page_list
@@ -505,7 +506,7 @@ class ComicArchive:
         return self.cbi_md
 
     def readRawCBI(self):
-        if (not self.hasCBI()):
+        if not self.hasCBI():
             return None
 
         return self.archiver.getArchiveComment()
@@ -582,8 +583,8 @@ class ComicArchive:
             self.applyArchiveInfoToMetadata(metadata, calc_page_sizes=True)
             cix_string = ComicInfoXml().stringFromMetadata(metadata)
             write_success = self.archiver.writeArchiveFile(
-                self.ci_xml_filename,
-                cix_string)
+                self.ci_xml_filename, cix_string
+            )
             if write_success:
                 self.has_cix = True
                 self.cix_md = metadata
@@ -594,8 +595,7 @@ class ComicArchive:
 
     def removeCIX(self):
         if self.hasCIX():
-            write_success = self.archiver.removeArchiveFile(
-                self.ci_xml_filename)
+            write_success = self.archiver.removeArchiveFile(self.ci_xml_filename)
             if write_success:
                 self.has_cix = False
                 self.cix_md = None
@@ -619,25 +619,29 @@ class ComicArchive:
 
         if calc_page_sizes:
             for p in md.pages:
-                idx = int(p['Image'])
+                idx = int(p["Image"])
                 if pil_available:
-                    if 'ImageSize' not in p or 'ImageHeight' not in p or 'ImageWidth' not in p:
+                    if (
+                        "ImageSize" not in p
+                        or "ImageHeight" not in p
+                        or "ImageWidth" not in p
+                    ):
                         data = self.getPage(idx)
                         if data is not None:
                             try:
                                 im = Image.open(io.StringIO(data))
                                 w, h = im.size
 
-                                p['ImageSize'] = str(len(data))
-                                p['ImageHeight'] = str(h)
-                                p['ImageWidth'] = str(w)
+                                p["ImageSize"] = str(len(data))
+                                p["ImageHeight"] = str(h)
+                                p["ImageWidth"] = str(w)
                             except IOError:
-                                p['ImageSize'] = str(len(data))
+                                p["ImageSize"] = str(len(data))
 
                 else:
-                    if 'ImageSize' not in p:
+                    if "ImageSize" not in p:
                         data = self.getPage(idx)
-                        p['ImageSize'] = str(len(data))
+                        p["ImageSize"] = str(len(data))
 
     def metadataFromFilename(self, parse_scan_info=True):
 

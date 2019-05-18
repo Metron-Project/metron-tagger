@@ -22,13 +22,13 @@ from . import utils
 
 class ComicInfoXml:
 
-    writer_synonyms = ['writer', 'plotter', 'scripter']
-    penciller_synonyms = ['artist', 'penciller', 'penciler', 'breakdowns']
-    inker_synonyms = ['inker', 'artist', 'finishes']
-    colorist_synonyms = ['colorist', 'colourist', 'colorer', 'colourer']
-    letterer_synonyms = ['letterer']
-    cover_synonyms = ['cover', 'covers', 'coverartist', 'cover artist']
-    editor_synonyms = ['editor']
+    writer_synonyms = ["writer", "plotter", "scripter"]
+    penciller_synonyms = ["artist", "penciller", "penciler", "breakdowns"]
+    inker_synonyms = ["inker", "artist", "finishes"]
+    colorist_synonyms = ["colorist", "colourist", "colorer", "colourer"]
+    letterer_synonyms = ["letterer"]
+    cover_synonyms = ["cover", "covers", "coverartist", "cover artist"]
+    editor_synonyms = ["editor"]
 
     def getParseableCredits(self):
         parsable_credits = []
@@ -77,29 +77,29 @@ class ComicInfoXml:
 
         # build a tree structure
         root = ET.Element("ComicInfo")
-        root.attrib['xmlns:xsi'] = "http://www.w3.org/2001/XMLSchema-instance"
-        root.attrib['xmlns:xsd'] = "http://www.w3.org/2001/XMLSchema"
+        root.attrib["xmlns:xsi"] = "http://www.w3.org/2001/XMLSchema-instance"
+        root.attrib["xmlns:xsd"] = "http://www.w3.org/2001/XMLSchema"
         # helper func
 
         def assign(cix_entry, md_entry):
             if md_entry is not None:
                 ET.SubElement(root, cix_entry).text = "{0}".format(md_entry)
 
-        assign('Title', md.title)
-        assign('Series', md.series)
-        assign('Number', md.issue)
-        assign('Count', md.issueCount)
-        assign('Volume', md.volume)
-        assign('AlternateSeries', md.alternateSeries)
-        assign('AlternateNumber', md.alternateNumber)
-        assign('StoryArc', md.storyArc)
-        assign('SeriesGroup', md.seriesGroup)
-        assign('AlternateCount', md.alternateCount)
-        assign('Summary', md.comments)
-        assign('Notes', md.notes)
-        assign('Year', md.year)
-        assign('Month', md.month)
-        assign('Day', md.day)
+        assign("Title", md.title)
+        assign("Series", md.series)
+        assign("Number", md.issue)
+        assign("Count", md.issueCount)
+        assign("Volume", md.volume)
+        assign("AlternateSeries", md.alternateSeries)
+        assign("AlternateNumber", md.alternateNumber)
+        assign("StoryArc", md.storyArc)
+        assign("SeriesGroup", md.seriesGroup)
+        assign("AlternateCount", md.alternateCount)
+        assign("Summary", md.comments)
+        assign("Notes", md.notes)
+        assign("Year", md.year)
+        assign("Month", md.month)
+        assign("Day", md.day)
 
         # need to specially process the credits, since they are structured
         # differently than CIX
@@ -115,77 +115,77 @@ class ComicInfoXml:
         # supports
         for credit in metadata.credits:
 
-            if credit['role'].lower() in set(self.writer_synonyms):
-                credit_writer_list.append(credit['person'].replace(",", ""))
+            if credit["role"].lower() in set(self.writer_synonyms):
+                credit_writer_list.append(credit["person"].replace(",", ""))
 
-            if credit['role'].lower() in set(self.penciller_synonyms):
-                credit_penciller_list.append(credit['person'].replace(",", ""))
+            if credit["role"].lower() in set(self.penciller_synonyms):
+                credit_penciller_list.append(credit["person"].replace(",", ""))
 
-            if credit['role'].lower() in set(self.inker_synonyms):
-                credit_inker_list.append(credit['person'].replace(",", ""))
+            if credit["role"].lower() in set(self.inker_synonyms):
+                credit_inker_list.append(credit["person"].replace(",", ""))
 
-            if credit['role'].lower() in set(self.colorist_synonyms):
-                credit_colorist_list.append(credit['person'].replace(",", ""))
+            if credit["role"].lower() in set(self.colorist_synonyms):
+                credit_colorist_list.append(credit["person"].replace(",", ""))
 
-            if credit['role'].lower() in set(self.letterer_synonyms):
-                credit_letterer_list.append(credit['person'].replace(",", ""))
+            if credit["role"].lower() in set(self.letterer_synonyms):
+                credit_letterer_list.append(credit["person"].replace(",", ""))
 
-            if credit['role'].lower() in set(self.cover_synonyms):
-                credit_cover_list.append(credit['person'].replace(",", ""))
+            if credit["role"].lower() in set(self.cover_synonyms):
+                credit_cover_list.append(credit["person"].replace(",", ""))
 
-            if credit['role'].lower() in set(self.editor_synonyms):
-                credit_editor_list.append(credit['person'].replace(",", ""))
+            if credit["role"].lower() in set(self.editor_synonyms):
+                credit_editor_list.append(credit["person"].replace(",", ""))
 
         # second, convert each list to string, and add to XML struct
         if len(credit_writer_list) > 0:
-            node = ET.SubElement(root, 'Writer')
+            node = ET.SubElement(root, "Writer")
             node.text = utils.listToString(credit_writer_list)
 
         if len(credit_penciller_list) > 0:
-            node = ET.SubElement(root, 'Penciller')
+            node = ET.SubElement(root, "Penciller")
             node.text = utils.listToString(credit_penciller_list)
 
         if len(credit_inker_list) > 0:
-            node = ET.SubElement(root, 'Inker')
+            node = ET.SubElement(root, "Inker")
             node.text = utils.listToString(credit_inker_list)
 
         if len(credit_colorist_list) > 0:
-            node = ET.SubElement(root, 'Colorist')
+            node = ET.SubElement(root, "Colorist")
             node.text = utils.listToString(credit_colorist_list)
 
         if len(credit_letterer_list) > 0:
-            node = ET.SubElement(root, 'Letterer')
+            node = ET.SubElement(root, "Letterer")
             node.text = utils.listToString(credit_letterer_list)
 
         if len(credit_cover_list) > 0:
-            node = ET.SubElement(root, 'CoverArtist')
+            node = ET.SubElement(root, "CoverArtist")
             node.text = utils.listToString(credit_cover_list)
 
         if len(credit_editor_list) > 0:
-            node = ET.SubElement(root, 'Editor')
+            node = ET.SubElement(root, "Editor")
             node.text = utils.listToString(credit_editor_list)
 
-        assign('Publisher', md.publisher)
-        assign('Imprint', md.imprint)
-        assign('Genre', md.genre)
-        assign('Web', md.webLink)
-        assign('PageCount', md.pageCount)
-        assign('LanguageISO', md.language)
-        assign('Format', md.format)
-        assign('AgeRating', md.maturityRating)
+        assign("Publisher", md.publisher)
+        assign("Imprint", md.imprint)
+        assign("Genre", md.genre)
+        assign("Web", md.webLink)
+        assign("PageCount", md.pageCount)
+        assign("LanguageISO", md.language)
+        assign("Format", md.format)
+        assign("AgeRating", md.maturityRating)
         if md.blackAndWhite is not None and md.blackAndWhite:
-            ET.SubElement(root, 'BlackAndWhite').text = "Yes"
-        assign('Manga', md.manga)
-        assign('Characters', md.characters)
-        assign('Teams', md.teams)
-        assign('Locations', md.locations)
-        assign('ScanInformation', md.scanInfo)
+            ET.SubElement(root, "BlackAndWhite").text = "Yes"
+        assign("Manga", md.manga)
+        assign("Characters", md.characters)
+        assign("Teams", md.teams)
+        assign("Locations", md.locations)
+        assign("ScanInformation", md.scanInfo)
 
         #  loop and add the page entries under pages node
         if len(md.pages) > 0:
-            pages_node = ET.SubElement(root, 'Pages')
+            pages_node = ET.SubElement(root, "Pages")
             for page_dict in md.pages:
-                page_node = ET.SubElement(pages_node, 'Page')
+                page_node = ET.SubElement(pages_node, "Page")
                 page_node.attrib = page_dict
 
         # self pretty-print
@@ -199,7 +199,7 @@ class ComicInfoXml:
 
         root = tree.getroot()
 
-        if root.tag != 'ComicInfo':
+        if root.tag != "ComicInfo":
             raise 1
             return None
 
@@ -214,55 +214,56 @@ class ComicInfoXml:
             else:
                 return None
 
-        md.series = xlate('Series')
-        md.title = xlate('Title')
-        md.issue = xlate('Number')
-        md.issueCount = xlate('Count')
-        md.volume = xlate('Volume')
-        md.alternateSeries = xlate('AlternateSeries')
-        md.alternateNumber = xlate('AlternateNumber')
-        md.alternateCount = xlate('AlternateCount')
-        md.comments = xlate('Summary')
-        md.notes = xlate('Notes')
-        md.year = xlate('Year')
-        md.month = xlate('Month')
-        md.day = xlate('Day')
-        md.publisher = xlate('Publisher')
-        md.imprint = xlate('Imprint')
-        md.genre = xlate('Genre')
-        md.webLink = xlate('Web')
-        md.language = xlate('LanguageISO')
-        md.format = xlate('Format')
-        md.manga = xlate('Manga')
-        md.characters = xlate('Characters')
-        md.teams = xlate('Teams')
-        md.locations = xlate('Locations')
-        md.pageCount = xlate('PageCount')
-        md.scanInfo = xlate('ScanInformation')
-        md.storyArc = xlate('StoryArc')
-        md.seriesGroup = xlate('SeriesGroup')
-        md.maturityRating = xlate('AgeRating')
+        md.series = xlate("Series")
+        md.title = xlate("Title")
+        md.issue = xlate("Number")
+        md.issueCount = xlate("Count")
+        md.volume = xlate("Volume")
+        md.alternateSeries = xlate("AlternateSeries")
+        md.alternateNumber = xlate("AlternateNumber")
+        md.alternateCount = xlate("AlternateCount")
+        md.comments = xlate("Summary")
+        md.notes = xlate("Notes")
+        md.year = xlate("Year")
+        md.month = xlate("Month")
+        md.day = xlate("Day")
+        md.publisher = xlate("Publisher")
+        md.imprint = xlate("Imprint")
+        md.genre = xlate("Genre")
+        md.webLink = xlate("Web")
+        md.language = xlate("LanguageISO")
+        md.format = xlate("Format")
+        md.manga = xlate("Manga")
+        md.characters = xlate("Characters")
+        md.teams = xlate("Teams")
+        md.locations = xlate("Locations")
+        md.pageCount = xlate("PageCount")
+        md.scanInfo = xlate("ScanInformation")
+        md.storyArc = xlate("StoryArc")
+        md.seriesGroup = xlate("SeriesGroup")
+        md.maturityRating = xlate("AgeRating")
 
-        tmp = xlate('BlackAndWhite')
+        tmp = xlate("BlackAndWhite")
         md.blackAndWhite = False
         if tmp is not None and tmp.lower() in ["yes", "true", "1"]:
             md.blackAndWhite = True
         # Now extract the credit info
         for n in root:
-            if (n.tag == 'Writer' or
-                n.tag == 'Penciller' or
-                n.tag == 'Inker' or
-                n.tag == 'Colorist' or
-                n.tag == 'Letterer' or
-                n.tag == 'Editor'
-                ):
+            if (
+                n.tag == "Writer"
+                or n.tag == "Penciller"
+                or n.tag == "Inker"
+                or n.tag == "Colorist"
+                or n.tag == "Letterer"
+                or n.tag == "Editor"
+            ):
                 if n.text is not None:
-                    for name in n.text.split(','):
+                    for name in n.text.split(","):
                         metadata.addCredit(name.strip(), n.tag)
 
-            if n.tag == 'CoverArtist':
+            if n.tag == "CoverArtist":
                 if n.text is not None:
-                    for name in n.text.split(','):
+                    for name in n.text.split(","):
                         metadata.addCredit(name.strip(), "Cover")
 
         # parse page data now
@@ -280,7 +281,7 @@ class ComicInfoXml:
 
         tree = self.convertMetadataToXML(self, metadata)
         # ET.dump(tree)
-        tree.write(filename, encoding='utf-8')
+        tree.write(filename, encoding="utf-8")
 
     def readFromExternalFile(self, filename):
 

@@ -8,7 +8,7 @@ from comicapi.issuestring import IssueString
 from comicapi.utils import listToString
 
 
-class MetronTalker():
+class MetronTalker:
     def __init__(self, auth):
         self.api_base_url = "https://metron.cloud/api"
         self.auth = auth
@@ -18,7 +18,7 @@ class MetronTalker():
         month = None
         year = None
         if date_str is not None:
-            parts = date_str.split('-')
+            parts = date_str.split("-")
             year = parts[0]
             if len(parts) > 1:
                 month = parts[1]
@@ -40,11 +40,10 @@ class MetronTalker():
         issue_url = self.api_base_url + f"/issue/{issue_id}/?format=json"
 
         request = Request(issue_url)
-        request.add_header(
-            "Authorization", f"Basic {self.auth.decode('utf-8')}")
+        request.add_header("Authorization", f"Basic {self.auth.decode('utf-8')}")
 
         content = self.getUrlContent(request)
-        resp = json.loads(content.decode('utf-8'))
+        resp = json.loads(content.decode("utf-8"))
 
         return self.mapCVDataToMetadata(resp)
 
@@ -55,18 +54,17 @@ class MetronTalker():
         url += "&format=json"
 
         request = Request(url)
-        request.add_header(
-            "Authorization", f"Basic {self.auth.decode('utf-8')}")
+        request.add_header("Authorization", f"Basic {self.auth.decode('utf-8')}")
 
         content = self.getUrlContent(request)
-        search_results = json.loads(content.decode('utf-8'))
+        search_results = json.loads(content.decode("utf-8"))
 
         return search_results
 
     def mapCVDataToMetadata(self, issue_results):
         metadata = GenericMetadata()
 
-        metadata.series = issue_results['series']
+        metadata.series = issue_results["series"]
 
         num_s = IssueString(issue_results["number"]).asString()
 
@@ -79,29 +77,30 @@ class MetronTalker():
         metadata.title = listToString(title_list)
 
         metadata.day, metadata.month, metadata.year = self.parseDateStr(
-            issue_results["cover_date"])
+            issue_results["cover_date"]
+        )
 
         d = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         metadata.notes = f"Tagged with MetronTagger using info from Metron.cloud on {d}.  [Issue ID {issue_results['id']}]"
 
         # TODO: Add credits to metadata
 
-        character_credits = issue_results['characters']
+        character_credits = issue_results["characters"]
         character_list = []
         for character in character_credits:
-            character_list.append(character['name'])
+            character_list.append(character["name"])
         metadata.characters = listToString(character_list)
 
-        team_credits = issue_results['teams']
+        team_credits = issue_results["teams"]
         team_list = []
         for team in team_credits:
-            team_list.append(team['name'])
+            team_list.append(team["name"])
         metadata.teams = listToString(team_list)
 
-        story_arc_credits = issue_results['arcs']
+        story_arc_credits = issue_results["arcs"]
         arc_list = []
         for arc in story_arc_credits:
-            arc_list.append(arc['name'])
+            arc_list.append(arc["name"])
         if len(arc_list) > 0:
             metadata.storyArc = listToString(arc_list)
 

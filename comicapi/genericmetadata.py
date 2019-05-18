@@ -56,7 +56,6 @@ class PageInfo:
 
 
 class GenericMetadata:
-
     def __init__(self):
 
         self.isEmpty = True
@@ -128,7 +127,7 @@ class GenericMetadata:
         if not new_md.isEmpty:
             self.isEmpty = False
 
-        assign('series', new_md.series)
+        assign("series", new_md.series)
         assign("issue", new_md.issue)
         assign("issueCount", new_md.issueCount)
         assign("title", new_md.title)
@@ -182,34 +181,34 @@ class GenericMetadata:
 
     def overlayCredits(self, new_credits):
         for c in new_credits:
-            if 'primary' in c and c['primary']:
+            if "primary" in c and c["primary"]:
                 primary = True
             else:
                 primary = False
 
             # Remove credit role if person is blank
-            if c['person'] == "":
+            if c["person"] == "":
                 for r in reversed(self.credits):
-                    if r['role'].lower() == c['role'].lower():
+                    if r["role"].lower() == c["role"].lower():
                         self.credits.remove(r)
             # otherwise, add it!
             else:
-                self.addCredit(c['person'], c['role'], primary)
+                self.addCredit(c["person"], c["role"], primary)
 
     def setDefaultPageList(self, count):
         # generate a default page list, with the first page marked as the cover
         for i in range(count):
             page_dict = dict()
-            page_dict['Image'] = str(i)
+            page_dict["Image"] = str(i)
             if i == 0:
-                page_dict['Type'] = PageType.FrontCover
+                page_dict["Type"] = PageType.FrontCover
             self.pages.append(page_dict)
 
     def getArchivePageIndex(self, pagenum):
         # convert the displayed page number to the page index of the file in
         # the archive
         if pagenum < len(self.pages):
-            return int(self.pages[pagenum]['Image'])
+            return int(self.pages[pagenum]["Image"])
         else:
             return 0
 
@@ -217,8 +216,8 @@ class GenericMetadata:
         # return a list of archive page indices of cover pages
         coverlist = []
         for p in self.pages:
-            if 'Type' in p and p['Type'] == PageType.FrontCover:
-                coverlist.append(int(p['Image']))
+            if "Type" in p and p["Type"] == PageType.FrontCover:
+                coverlist.append(int(p["Image"]))
 
         if len(coverlist) == 0:
             coverlist.append(0)
@@ -228,18 +227,20 @@ class GenericMetadata:
     def addCredit(self, person, role, primary=False):
 
         credit = dict()
-        credit['person'] = person
-        credit['role'] = role
+        credit["person"] = person
+        credit["role"] = role
         if primary:
-            credit['primary'] = primary
+            credit["primary"] = primary
 
         # look to see if it's not already there...
         found = False
         for c in self.credits:
-            if (c['person'].lower() == person.lower() and
-                    c['role'].lower() == role.lower()):
+            if (
+                c["person"].lower() == person.lower()
+                and c["role"].lower() == role.lower()
+            ):
                 # no need to add it. just adjust the "primary" flag as needed
-                c['primary'] = primary
+                c["primary"] = primary
                 found = True
                 break
 
@@ -303,9 +304,9 @@ class GenericMetadata:
 
         for c in self.credits:
             primary = ""
-            if 'primary' in c and c['primary']:
+            if "primary" in c and c["primary"]:
                 primary = " [P]"
-            add_string("credit", c['role'] + ": " + c['person'] + primary)
+            add_string("credit", c["role"] + ": " + c["person"] + primary)
 
         # find the longest field name
         flen = 0

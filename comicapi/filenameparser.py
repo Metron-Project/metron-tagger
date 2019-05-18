@@ -26,15 +26,14 @@ from urllib.parse import unquote
 
 
 class FileNameParser:
-
     def repl(self, m):
-        return ' ' * len(m.group())
+        return " " * len(m.group())
 
     def fixSpaces(self, string, remove_dashes=True):
         if remove_dashes:
-            placeholders = ['[-_]', '  +']
+            placeholders = ["[-_]", "  +"]
         else:
-            placeholders = ['[_]', '  +']
+            placeholders = ["[_]", "  +"]
         for ph in placeholders:
             string = re.sub(ph, self.repl, string)
         return string  # .strip()
@@ -48,13 +47,13 @@ class FileNameParser:
         tmpstr = self.fixSpaces(filename)
         found = False
 
-        match = re.search('(?<=\sof\s)\d+(?=\s)', tmpstr, re.IGNORECASE)
+        match = re.search("(?<=\sof\s)\d+(?=\s)", tmpstr, re.IGNORECASE)
         if match:
             count = match.group()
             found = True
 
         if not found:
-            match = re.search('(?<=\(of\s)\d+(?=\))', tmpstr, re.IGNORECASE)
+            match = re.search("(?<=\(of\s)\d+(?=\))", tmpstr, re.IGNORECASE)
             if match:
                 count = match.group()
                 found = True
@@ -69,7 +68,7 @@ class FileNameParser:
         """
 
         found = False
-        issue = ''
+        issue = ""
         start = 0
         end = 0
 
@@ -142,7 +141,7 @@ class FileNameParser:
             issue = w[0]
             start = w[1]
             end = w[2]
-            if issue[0] == '#':
+            if issue[0] == "#":
                 issue = issue[1:]
 
         return issue, start, end
@@ -180,7 +179,7 @@ class FileNameParser:
         series = re.sub("\(.*?\)", "", series)
 
         # search for volume number
-        match = re.search('(.+)([vV]|[Vv][oO][Ll]\.?\s?)(\d+)\s*$', series)
+        match = re.search("(.+)([vV]|[Vv][oO][Ll]\.?\s?)(\d+)\s*$", series)
         if match:
             series = match.group(1)
             volume = match.group(3)
@@ -203,7 +202,7 @@ class FileNameParser:
             try:
                 last_word = series.split()[-1]
                 if last_word.lower() in one_shot_words:
-                    series = series.rsplit(' ', 1)[0]
+                    series = series.rsplit(" ", 1)[0]
             except:
                 pass
 
@@ -215,7 +214,7 @@ class FileNameParser:
 
         year = ""
         # look for four digit number with "(" ")" or "--" around it
-        match = re.search('(\(\d\d\d\d\))|(--\d\d\d\d--)', filename)
+        match = re.search("(\(\d\d\d\d\))|(--\d\d\d\d--)", filename)
         if match:
             year = match.group()
             # remove non-digits
@@ -243,9 +242,7 @@ class FileNameParser:
             remainder = remainder.replace("of " + count, "", 1)
 
         remainder = remainder.replace("()", "")
-        remainder = remainder.replace(
-            "  ",
-            " ")    # cleans some whitespace mess
+        remainder = remainder.replace("  ", " ")  # cleans some whitespace mess
 
         return remainder.strip()
 
@@ -270,7 +267,6 @@ class FileNameParser:
         self.issue, issue_start, issue_end = self.getIssueNumber(filename)
         self.series, self.volume = self.getSeriesName(filename, issue_start)
 
-
         # provides proper value when the filename doesn't have a issue number
         if issue_end == 0:
             issue_end = len(self.series)
@@ -278,11 +274,8 @@ class FileNameParser:
         self.year = self.getYear(filename, issue_end)
         self.issue_count = self.getIssueCount(filename, issue_end)
         self.remainder = self.getRemainder(
-            filename,
-            self.year,
-            self.issue_count,
-            self.volume,
-            issue_end)
+            filename, self.year, self.issue_count, self.volume, issue_end
+        )
 
         if self.issue != "":
             # strip off leading zeros

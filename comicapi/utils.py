@@ -40,7 +40,7 @@ def get_recursive_filelist(pathlist):
                 for f in files:
                     if isinstance(f, str):
                         # make sure string is unicode
-                        #f = f.decode(filename_encoding, 'replace')
+                        # f = f.decode(filename_encoding, 'replace')
                         pass
                     elif not isinstance(f, str):
                         # it's probably a QString
@@ -68,21 +68,21 @@ def addtopath(dirname):
         # verify that path doesn't already contain the given dirname
         tmpdirname = re.escape(dirname)
         pattern = r"{sep}{dir}$|^{dir}{sep}|{sep}{dir}{sep}|^{dir}$".format(
-            dir=tmpdirname,
-            sep=os.pathsep)
+            dir=tmpdirname, sep=os.pathsep
+        )
 
-        match = re.search(pattern, os.environ['PATH'])
+        match = re.search(pattern, os.environ["PATH"])
         if not match:
-            os.environ['PATH'] = dirname + os.pathsep + os.environ['PATH']
+            os.environ["PATH"] = dirname + os.pathsep + os.environ["PATH"]
 
 
 def removearticles(text):
     text = text.lower()
-    articles = ['and', 'a', '&', 'issue', 'the']
-    newText = ''
-    for word in text.split(' '):
+    articles = ["and", "a", "&", "issue", "the"]
+    newText = ""
+    for word in text.split(" "):
         if word not in articles:
-            newText += word + ' '
+            newText += word + " "
 
     newText = newText[:-1]
 
@@ -94,7 +94,7 @@ def removearticles(text):
     # since the CV API changed, searches for series names with periods
     # now explicitly require the period to be in the search key,
     # so the line below is removed (for now)
-    #newText = newText.replace(".", "")
+    # newText = newText.replace(".", "")
 
     return newText
 
@@ -106,6 +106,5 @@ def unique_file(file_name):
     while True:
         if not os.path.lexists(file_name):
             return file_name
-        file_name = file_name_parts[
-            0] + ' (' + str(counter) + ')' + file_name_parts[1]
+        file_name = file_name_parts[0] + " (" + str(counter) + ")" + file_name_parts[1]
         counter += 1

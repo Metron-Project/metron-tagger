@@ -25,12 +25,12 @@ def select_choice_from_multiple_matches(filename, match_set):
 
     while True:
         i = input("Choose a match #, or 's' to skip: ")
-        if (i.isdigit() and int(i) in range(1, len(match_set) + 1)) or i == 's':
+        if (i.isdigit() and int(i) in range(1, len(match_set) + 1)) or i == "s":
             break
 
-    if i != 's':
+    if i != "s":
         i = int(i) - 1
-        issue_id = match_set['results'][i]['id']
+        issue_id = match_set["results"][i]["id"]
     else:
         issue_id = None
 
@@ -54,12 +54,11 @@ def process_file(filename, talker):
         print(f"No issues results were found for {filename}.")
         return
     elif search_results_count > 1:
-        issue_id = select_choice_from_multiple_matches(
-            filename, search_results)
+        issue_id = select_choice_from_multiple_matches(filename, search_results)
     elif search_results_count == 1:
-        issue_id = search_results['results'][0]['id']
+        issue_id = search_results["results"][0]["id"]
 
-    if (issue_id):
+    if issue_id:
         md = talker.fetchIssueDataByIssueID(issue_id)
         if md:
             ca = ComicArchive(filename)
@@ -90,7 +89,7 @@ def main():
         if os.path.isfile(path):
             fileName, fileExt = os.path.splitext(path)
             # TODO: Use ZipFile to determine file type
-            if fileExt == '.cbz':
+            if fileExt == ".cbz":
                 file_list.append(path)
         else:
             if opts.recursive:
@@ -98,20 +97,20 @@ def main():
                     for root, dirs, files in os.walk(path):
                         for f in files:
                             fileName, fileExt = os.path.splitext(f)
-                            if fileExt == '.cbz':
+                            if fileExt == ".cbz":
                                 file_list.append(os.path.join(root, f))
 
     if not file_list:
-        print('No files to process. Exiting.')
+        print("No files to process. Exiting.")
         sys.exit(0)
     else:
-        auth = f'{SETTINGS.metron_user}:{SETTINGS.metron_pass}'
-        base64string = standard_b64encode(auth.encode('utf-8'))
+        auth = f"{SETTINGS.metron_user}:{SETTINGS.metron_pass}"
+        base64string = standard_b64encode(auth.encode("utf-8"))
 
         talker = MetronTalker(base64string)
         for f in file_list:
             process_file(f, talker)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
