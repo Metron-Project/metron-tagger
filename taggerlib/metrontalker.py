@@ -81,7 +81,10 @@ class MetronTalker:
         )
 
         d = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        metadata.notes = f"Tagged with MetronTagger using info from Metron.cloud on {d}.  [Issue ID {issue_results['id']}]"
+        metadata.notes = (
+            f"Tagged with MetronTagger using info from Metron.cloud on {d}. "
+            + f"[Issue ID {issue_results['id']}]"
+        )
 
         # TODO: Add credits to metadata
 
