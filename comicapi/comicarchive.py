@@ -293,8 +293,6 @@ class ComicArchive:
         if self.zipTest():
             self.archive_type = self.ArchiveType.Zip
             self.archiver = ZipArchiver(self.path)
-            
-        print(f"PIL available: {pil_available}")
 
     def resetCache(self):
         """Clears the cached data"""
