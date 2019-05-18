@@ -14,36 +14,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import zipfile
+import io
 import os
 import struct
 import sys
 import tempfile
-import subprocess
-import platform
-import ctypes
-import time
-import io
-#import io
-#import locale
-#import shutil
+import zipfile
 
 from natsort import natsorted
 
-# if platform.system() == "Windows":
-#    import _subprocess
+from .comicbookinfo import ComicBookInfo
+from .comicinfoxml import ComicInfoXml
+from .filenameparser import FileNameParser
+from .genericmetadata import GenericMetadata
+
 
 try:
-    import Image
+    from PIL import Image
     pil_available = True
 except ImportError:
     pil_available = False
 
-from .comicinfoxml import ComicInfoXml
-from .comicbookinfo import ComicBookInfo
-from .genericmetadata import GenericMetadata, PageType
-from .filenameparser import FileNameParser
-#from settings import ComicTaggerSettings
 
 
 sys.path.insert(0, os.path.abspath("."))
@@ -207,9 +198,9 @@ class ZipArchiver:
                 fo.seek(pos, 2)
 
                 # Pack the length of the comment string
-                format = "H"                   # one 2-byte integer
+                format_h = "H"                   # one 2-byte integer
                 comment_length = struct.pack(
-                    format,
+                    format_h,
                     len(comment))  # pack integer in a binary string
 
                 # write out the length
@@ -290,15 +281,11 @@ class ComicArchive:
     class ArchiveType:
         Zip, Unknown = list(range(2))
 
-    def __init__(self, path, default_image_path=None):
+    def __init__(self, path):
         self.path = path
 
         self.ci_xml_filename = 'ComicInfo.xml'
         self.resetCache()
-        self.default_image_path = default_image_path
-
-        # Use file extension to decide which archive test we do first
-        ext = os.path.splitext(path)[1].lower()
 
         self.archive_type = self.ArchiveType.Unknown
         self.archiver = UnknownArchiver(self.path)
@@ -306,12 +293,8 @@ class ComicArchive:
         if self.zipTest():
             self.archive_type = self.ArchiveType.Zip
             self.archiver = ZipArchiver(self.path)
-
-        if ComicArchive.logo_data is None:
-            #fname = ComicTaggerSettings.getGraphic('nocover.png')
-            fname = self.default_image_path
-            with open(fname, 'rb') as fd:
-                ComicArchive.logo_data = fd.read()
+            
+        print(f"PIL available: {pil_available}")
 
     def resetCache(self):
         """Clears the cached data"""
@@ -352,15 +335,7 @@ class ComicArchive:
 
     def seemsToBeAComicArchive(self):
 
-        # Do we even care about extensions??
-        ext = os.path.splitext(self.path)[1].lower()
-
-        if (
-            (self.isZip())
-            and
-            (self.getNumberOfPages() > 0)
-
-        ):
+        if ((self.isZip()) and (self.getNumberOfPages() > 0)):
             return True
         else:
             return False
@@ -410,9 +385,8 @@ class ComicArchive:
             try:
                 image_data = self.archiver.readArchiveFile(filename)
             except IOError:
-                print("Error reading in page.  Substituting logo page.",
+                print("Error reading in page.",
                       file=sys.stderr)
-                image_data = ComicArchive.logo_data
 
         return image_data
 
@@ -500,7 +474,7 @@ class ComicArchive:
                     #    k = os.path.join(os.path.split(k)[0], "z" + basename)
                     return k.lower()
 
-                files = natsorted(files, key=keyfunc, signed=False)
+                files = natsorted(files, key=keyfunc)
 
             # make a sub-list of image files
             self.page_list = []
