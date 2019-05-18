@@ -57,7 +57,7 @@ def listToString(l):
     if l is not None:
         for item in l:
             if len(string) > 0:
-                string += ", "
+                string += "; "
             string += item
     return string
 
