@@ -269,9 +269,6 @@ class UnknownArchiver:
 
 
 class ComicArchive:
-
-    logo_data = None
-
     class ArchiveType:
         Zip, Unknown = list(range(2))
 
