@@ -72,18 +72,12 @@ class ZipArchiver:
         try:
             data = zf.read(archive_file)
         except zipfile.BadZipfile as e:
-            print(
-                "bad zipfile [{0}]: {1} :: {2}".format(e, self.path, archive_file),
-                file=sys.stderr,
-            )
+            print(f"bad zipfile [{e}]: {self.path} :: {archive_file}", file=sys.stderr)
             zf.close()
             raise IOError
         except Exception as e:
             zf.close()
-            print(
-                "bad zipfile [{0}]: {1} :: {2}".format(e, self.path, archive_file),
-                file=sys.stderr,
-            )
+            print(f"bad zipfile [{e}]: {self.path} :: {archive_file}", file=sys.stderr)
             raise IOError
         finally:
             zf.close()
@@ -121,10 +115,7 @@ class ZipArchiver:
             zf.close()
             return namelist
         except Exception as e:
-            print(
-                "Unable to get zipfile list [{0}]: {1}".format(e, self.path),
-                file=sys.stderr,
-            )
+            print(f"Unable to get zipfile list [{e}]: {self.path}", file=sys.stderr)
             return []
 
     def rebuildZipFile(self, exclude_list):
@@ -239,9 +230,7 @@ class ZipArchiver:
                 if not self.writeZipComment(self.path, comment):
                     return False
         except Exception as e:
-            print(
-                "Error while copying to {0}: {1}".format(self.path, e), file=sys.stderr
-            )
+            print(f"Error while copying to {self.path}: {e}", file=sys.stderr)
             return False
         else:
             return True
