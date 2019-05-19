@@ -18,7 +18,6 @@ import json
 from datetime import datetime
 
 from .genericmetadata import GenericMetadata
-from . import utils
 
 
 class ComicBookInfo:
@@ -50,7 +49,6 @@ class ComicBookInfo:
         metadata.genre = xlate("genre")
         metadata.volume = xlate("volume")
         metadata.volumeCount = xlate("numberOfVolumes")
-        metadata.language = xlate("language")
         metadata.country = xlate("country")
         metadata.criticalRating = xlate("rating")
         metadata.tags = xlate("tags")
@@ -60,16 +58,6 @@ class ComicBookInfo:
             metadata.credits = []
         if metadata.tags is None:
             metadata.tags = []
-
-        # need to massage the language string to be ISO
-        if metadata.language is not None:
-            # reverse look-up
-            pattern = metadata.language
-            metadata.language = None
-            for key in utils.getLanguageDict():
-                if utils.getLanguageDict()[key] == pattern.encode("utf-8"):
-                    metadata.language = key
-                    break
 
         metadata.isEmpty = False
 
@@ -126,7 +114,6 @@ class ComicBookInfo:
         assign("genre", metadata.genre)
         assign("volume", toInt(metadata.volume))
         assign("numberOfVolumes", toInt(metadata.volumeCount))
-        assign("language", utils.getLanguageFromISO(metadata.language))
         assign("country", metadata.country)
         assign("rating", metadata.criticalRating)
         assign("credits", metadata.credits)
