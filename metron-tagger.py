@@ -19,7 +19,7 @@ SETTINGS = MetronTaggerSettings()
 
 
 def select_choice_from_multiple_matches(filename, match_set):
-    print(f"{filename} - Multiple results found")
+    print(f"{os.path.basename(filename)} - Multiple results found")
 
     for (counter, m) in enumerate(match_set["results"]):
         counter += 1
