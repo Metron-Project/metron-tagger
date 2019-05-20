@@ -14,6 +14,20 @@ def make_parser():
         action="store_true",
         default=False,
     )
+    parser.add_argument(
+        "-r",
+        "--rename",
+        help="Rename comic archive.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "-o",
+        "--online",
+        help="Search online and attempt to identify comic archive.",
+        action="store_true",
+        default=False,
+    )
     parser.add_argument("-u", "--user", help="Metron user identity")
     parser.add_argument("-p", "--password", help="Metron user identity")
     parser.add_argument(
