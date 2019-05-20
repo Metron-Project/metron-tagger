@@ -7,6 +7,8 @@ import urllib.parse
 
 from comicapi.comicarchive import ComicArchive
 from comicapi.filenameparser import FileNameParser
+from comicapi.utils import unique_file
+from taggerlib.filerenamer import FileRenamer
 from taggerlib.metrontalker import MetronTalker
 from taggerlib.options import make_parser
 from taggerlib.settings import MetronTaggerSettings
@@ -51,7 +53,7 @@ def process_file(filename, talker):
     search_results_count = search_results["count"]
 
     if not search_results_count > 0:
-        print(f"No issues results were found for {filename}.")
+        print(f"no match for '{os.path.basename(filename)}'.")
         return
     elif search_results_count > 1:
         issue_id = select_choice_from_multiple_matches(filename, search_results)
@@ -64,7 +66,7 @@ def process_file(filename, talker):
             ca = ComicArchive(filename)
             if ca.isWritable():
                 ca.writeCIX(md)
-                print(f"Wrote metadata to {filename}.")
+                print(f"match found for '{os.path.basename(filename)}'.")
 
 
 def main():
@@ -103,13 +105,37 @@ def main():
     if not file_list:
         print("No files to process. Exiting.")
         sys.exit(0)
-    else:
+
+    if opts.online:
+        print("** Starting online search and tagging **")
+
         auth = f"{SETTINGS.metron_user}:{SETTINGS.metron_pass}"
         base64string = standard_b64encode(auth.encode("utf-8"))
-
         talker = MetronTalker(base64string)
+
         for f in file_list:
             process_file(f, talker)
+
+    if opts.rename:
+        print("** Starting comic archive renaming **")
+        for f in file_list:
+            ca = ComicArchive(f)
+            if not ca.hasCIX():
+                print(f"skipping '{os.path.basename(f)}'. No metadata available.")
+                continue
+
+            md = ca.readMetadata(1)
+            renamer = FileRenamer(md)
+            new_name = renamer.determineName(f)
+
+            if new_name == os.path.basename(f):
+                print("Filename is already good!", file=sys.stderr)
+                continue
+
+            folder = os.path.dirname(os.path.abspath(f))
+            new_abs_path = unique_file(os.path.join(folder, new_name))
+            os.rename(f, new_abs_path)
+            print(f"renamed '{os.path.basename(f)}' -> '{new_name}'")
 
 
 if __name__ == "__main__":
