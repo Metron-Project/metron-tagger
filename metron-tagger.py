@@ -39,7 +39,7 @@ def select_choice_from_multiple_matches(filename, match_set):
     return issue_id
 
 
-def process_file(filename, talker):
+def get_issue_id(filename, talker):
 
     fnp = FileNameParser()
     fnp.parseFilename(filename)
@@ -54,19 +54,13 @@ def process_file(filename, talker):
 
     if not search_results_count > 0:
         print(f"no match for '{os.path.basename(filename)}'.")
-        return
+        issue_id = None
     elif search_results_count > 1:
         issue_id = select_choice_from_multiple_matches(filename, search_results)
     elif search_results_count == 1:
         issue_id = search_results["results"][0]["id"]
 
-    if issue_id:
-        md = talker.fetchIssueDataByIssueID(issue_id)
-        if md:
-            ca = ComicArchive(filename)
-            if ca.isWritable():
-                ca.writeCIX(md)
-                print(f"match found for '{os.path.basename(filename)}'.")
+    return issue_id
 
 
 def main():
@@ -114,7 +108,15 @@ def main():
         talker = MetronTalker(base64string)
 
         for f in file_list:
-            process_file(f, talker)
+            id = get_issue_id(f, talker)
+            if not id:
+                continue
+            md = talker.fetchIssueDataByIssueID(id)
+            if md:
+                ca = ComicArchive(f)
+                if ca.isWritable():
+                    ca.writeCIX(md)
+                    print(f"match found for '{os.path.basename(f)}'.")
 
     if opts.rename:
         print("** Starting comic archive renaming **")
