@@ -107,3 +107,6 @@ venv.bak/
 .project
 .pydevproject
 .settings/
+
+# VSCode
+.vscode/
