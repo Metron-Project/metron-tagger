@@ -22,25 +22,19 @@ import sys
 
 def get_recursive_filelist(pathlist):
     """Get a recursive list of of all files under all path items in the list"""
-
-    filename_encoding = sys.getfilesystemencoding()
     filelist = []
     for p in pathlist:
         # if path is a folder, walk it recursively, and all files underneath
         if isinstance(p, str):
-            # make sure string is unicode
-            # p = p.decode(filename_encoding)  # , 'replace')
             pass
         elif not isinstance(p, str):
             # it's probably a QString
             p = str(p)
 
         if os.path.isdir(p):
-            for root, dirs, files in os.walk(p):
+            for root, _, files in os.walk(p):
                 for f in files:
                     if isinstance(f, str):
-                        # make sure string is unicode
-                        # f = f.decode(filename_encoding, 'replace')
                         pass
                     elif not isinstance(f, str):
                         # it's probably a QString
