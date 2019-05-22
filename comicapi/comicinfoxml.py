@@ -200,8 +200,7 @@ class ComicInfoXml:
         root = tree.getroot()
 
         if root.tag != "ComicInfo":
-            raise 1
-            return None
+            raise ValueError("Metadata is not ComicInfo format")
 
         metadata = GenericMetadata()
         md = metadata
