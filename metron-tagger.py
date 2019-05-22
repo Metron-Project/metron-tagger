@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 
-from base64 import standard_b64encode
 import os
 import sys
 import urllib.parse
+from base64 import standard_b64encode
 
 from comicapi.comicarchive import ComicArchive
 from comicapi.filenameparser import FileNameParser
-from comicapi.utils import unique_file
+from comicapi.utils import get_recursive_filelist, unique_file
 from taggerlib.filerenamer import FileRenamer
 from taggerlib.metrontalker import MetronTalker
 from taggerlib.options import make_parser
 from taggerlib.settings import MetronTaggerSettings
-
 
 # Load the settings
 SETTINGS = MetronTaggerSettings()
@@ -78,23 +77,8 @@ def main():
         SETTINGS.save()
 
     # Parse paths to get file list
-    full_paths = [os.path.join(os.getcwd(), path) for path in opts.path]
     file_list = []
-
-    for path in full_paths:
-        if os.path.isfile(path):
-            fileName, fileExt = os.path.splitext(path)
-            # TODO: Use ZipFile to determine file type
-            if fileExt == ".cbz":
-                file_list.append(path)
-        else:
-            if opts.recursive:
-                if os.path.isdir(path):
-                    for root, dirs, files in os.walk(path):
-                        for f in files:
-                            fileName, fileExt = os.path.splitext(f)
-                            if fileExt == ".cbz":
-                                file_list.append(os.path.join(root, f))
+    file_list = get_recursive_filelist(opts.path)
 
     if not file_list:
         print("No files to process. Exiting.")
