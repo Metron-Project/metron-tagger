@@ -85,6 +85,16 @@ def main():
         print("No files to process. Exiting.")
         sys.exit(0)
 
+    if opts.delete:
+        print("** Removing metadata **")
+        for f in file_list:
+            ca = ComicArchive(f)
+            if ca.hasMetadata(MetaDataStyle.CIX):
+                ca.removeMetadata(MetaDataStyle.CIX)
+                print(f"removed metadata from '{os.path.basename(f)}'.")
+            else:
+                print(f"no metadata in '{os.path.basename(f)}'.")
+
     if opts.online:
         print("** Starting online search and tagging **")
 

@@ -22,6 +22,13 @@ def make_parser():
         default=False,
     )
     parser.add_argument(
+        "-d",
+        "--delete",
+        help="Delete the metadata tags from the file.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--ignore-existing",
         help="Ignore files that have existing metadata tag.",
         action="store_true",
