@@ -3,6 +3,9 @@ import sys
 import urllib.parse
 from base64 import standard_b64encode
 
+# Append sys.path so imports work.
+sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+
 from metrontagger.comicapi.comicarchive import ComicArchive
 from metrontagger.comicapi.filenameparser import FileNameParser
 from metrontagger.comicapi.utils import get_recursive_filelist, unique_file
