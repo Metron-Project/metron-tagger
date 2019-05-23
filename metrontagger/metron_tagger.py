@@ -1,17 +1,15 @@
-#!/usr/bin/env python3
-
 import os
 import sys
 import urllib.parse
 from base64 import standard_b64encode
 
-from comicapi.comicarchive import ComicArchive
-from comicapi.filenameparser import FileNameParser
-from comicapi.utils import get_recursive_filelist, unique_file
-from taggerlib.filerenamer import FileRenamer
-from taggerlib.metrontalker import MetronTalker
-from taggerlib.options import make_parser
-from taggerlib.settings import MetronTaggerSettings
+from metrontagger.comicapi.comicarchive import ComicArchive
+from metrontagger.comicapi.filenameparser import FileNameParser
+from metrontagger.comicapi.utils import get_recursive_filelist, unique_file
+from metrontagger.taggerlib.filerenamer import FileRenamer
+from metrontagger.taggerlib.metrontalker import MetronTalker
+from metrontagger.taggerlib.options import make_parser
+from metrontagger.taggerlib.settings import MetronTaggerSettings
 
 # Load the settings
 SETTINGS = MetronTaggerSettings()
