@@ -94,6 +94,23 @@ def main():
             else:
                 print(f"no metadata in '{os.path.basename(f)}'.")
 
+    if opts.id:
+        if len(file_list) > 1:
+            print("More than one file was passed for Id processing. Exiting...")
+            sys.exit(0)
+
+        auth = f"{SETTINGS.metron_user}:{SETTINGS.metron_pass}"
+        base64string = standard_b64encode(auth.encode("utf-8"))
+        talker = MetronTalker(base64string)
+
+        md = talker.fetchIssueDataByIssueID(opts.id)
+        if md:
+            f = file_list[0]
+            ca = ComicArchive(f)
+            if ca.isWritable():
+                ca.writeMetadata(md, MetaDataStyle.CIX)
+                print(f"match found for '{os.path.basename(f)}'.")
+
     if opts.online:
         print("** Starting online search and tagging **")
 

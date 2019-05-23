@@ -22,6 +22,9 @@ def make_parser():
         default=False,
     )
     parser.add_argument(
+        "--id", help="Identify file for tagging with the Metron Issue Id."
+    )
+    parser.add_argument(
         "-d",
         "--delete",
         help="Delete the metadata tags from the file.",
