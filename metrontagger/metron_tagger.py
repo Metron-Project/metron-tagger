@@ -53,7 +53,6 @@ def get_issue_id(filename, talker):
     search_results_count = search_results["count"]
 
     if not search_results_count > 0:
-        print(f"no match for '{os.path.basename(filename)}'.")
         issue_id = None
     elif search_results_count > 1:
         issue_id = select_choice_from_multiple_matches(filename, search_results)
@@ -110,6 +109,7 @@ def main():
 
             id = get_issue_id(f, talker)
             if not id:
+                print(f"no match for '{os.path.basename(f)}'.")
                 continue
             md = talker.fetchIssueDataByIssueID(id)
             if md:
