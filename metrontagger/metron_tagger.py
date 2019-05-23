@@ -104,7 +104,7 @@ def main():
             md = talker.fetchIssueDataByIssueID(id)
             if md:
                 if ca.isWritable():
-                    ca.writeCIX(md)
+                    ca.writeMetadata(md, MetaDataStyle.CIX)
                     print(f"match found for '{os.path.basename(f)}'.")
 
     if opts.rename:
@@ -115,7 +115,7 @@ def main():
                 print(f"skipping '{os.path.basename(f)}'. No metadata available.")
                 continue
 
-            md = ca.readMetadata(1)
+            md = ca.readMetadata(MetaDataStyle.CIX)
             renamer = FileRenamer(md)
             new_name = renamer.determineName(f)
 
