@@ -1,7 +1,7 @@
 import unittest
 
-from comicapi.genericmetadata import GenericMetadata
-from taggerlib.filerenamer import FileRenamer
+from metrontagger.comicapi.genericmetadata import GenericMetadata
+from metrontagger.taggerlib.filerenamer import FileRenamer
 
 
 class TestFileRenamer(unittest.TestCase):

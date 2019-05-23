@@ -3,9 +3,9 @@ import json
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
-from comicapi.genericmetadata import GenericMetadata
-from comicapi.issuestring import IssueString
-from comicapi.utils import listToString
+from metrontagger.comicapi.genericmetadata import GenericMetadata
+from metrontagger.comicapi.issuestring import IssueString
+from metrontagger.comicapi.utils import listToString
 
 
 class MetronTalker:

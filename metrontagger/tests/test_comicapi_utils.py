@@ -1,6 +1,6 @@
 import unittest
 
-from comicapi.utils import removearticles, listToString
+from metrontagger.comicapi.utils import removearticles, listToString
 
 
 class TestUtils(unittest.TestCase):

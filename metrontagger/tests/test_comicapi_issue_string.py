@@ -1,6 +1,6 @@
 import unittest
 
-from comicapi.issuestring import IssueString
+from metrontagger.comicapi.issuestring import IssueString
 
 
 class TestIssueString(unittest.TestCase):

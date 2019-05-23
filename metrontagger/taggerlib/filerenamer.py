@@ -18,7 +18,7 @@ import datetime
 import os
 import re
 
-from comicapi.issuestring import IssueString
+from metrontagger.comicapi.issuestring import IssueString
 
 
 class FileRenamer:
