@@ -1,8 +1,5 @@
 from setuptools import setup, find_packages
 
-with open("LICENSE") as f:
-    package_license = f.read()
-
 setup(
     name="metron-tagger",
     version="0.1.0",
@@ -10,8 +7,10 @@ setup(
     author="Brian Pepple",
     author_email="bdpepple@gmail.com",
     url="https://github.com/bpepple/metron-tagger",
-    license=package_license,
-    packages=find_packages(exclude=("test", "docs")),
+    license="GPLv3",
+    packages=find_packages(),
+    install_requires=["configparser", "natsort", "pillow"],
+    entry_points={"console_scripts": ["metron-tagger=metrontagger.metron_tagger:main"]},
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Console",
