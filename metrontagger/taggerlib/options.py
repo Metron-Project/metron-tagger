@@ -21,6 +21,12 @@ def make_parser():
         action="store_true",
         default=False,
     )
+    parser.add_argument(
+        "--ignore-existing",
+        help="Ignore files that have existing metadata tag.",
+        action="store_true",
+        default=False,
+    )
     parser.add_argument("-u", "--user", help="Metron user identity")
     parser.add_argument("-p", "--password", help="Metron user identity")
     parser.add_argument(

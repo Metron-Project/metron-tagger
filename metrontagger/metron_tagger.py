@@ -6,7 +6,7 @@ from base64 import standard_b64encode
 # Append sys.path so imports work.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
-from metrontagger.comicapi.comicarchive import ComicArchive
+from metrontagger.comicapi.comicarchive import ComicArchive, MetaDataStyle
 from metrontagger.comicapi.filenameparser import FileNameParser
 from metrontagger.comicapi.utils import get_recursive_filelist, unique_file
 from metrontagger.taggerlib.filerenamer import FileRenamer
@@ -93,12 +93,16 @@ def main():
         talker = MetronTalker(base64string)
 
         for f in file_list:
+            ca = ComicArchive(f)
+            if opts.ignore_existing:
+                if ca.hasMetadata(MetaDataStyle.CIX):
+                    continue
+
             id = get_issue_id(f, talker)
             if not id:
                 continue
             md = talker.fetchIssueDataByIssueID(id)
             if md:
-                ca = ComicArchive(f)
                 if ca.isWritable():
                     ca.writeCIX(md)
                     print(f"match found for '{os.path.basename(f)}'.")
