@@ -1,8 +1,10 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
+
+import metrontagger
 
 setup(
     name="metron-tagger",
-    version="0.1.0",
+    version=metrontagger.version,
     description="A program to write metadata from metron.cloud to a comic archive",
     author="Brian Pepple",
     author_email="bdpepple@gmail.com",

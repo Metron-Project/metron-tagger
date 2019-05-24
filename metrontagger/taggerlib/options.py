@@ -1,5 +1,7 @@
 import argparse
 
+from .. import version
+
 
 def make_parser():
     parser = argparse.ArgumentParser(
@@ -41,6 +43,12 @@ def make_parser():
     parser.add_argument("-p", "--password", help="Metron user identity")
     parser.add_argument(
         "--set-metron-user", help="Save the Metron user settings", action="store_true"
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="%(prog)s {}".format(version),
+        help="Show the version number and exit",
     )
 
     return parser
