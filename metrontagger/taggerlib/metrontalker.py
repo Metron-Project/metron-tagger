@@ -6,12 +6,13 @@ from urllib.request import Request, urlopen
 from metrontagger.comicapi.genericmetadata import GenericMetadata
 from metrontagger.comicapi.issuestring import IssueString
 from metrontagger.comicapi.utils import listToString
+from .. import version
 
 
 class MetronTalker:
     def __init__(self, auth):
         self.api_base_url = "https://metron.cloud/api"
-        self.auth = auth
+        self.auth_str = f"Basic {auth.decode('utf-8')}"
 
     def parseDateStr(self, date_str):
         day = None
@@ -40,7 +41,7 @@ class MetronTalker:
         issue_url = self.api_base_url + f"/issue/{issue_id}/?format=json"
 
         request = Request(issue_url)
-        request.add_header("Authorization", f"Basic {self.auth.decode('utf-8')}")
+        request.add_header("Authorization", self.auth_str)
 
         content = self.getUrlContent(request)
         resp = json.loads(content.decode("utf-8"))
@@ -54,7 +55,7 @@ class MetronTalker:
         url += "&format=json"
 
         request = Request(url)
-        request.add_header("Authorization", f"Basic {self.auth.decode('utf-8')}")
+        request.add_header("Authorization", self.auth_str)
 
         content = self.getUrlContent(request)
         search_results = json.loads(content.decode("utf-8"))
@@ -84,8 +85,8 @@ class MetronTalker:
 
         d = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         metadata.notes = (
-            f"Tagged with MetronTagger using info from Metron.cloud on {d}. "
-            + f"[Issue ID {issue_results['id']}]"
+            f"Tagged with MetronTagger-{version} using info from Metron on {d}. "
+            + f"[issue_id:{issue_results['id']}]"
         )
 
         person_credits = issue_results["credits"]
