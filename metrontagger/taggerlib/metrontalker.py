@@ -42,13 +42,17 @@ class MetronTalker:
                 print(e)
                 print(e.headers)
 
-    def fetchIssueDataByIssueID(self, issue_id):
-        issue_url = self.api_base_url + f"/issue/{issue_id}/?format=json"
-
-        request = Request(issue_url)
+    def create_request(self, url):
+        request = Request(url)
         request.add_header("Authorization", self.auth_str)
         request.add_header("User-Agent", self.user_agent)
 
+        return request
+
+    def fetchIssueDataByIssueID(self, issue_id):
+        url = self.api_base_url + f"/issue/{issue_id}/?format=json"
+
+        request = self.create_request(url)
         content = self.getUrlContent(request)
         resp = json.loads(content.decode("utf-8"))
 
@@ -60,14 +64,11 @@ class MetronTalker:
             url += f"&cover_year={year}"
         url += "&format=json"
 
-        request = Request(url)
-        request.add_header("Authorization", self.auth_str)
-        request.add_header("User-Agent", self.user_agent)
-
+        request = self.create_request(url)
         content = self.getUrlContent(request)
-        search_results = json.loads(content.decode("utf-8"))
+        resp = json.loads(content.decode("utf-8"))
 
-        return search_results
+        return resp
 
     def mapCVDataToMetadata(self, issue_results):
         metadata = GenericMetadata()
