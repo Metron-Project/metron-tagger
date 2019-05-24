@@ -8,14 +8,24 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from metrontagger.comicapi.comicarchive import ComicArchive, MetaDataStyle
 from metrontagger.comicapi.filenameparser import FileNameParser
+from metrontagger.comicapi.genericmetadata import GenericMetadata
 from metrontagger.comicapi.utils import get_recursive_filelist, unique_file
 from metrontagger.taggerlib.filerenamer import FileRenamer
 from metrontagger.taggerlib.metrontalker import MetronTalker
 from metrontagger.taggerlib.options import make_parser
 from metrontagger.taggerlib.settings import MetronTaggerSettings
 
+
 # Load the settings
 SETTINGS = MetronTaggerSettings()
+
+
+def create_pagelist_metadata(ca):
+
+    md = GenericMetadata()
+    md.setDefaultPageList(ca.getNumberOfPages())
+
+    return md
 
 
 def select_choice_from_multiple_matches(filename, match_set):
@@ -103,11 +113,13 @@ def main():
         base64string = standard_b64encode(auth.encode("utf-8"))
         talker = MetronTalker(base64string)
 
-        md = talker.fetchIssueDataByIssueID(opts.id)
-        if md:
-            f = file_list[0]
-            ca = ComicArchive(f)
-            if ca.isWritable():
+        f = file_list[0]
+        ca = ComicArchive(f)
+        if ca.isWritable():
+            md = create_pagelist_metadata(ca)
+            metron_md = talker.fetchIssueDataByIssueID(opts.id)
+            if metron_md:
+                md.overlay(metron_md)
                 ca.writeMetadata(md, MetaDataStyle.CIX)
                 print(f"match found for '{os.path.basename(f)}'.")
 
@@ -124,13 +136,16 @@ def main():
                 if ca.hasMetadata(MetaDataStyle.CIX):
                     continue
 
-            id = get_issue_id(f, talker)
-            if not id:
-                print(f"no match for '{os.path.basename(f)}'.")
-                continue
-            md = talker.fetchIssueDataByIssueID(id)
-            if md:
-                if ca.isWritable():
+            if ca.isWritable():
+                md = create_pagelist_metadata(ca)
+                id = get_issue_id(f, talker)
+                if not id:
+                    print(f"no match for '{os.path.basename(f)}'.")
+                    continue
+
+                metron_md = talker.fetchIssueDataByIssueID(id)
+                if metron_md:
+                    md.overlay(metron_md)
                     ca.writeMetadata(md, MetaDataStyle.CIX)
                     print(f"match found for '{os.path.basename(f)}'.")
 
