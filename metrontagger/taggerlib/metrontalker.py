@@ -32,29 +32,24 @@ class MetronTalker:
                     day = parts[2]
         return day, month, year
 
-    def getUrlContent(self, url):
-        for tries in range(3):
-            try:
-                resp = urlopen(url)
-                return resp.read()
-            except HTTPError as e:
-                print(f"Attempt #{tries} failed.")
-                print(e)
-                print(e.headers)
-
-    def create_request(self, url):
+    def fetch_response(self, url):
         request = Request(url)
         request.add_header("Authorization", self.auth_str)
         request.add_header("User-Agent", self.user_agent)
 
-        return request
+        try:
+            content = urlopen(request)
+        except HTTPError as e:
+            print(e)
+            print(e.headers)
+
+        resp = json.loads(content.read().decode("utf-8"))
+
+        return resp
 
     def fetchIssueDataByIssueID(self, issue_id):
         url = self.api_base_url + f"/issue/{issue_id}/?format=json"
-
-        request = self.create_request(url)
-        content = self.getUrlContent(request)
-        resp = json.loads(content.decode("utf-8"))
+        resp = self.fetch_response(url)
 
         return self.mapCVDataToMetadata(resp)
 
@@ -63,10 +58,7 @@ class MetronTalker:
         if year:
             url += f"&cover_year={year}"
         url += "&format=json"
-
-        request = self.create_request(url)
-        content = self.getUrlContent(request)
-        resp = json.loads(content.decode("utf-8"))
+        resp = self.fetch_response(url)
 
         return resp
 
