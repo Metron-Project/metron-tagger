@@ -32,7 +32,7 @@ class MetronTalker:
                     day = parts[2]
         return day, month, year
 
-    def fetch_response(self, url):
+    def fetchResponse(self, url):
         request = Request(url)
         request.add_header("Authorization", self.auth_str)
         request.add_header("User-Agent", self.user_agent)
@@ -47,22 +47,22 @@ class MetronTalker:
 
         return resp
 
-    def fetch_issue_data_by_issue_id(self, issue_id):
+    def fetchIssueDataByIssueId(self, issue_id):
         url = self.api_base_url + f"/issue/{issue_id}/?format=json"
-        resp = self.fetch_response(url)
+        resp = self.fetchResponse(url)
 
-        return self.map_metron_data_to_metadata(resp)
+        return self.mapMetronDataToMetadata(resp)
 
-    def search_for_issue(self, series, num, year):
+    def searchForIssue(self, series, num, year):
         url = self.api_base_url + f"/issue/?series_name={series}&number={num}"
         if year:
             url += f"&cover_year={year}"
         url += "&format=json"
-        resp = self.fetch_response(url)
+        resp = self.fetchResponse(url)
 
         return resp
 
-    def map_metron_data_to_metadata(self, issue_results):
+    def mapMetronDataToMetadata(self, issue_results):
         metadata = GenericMetadata()
 
         metadata.series = issue_results["series"]

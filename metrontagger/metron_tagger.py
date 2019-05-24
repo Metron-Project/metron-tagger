@@ -20,7 +20,7 @@ from metrontagger.taggerlib.settings import MetronTaggerSettings
 SETTINGS = MetronTaggerSettings()
 
 
-def create_pagelist_metadata(ca):
+def createPagelistMetadata(ca):
 
     md = GenericMetadata()
     md.setDefaultPageList(ca.getNumberOfPages())
@@ -28,7 +28,7 @@ def create_pagelist_metadata(ca):
     return md
 
 
-def select_choice_from_multiple_matches(filename, match_set):
+def selectChoiceFromMultipleMatches(filename, match_set):
     print(f"{os.path.basename(filename)} - Multiple results found")
 
     for (counter, m) in enumerate(match_set["results"]):
@@ -49,7 +49,7 @@ def select_choice_from_multiple_matches(filename, match_set):
     return issue_id
 
 
-def get_issue_id(filename, talker):
+def getIssueId(filename, talker):
 
     fnp = FileNameParser()
     fnp.parseFilename(filename)
@@ -58,13 +58,13 @@ def get_issue_id(filename, talker):
     series_string = " ".join(series_word_list).strip()
     series_string = urllib.parse.quote_plus(series_string.encode("utf-8"))
 
-    search_results = talker.search_for_issue(series_string, fnp.issue, fnp.year)
+    search_results = talker.searchForIssue(series_string, fnp.issue, fnp.year)
     search_results_count = search_results["count"]
 
     if not search_results_count > 0:
         issue_id = None
     elif search_results_count > 1:
-        issue_id = select_choice_from_multiple_matches(filename, search_results)
+        issue_id = selectChoiceFromMultipleMatches(filename, search_results)
     elif search_results_count == 1:
         issue_id = search_results["results"][0]["id"]
 
@@ -115,8 +115,8 @@ def main():
         f = file_list[0]
         ca = ComicArchive(f)
         if ca.isWritable():
-            md = create_pagelist_metadata(ca)
-            metron_md = talker.fetch_issue_data_by_issue_id(opts.id)
+            md = createPagelistMetadata(ca)
+            metron_md = talker.fetchIssueDataByIssueId(opts.id)
             if metron_md:
                 md.overlay(metron_md)
                 ca.writeMetadata(md, MetaDataStyle.CIX)
@@ -136,13 +136,13 @@ def main():
                     continue
 
             if ca.isWritable():
-                md = create_pagelist_metadata(ca)
-                id = get_issue_id(f, talker)
+                md = createPagelistMetadata(ca)
+                id = getIssueId(f, talker)
                 if not id:
                     print(f"no match for '{os.path.basename(f)}'.")
                     continue
 
-                metron_md = talker.fetch_issue_data_by_issue_id(id)
+                metron_md = talker.fetchIssueDataByIssueId(id)
                 if metron_md:
                     md.overlay(metron_md)
                     ca.writeMetadata(md, MetaDataStyle.CIX)
