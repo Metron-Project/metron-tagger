@@ -1,11 +1,13 @@
-from datetime import datetime
 import json
+import platform
+from datetime import datetime
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from metrontagger.comicapi.genericmetadata import GenericMetadata
 from metrontagger.comicapi.issuestring import IssueString
 from metrontagger.comicapi.utils import listToString
+
 from .. import version
 
 
@@ -13,6 +15,9 @@ class MetronTalker:
     def __init__(self, auth):
         self.api_base_url = "https://metron.cloud/api"
         self.auth_str = f"Basic {auth.decode('utf-8')}"
+        self.user_agent = (
+            f"Metron-Tagger/{version} ({platform.system()}; {platform.release()})"
+        )
 
     def parseDateStr(self, date_str):
         day = None
@@ -42,6 +47,7 @@ class MetronTalker:
 
         request = Request(issue_url)
         request.add_header("Authorization", self.auth_str)
+        request.add_header("User-Agent", self.user_agent)
 
         content = self.getUrlContent(request)
         resp = json.loads(content.decode("utf-8"))
@@ -56,6 +62,7 @@ class MetronTalker:
 
         request = Request(url)
         request.add_header("Authorization", self.auth_str)
+        request.add_header("User-Agent", self.user_agent)
 
         content = self.getUrlContent(request)
         search_results = json.loads(content.decode("utf-8"))
