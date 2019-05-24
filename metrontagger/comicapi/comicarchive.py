@@ -615,7 +615,7 @@ class ComicArchive:
                         data = self.getPage(idx)
                         if data is not None:
                             try:
-                                im = Image.open(io.StringIO(data))
+                                im = Image.open(io.BytesIO(data))
                                 w, h = im.size
 
                                 p["ImageSize"] = str(len(data))
