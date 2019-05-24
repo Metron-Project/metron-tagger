@@ -58,8 +58,7 @@ def get_issue_id(filename, talker):
     series_string = " ".join(series_word_list).strip()
     series_string = urllib.parse.quote_plus(series_string.encode("utf-8"))
 
-    search_results = talker.searchForIssue(series_string, fnp.issue, fnp.year)
-
+    search_results = talker.search_for_issue(series_string, fnp.issue, fnp.year)
     search_results_count = search_results["count"]
 
     if not search_results_count > 0:
@@ -117,7 +116,7 @@ def main():
         ca = ComicArchive(f)
         if ca.isWritable():
             md = create_pagelist_metadata(ca)
-            metron_md = talker.fetchIssueDataByIssueID(opts.id)
+            metron_md = talker.fetch_issue_data_by_issue_id(opts.id)
             if metron_md:
                 md.overlay(metron_md)
                 ca.writeMetadata(md, MetaDataStyle.CIX)
@@ -143,7 +142,7 @@ def main():
                     print(f"no match for '{os.path.basename(f)}'.")
                     continue
 
-                metron_md = talker.fetchIssueDataByIssueID(id)
+                metron_md = talker.fetch_issue_data_by_issue_id(id)
                 if metron_md:
                     md.overlay(metron_md)
                     ca.writeMetadata(md, MetaDataStyle.CIX)

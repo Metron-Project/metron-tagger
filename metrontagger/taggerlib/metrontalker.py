@@ -47,13 +47,13 @@ class MetronTalker:
 
         return resp
 
-    def fetchIssueDataByIssueID(self, issue_id):
+    def fetch_issue_data_by_issue_id(self, issue_id):
         url = self.api_base_url + f"/issue/{issue_id}/?format=json"
         resp = self.fetch_response(url)
 
-        return self.mapCVDataToMetadata(resp)
+        return self.map_metron_data_to_metadata(resp)
 
-    def searchForIssue(self, series, num, year):
+    def search_for_issue(self, series, num, year):
         url = self.api_base_url + f"/issue/?series_name={series}&number={num}"
         if year:
             url += f"&cover_year={year}"
@@ -62,7 +62,7 @@ class MetronTalker:
 
         return resp
 
-    def mapCVDataToMetadata(self, issue_results):
+    def map_metron_data_to_metadata(self, issue_results):
         metadata = GenericMetadata()
 
         metadata.series = issue_results["series"]
