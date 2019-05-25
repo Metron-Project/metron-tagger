@@ -1,6 +1,8 @@
 Metron-Tagger
 =============
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/e2b6caca439a4684a96b01844ced5207)](https://app.codacy.com/app/bpepple/metron-tagger?utm_source=github.com&utm_medium=referral&utm_content=bpepple/metron-tagger&utm_campaign=Badge_Grade_Dashboard)
+
 Quick Description
 -----------------
 A command-line tool to tag comic archives with metadata from [metron.cloud](https://metron.cloud).
