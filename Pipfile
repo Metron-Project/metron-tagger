@@ -9,6 +9,7 @@ verify_ssl = true
 configparser = "*"
 natsort = "*"
 pillow = "*"
+ratelimit = "*"
 
 [requires]
 python_version = "3.7"
