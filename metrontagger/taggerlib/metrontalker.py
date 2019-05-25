@@ -5,11 +5,15 @@ from datetime import datetime
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from ratelimit import limits, sleep_and_retry
+
 from metrontagger.comicapi.genericmetadata import GenericMetadata
 from metrontagger.comicapi.issuestring import IssueString
 from metrontagger.comicapi.utils import listToString
 
 from .. import version
+
+ONE_MINUTE = 60
 
 
 class MetronTalker:
@@ -33,6 +37,8 @@ class MetronTalker:
                     day = parts[2]
         return day, month, year
 
+    @sleep_and_retry
+    @limits(calls=20, period=ONE_MINUTE)
     def fetchResponse(self, url):
         request = Request(url)
         request.add_header("Authorization", self.auth_str)
