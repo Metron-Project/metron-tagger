@@ -5,6 +5,10 @@ Quick Description
 -----------------
 A command-line tool to tag comic archives with metadata from [metron.cloud](https://metron.cloud).
 
+Installation
+------------
+* Coming soon...
+
 FAQ
 ---
 1. **Why no cbr (rar) support?**
