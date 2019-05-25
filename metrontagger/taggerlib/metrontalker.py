@@ -1,5 +1,6 @@
 import json
 import platform
+import time
 from datetime import datetime
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -40,8 +41,12 @@ class MetronTalker:
         try:
             content = urlopen(request)
         except HTTPError as e:
-            print(e)
-            print(e.headers)
+            # TODO: Look into handling throttling better, but for now let's use this.
+            if e.code == 429:
+                print("Exceeded api rate limit. Sleeping for 30 seconds...")
+                time.sleep(30)
+                return self.fetchResponse(url)
+            raise
 
         resp = json.loads(content.read().decode("utf-8"))
 
