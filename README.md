@@ -1,5 +1,6 @@
 Metron-Tagger
 =============
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/eed1b6534cbf46ee9184dfe26e994d46)](https://www.codacy.com/app/bpepple/metron-tagger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=bpepple/metron-tagger&amp;utm_campaign=Badge_Grade)
 
 Quick Description
 -----------------
