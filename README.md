@@ -1,4 +1,47 @@
-# Note: This is currently under heavy development, so users shouldn't use it just yet.
+Metron-Tagger
+=============
 
-## Information
-Metron-Tagger is a command-line tool to tag comic archives with metadata from [metron.cloud](https://metron.cloud)
+Quick Description
+-----------------
+A command-line tool to tag comic archives with metadata from [metron.cloud](https://metron.cloud).
+
+FAQ
+---
+1. **Why no cbr (rar) support?**
+
+   * I'm not aware of any provider (Comixology, Humble Bundle, DriveThru Comics, etc.) of legally downloadable DRM-free comics that use the rar format.
+   * It's a non-free software file format.
+   * It is trivial to convert to cbz (zip) format.
+   
+Help
+----
+```
+usage: metron_tagger.py [-h] [-r] [-o] [--id ID] [-d] [--ignore-existing]
+                        [--missing] [-u USER] [-p PASSWORD]
+                        [--set-metron-user] [--version]
+                        path [path ...]
+
+Read in a file or set of files, and return the result.
+
+positional arguments:
+  path                  Path of a file or a folder of files.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -r, --rename          Rename comic archive. (default: False)
+  -o, --online          Search online and attempt to identify comic archive.
+                        (default: False)
+  --id ID               Identify file for tagging with the Metron Issue Id.
+                        (default: None)
+  -d, --delete          Delete the metadata tags from the file. (default:
+                        False)
+  --ignore-existing     Ignore files that have existing metadata tag.
+                        (default: False)
+  --missing             List files without metadata. (default: False)
+  -u USER, --user USER  Metron user identity (default: None)
+  -p PASSWORD, --password PASSWORD
+                        Metron user identity (default: None)
+  --set-metron-user     Save the Metron user settings (default: False)
+  --version             Show the version number and exit
+
+```
