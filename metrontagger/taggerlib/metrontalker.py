@@ -24,6 +24,7 @@ class MetronTalker:
             f"Metron-Tagger/{version} ({platform.system()}; {platform.release()})"
         )
 
+    @classmethod
     def parseDateStr(self, date_str):
         day = None
         month = None
