@@ -95,7 +95,7 @@ def main():
 
     if opts.missing:
         print("** Showing files without metadata **")
-        for f in sorted(file_list):
+        for f in file_list:
             ca = ComicArchive(f)
             if ca.hasMetadata(MetaDataStyle.CIX):
                 continue

@@ -43,6 +43,9 @@ def get_recursive_filelist(pathlist):
         else:
             filelist.append(p)
 
+        # Sort the list before returning it
+        filelist.sort()
+
     return filelist
 
 
