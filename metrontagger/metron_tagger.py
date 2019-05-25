@@ -93,6 +93,14 @@ def main():
         print("No files to process. Exiting.")
         sys.exit(0)
 
+    if opts.missing:
+        print("** Showing files without metadata **")
+        for f in sorted(file_list):
+            ca = ComicArchive(f)
+            if ca.hasMetadata(MetaDataStyle.CIX):
+                continue
+            print(f"no metadata in '{os.path.basename(f)}'")
+
     if opts.delete:
         print("** Removing metadata **")
         for f in file_list:

@@ -39,6 +39,12 @@ def make_parser():
         action="store_true",
         default=False,
     )
+    parser.add_argument(
+        "--missing",
+        help="List files without metadata.",
+        action="store_true",
+        default=False,
+    )
     parser.add_argument("-u", "--user", help="Metron user identity")
     parser.add_argument("-p", "--password", help="Metron user identity")
     parser.add_argument(
