@@ -246,21 +246,27 @@ class UnknownArchiver:
     def __init__(self, path):
         self.path = path
 
+    @classmethod
     def getArchiveComment(self):
         return ""
 
+    @classmethod
     def setArchiveComment(self, comment):
         return False
 
+    @classmethod
     def readArchiveFile(self):
         return ""
 
+    @classmethod
     def writeArchiveFile(self, archive_file, data):
         return False
 
+    @classmethod
     def removeArchiveFile(self, archive_file):
         return False
 
+    @classmethod
     def getArchiveFilenameList(self):
         return []
 
