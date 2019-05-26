@@ -148,7 +148,8 @@ class ZipArchiver:
         os.remove(self.path)
         os.rename(tmp_name, self.path)
 
-    def writeZipComment(self, filename, comment):
+    @classmethod
+    def writeZipComment(cls, filename, comment):
         """
         This is a custom function for writing a comment to a zip file,
         since the built-in one doesn't seem to work on Windows and Mac OS/X
