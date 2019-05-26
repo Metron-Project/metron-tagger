@@ -195,7 +195,8 @@ class ComicInfoXml:
         tree = ET.ElementTree(root)
         return tree
 
-    def convertXMLToMetadata(self, tree):
+    @classmethod
+    def convertXMLToMetadata(cls, tree):
 
         root = tree.getroot()
 
