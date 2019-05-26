@@ -4,7 +4,7 @@ import os
 from metrontagger.comicapi.filenameparser import FileNameParser as fn
 
 
-class TestIssueString(unittest.TestCase):
+class TestFileNameParser(unittest.TestCase):
     def setUp(self):
         self.comic = "Afterlife_With_Archie_V1_#002_(of_08)_(2013)"
         self.fnp = fn()
