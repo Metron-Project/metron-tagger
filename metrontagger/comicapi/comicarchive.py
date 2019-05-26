@@ -208,7 +208,7 @@ class ZipArchiver:
                 fo.close()
             else:
                 raise Exception("Failed to write comment to zip file!")
-        except Exception as e:
+        except Exception:
             return False
         else:
             return True
