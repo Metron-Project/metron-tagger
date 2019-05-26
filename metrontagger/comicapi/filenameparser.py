@@ -26,7 +26,8 @@ from urllib.parse import unquote
 
 
 class FileNameParser:
-    def repl(self, m):
+    @staticmethod
+    def repl(m):
         return " " * len(m.group())
 
     def fixSpaces(self, string, remove_dashes=True):
@@ -208,7 +209,8 @@ class FileNameParser:
 
         return series, volume.strip()
 
-    def getYear(self, filename, issue_end):
+    @staticmethod
+    def getYear(filename, issue_end):
 
         filename = filename[issue_end:]
 
