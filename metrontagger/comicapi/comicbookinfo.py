@@ -21,7 +21,8 @@ from .genericmetadata import GenericMetadata
 
 
 class ComicBookInfo:
-    def metadataFromString(self, string):
+    @classmethod
+    def metadataFromString(cls, string):
 
         cbi_container = json.loads(str(string, "utf-8"))
 
@@ -68,7 +69,8 @@ class ComicBookInfo:
         cbi_container = self.createJSONDictionary(metadata)
         return json.dumps(cbi_container)
 
-    def validateString(self, string):
+    @classmethod
+    def validateString(cls, string):
         """Verify that the string actually contains CBI data in JSON format"""
 
         try:
@@ -78,7 +80,8 @@ class ComicBookInfo:
 
         return "ComicBookInfo/1.0" in cbi_container
 
-    def createJSONDictionary(self, metadata):
+    @classmethod
+    def createJSONDictionary(cls, metadata):
         """Create the dictionary that we will convert to JSON text"""
 
         cbi = dict()
