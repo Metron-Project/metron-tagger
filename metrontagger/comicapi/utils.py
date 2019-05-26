@@ -58,20 +58,6 @@ def listToString(l):
     return string
 
 
-def addtopath(dirname):
-    if dirname is not None and dirname != "":
-
-        # verify that path doesn't already contain the given dirname
-        tmpdirname = re.escape(dirname)
-        pattern = r"{sep}{dir}$|^{dir}{sep}|{sep}{dir}{sep}|^{dir}$".format(
-            dir=tmpdirname, sep=os.pathsep
-        )
-
-        match = re.search(pattern, os.environ["PATH"])
-        if not match:
-            os.environ["PATH"] = dirname + os.pathsep + os.environ["PATH"]
-
-
 def removearticles(text):
     text = text.lower()
     articles = ["and", "a", "&", "issue", "the"]
