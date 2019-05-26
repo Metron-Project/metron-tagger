@@ -145,12 +145,12 @@ def main():
 
             if ca.isWritable():
                 md = createPagelistMetadata(ca)
-                id = getIssueId(f, talker)
-                if not id:
+                issue_id = getIssueId(f, talker)
+                if not issue_id:
                     print(f"no match for '{os.path.basename(f)}'.")
                     continue
 
-                metron_md = talker.fetchIssueDataByIssueId(id)
+                metron_md = talker.fetchIssueDataByIssueId(issue_id)
                 if metron_md:
                     md.overlay(metron_md)
                     ca.writeMetadata(md, MetaDataStyle.CIX)
