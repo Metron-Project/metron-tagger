@@ -43,18 +43,6 @@ class PageType:
     Deleted = "Deleted"
 
 
-"""
-class PageInfo:
-    Image = 0
-    Type = PageType.Story
-    DoublePage = False
-    ImageSize = 0
-    Key = ""
-    ImageWidth = 0
-    ImageHeight = 0
-"""
-
-
 class GenericMetadata:
     def __init__(self):
 
@@ -257,7 +245,6 @@ class GenericMetadata:
                 vals.append((tag, val))
 
         def add_attr_string(tag):
-            val = getattr(self, tag)
             add_string(tag, getattr(self, tag))
 
         add_attr_string("series")
