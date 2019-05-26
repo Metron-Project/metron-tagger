@@ -17,7 +17,6 @@
 
 import os
 import re
-import sys
 
 
 def get_recursive_filelist(pathlist):
