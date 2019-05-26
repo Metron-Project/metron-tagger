@@ -127,4 +127,4 @@ class ComicBookInfo:
 
         f = open(filename, "w")
         f.write(json.dumps(cbi_container, indent=4))
-        f.close
+        f.close()
