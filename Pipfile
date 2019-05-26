@@ -5,6 +5,8 @@ verify_ssl = true
 
 [dev-packages]
 coverage = "*"
+pytest = "*"
+pytest-cov = "*"
 
 [packages]
 configparser = "*"
