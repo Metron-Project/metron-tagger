@@ -16,7 +16,6 @@
 # limitations under the License.
 
 import os
-import re
 
 
 def get_recursive_filelist(pathlist):
