@@ -173,7 +173,7 @@ class FileNameParser:
         # save the last word
         try:
             last_word = series.split()[-1]
-        except:
+        except ValueError:
             last_word = ""
 
         # remove any parenthetical phrases
