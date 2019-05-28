@@ -204,7 +204,7 @@ class FileNameParser:
                 last_word = series.split()[-1]
                 if last_word.lower() in one_shot_words:
                     series = series.rsplit(" ", 1)[0]
-            except:
+            except ValueError:
                 pass
 
         return series, volume.strip()
