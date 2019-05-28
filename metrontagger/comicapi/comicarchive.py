@@ -103,7 +103,8 @@ class ZipArchiver:
             zf.writestr(archive_file, data)
             zf.close()
             return True
-        except:
+        except (zipfile.BadZipfile, zipfile.LargeZipFile) as e:
+            print(f"Error writing zipfile: {e}.")
             return False
 
     def getArchiveFilenameList(self):
