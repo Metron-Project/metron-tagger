@@ -84,7 +84,7 @@ class ZipArchiver:
     def removeArchiveFile(self, archive_file):
         try:
             self.rebuildZipFile([archive_file])
-        except:
+        except zipfile.BadZipfile:
             return False
         else:
             return True
