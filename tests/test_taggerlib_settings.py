@@ -22,6 +22,5 @@ class TestSettings(unittest.TestCase):
 
         # Now load that file and verify the contents
         new_config = MetronTaggerSettings(config_dir=self.tmp_dir.name)
-        new_config.load()
         self.assertEqual(new_config.metron_user, user)
         self.assertEqual(new_config.metron_pass, passwd)
