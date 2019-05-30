@@ -13,7 +13,7 @@ class TestSettings(unittest.TestCase):
 
     def test_settings(self):
         user = "test"
-        passwd = "test_passwd"
+        passwd = "dummy_value"
         # Save a test config file
         config = MetronTaggerSettings(config_dir=self.tmp_dir.name)
         config.metron_user = user
