@@ -19,13 +19,13 @@ class MetronTaggerSettings:
         self.metron_user = ""
         self.metron_pass = ""
 
-    def __init__(self):
+    def __init__(self, config_dir=None):
         self.settings_file = ""
         self.folder = ""
         self.setDefaultValues()
 
         self.config = configparser.ConfigParser()
-        self.folder = MetronTaggerSettings.getSettingsFolder()
+        self.folder = config_dir or MetronTaggerSettings.getSettingsFolder()
 
         if not os.path.exists(self.folder):
             os.makedirs(self.folder)
