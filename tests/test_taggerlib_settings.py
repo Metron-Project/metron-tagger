@@ -13,14 +13,14 @@ class TestSettings(unittest.TestCase):
 
     def test_settings(self):
         user = "test"
-        passwd = "dummy_value"
+        dummy = "dummy_value"
         # Save a test config file
         config = MetronTaggerSettings(config_dir=self.tmp_dir.name)
         config.metron_user = user
-        config.metron_pass = passwd
+        config.metron_pass = dummy
         config.save()
 
         # Now load that file and verify the contents
         new_config = MetronTaggerSettings(config_dir=self.tmp_dir.name)
         self.assertEqual(new_config.metron_user, user)
-        self.assertEqual(new_config.metron_pass, passwd)
+        self.assertEqual(new_config.metron_pass, dummy)
