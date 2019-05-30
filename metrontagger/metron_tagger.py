@@ -45,7 +45,9 @@ def selectChoiceFromMultipleMatches(filename, match_set):
 
     while True:
         i = input("Choose a match #, or 's' to skip: ")
-        if (i.isdigit() and int(i) in range(1, len(match_set) + 1)) or i == "s":
+        if (
+            i.isdigit() and int(i) in range(1, len(match_set["results"]) + 1)
+        ) or i == "s":
             break
 
     if i != "s":
