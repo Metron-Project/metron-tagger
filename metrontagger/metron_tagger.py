@@ -20,6 +20,14 @@ from metrontagger.taggerlib.settings import MetronTaggerSettings
 SETTINGS = MetronTaggerSettings()
 
 
+def create_metron_talker():
+    auth = f"{SETTINGS.metron_user}:{SETTINGS.metron_pass}"
+    base64string = standard_b64encode(auth.encode("utf-8"))
+    talker = MetronTalker(base64string)
+
+    return talker
+
+
 def createPagelistMetadata(ca):
 
     md = GenericMetadata()
@@ -116,14 +124,11 @@ def main():
             print("More than one file was passed for Id processing. Exiting...")
             sys.exit(0)
 
-        auth = f"{SETTINGS.metron_user}:{SETTINGS.metron_pass}"
-        base64string = standard_b64encode(auth.encode("utf-8"))
-        talker = MetronTalker(base64string)
-
         f = file_list[0]
         ca = ComicArchive(f)
         if ca.isWritable():
             md = createPagelistMetadata(ca)
+            talker = create_metron_talker()
             metron_md = talker.fetchIssueDataByIssueId(opts.id)
             if metron_md:
                 md.overlay(metron_md)
@@ -133,9 +138,7 @@ def main():
     if opts.online:
         print("** Starting online search and tagging **")
 
-        auth = f"{SETTINGS.metron_user}:{SETTINGS.metron_pass}"
-        base64string = standard_b64encode(auth.encode("utf-8"))
-        talker = MetronTalker(base64string)
+        talker = create_metron_talker()
 
         for f in file_list:
             ca = ComicArchive(f)
