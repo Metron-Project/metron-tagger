@@ -6,6 +6,8 @@ setup(
     name="metron-tagger",
     version=metrontagger.version,
     description="A program to write metadata from metron.cloud to a comic archive",
+    long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
     author="Brian Pepple",
     author_email="bdpepple@gmail.com",
     url="https://github.com/bpepple/metron-tagger",
