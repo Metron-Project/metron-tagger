@@ -34,7 +34,8 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  -r, --rename          Rename comic archive. (default: False)
+  -r, --rename          Rename comic archive from the files metadata.
+                        (default: False)
   -o, --online          Search online and attempt to identify comic archive.
                         (default: False)
   --id ID               Identify file for tagging with the Metron Issue Id.
@@ -49,5 +50,4 @@ optional arguments:
                         Metron user identity (default: None)
   --set-metron-user     Save the Metron user settings (default: False)
   --version             Show the version number and exit
-
 ```
