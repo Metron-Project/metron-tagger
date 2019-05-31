@@ -14,7 +14,7 @@ A command-line tool to tag comic archives with metadata from [metron.cloud](http
   Install it yourself:
 
   ```
-    $ pip install metron-tagger
+    $ pip3 install --user metron-tagger
   ```
     
 - GitHub
