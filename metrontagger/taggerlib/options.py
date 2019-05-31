@@ -46,7 +46,7 @@ def make_parser():
         default=False,
     )
     parser.add_argument("-u", "--user", help="Metron user identity")
-    parser.add_argument("-p", "--password", help="Metron user identity")
+    parser.add_argument("-p", "--password", help="Metron user password")
     parser.add_argument(
         "--set-metron-user", help="Save the Metron user settings", action="store_true"
     )
