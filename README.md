@@ -63,7 +63,7 @@ optional arguments:
   --missing             List files without metadata. (default: False)
   -u USER, --user USER  Metron user identity (default: None)
   -p PASSWORD, --password PASSWORD
-                        Metron user identity (default: None)
+                        Metron user password (default: None)
   --set-metron-user     Save the Metron user settings (default: False)
   --version             Show the version number and exit
 ```
