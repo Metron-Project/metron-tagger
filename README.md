@@ -1,26 +1,42 @@
-Metron-Tagger
-=============
+## Metron-Tagger
+
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/e2b6caca439a4684a96b01844ced5207)](https://app.codacy.com/app/bpepple/metron-tagger?utm_source=github.com&utm_medium=referral&utm_content=bpepple/metron-tagger&utm_campaign=Badge_Grade_Dashboard)
 [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/eed1b6534cbf46ee9184dfe26e994d46)](https://www.codacy.com/app/bpepple/metron-tagger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=bpepple/metron-tagger&amp;utm_campaign=Badge_Coverage)
 
-Quick Description
------------------
+### Quick Description
+
 A command-line tool to tag comic archives with metadata from [metron.cloud](https://metron.cloud).
 
-Installation
-------------
-* Coming soon...
+### Installation
 
-FAQ
----
+- PyPi
+
+  Install it yourself:
+
+  ```
+    $ pip install metron-tagger
+  ```
+    
+- GitHub
+
+  Installing the latest version from Github:
+  ```
+    $ git clone https://github.com/bpepple/metron-tagger.git
+    $ cd metron-tagger
+    $ python3 setup.py install
+  ```
+
+
+### FAQ
+
 1. **Why no cbr (rar) support?**
 
    * I'm not aware of any provider (Comixology, Humble Bundle, DriveThru Comics, etc.) of legally downloadable DRM-free comics that use the rar format.
    * It's a non-free software file format.
    * It is trivial to convert to cbz (zip) format.
    
-Help
-----
+### Help
+
 ```
 usage: metron_tagger.py [-h] [-r] [-o] [--id ID] [-d] [--ignore-existing]
                         [--missing] [-u USER] [-p PASSWORD]
