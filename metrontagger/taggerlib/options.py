@@ -12,7 +12,7 @@ def make_parser():
     parser.add_argument(
         "-r",
         "--rename",
-        help="Rename comic archive.",
+        help="Rename comic archive from the files metadata.",
         action="store_true",
         default=False,
     )
