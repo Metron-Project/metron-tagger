@@ -39,20 +39,21 @@ def createPagelistMetadata(ca):
 def selectChoiceFromMultipleMatches(filename, match_set):
     print(f"{os.path.basename(filename)} - Multiple results found")
 
-    for (counter, m) in enumerate(match_set["results"]):
+    # sort match list by cover date
+    match_set = sorted(match_set, key=lambda m: m["cover_date"])
+
+    for (counter, m) in enumerate(match_set):
         counter += 1
         print(f"{counter}. {m['__str__']} ({m['cover_date']})")
 
     while True:
         i = input("Choose a match #, or 's' to skip: ")
-        if (
-            i.isdigit() and int(i) in range(1, len(match_set["results"]) + 1)
-        ) or i == "s":
+        if (i.isdigit() and int(i) in range(1, len(match_set) + 1)) or i == "s":
             break
 
     if i != "s":
         i = int(i) - 1
-        issue_id = match_set["results"][i]["id"]
+        issue_id = match_set[i]["id"]
     else:
         issue_id = None
 
@@ -74,7 +75,7 @@ def getIssueId(filename, talker):
     if not search_results_count > 0:
         issue_id = None
     elif search_results_count > 1:
-        issue_id = selectChoiceFromMultipleMatches(filename, search_results)
+        issue_id = selectChoiceFromMultipleMatches(filename, search_results["results"])
     elif search_results_count == 1:
         issue_id = search_results["results"][0]["id"]
 
