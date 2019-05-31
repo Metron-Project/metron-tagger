@@ -25,6 +25,11 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Topic :: Utilities",
         "Topic :: Other/Nonlisted Topic",
+        "Operating System :: MacOS :: MacOS X",
+        "Operating System :: POSIX",
+        "Operating System :: POSIX :: BSD",
+        "Operating System :: POSIX :: Linux",
+        "Operating System :: Microsoft :: Windows",
     ],
     keywords=["comics", "comic", "metadata", "tagging", "tagger"],
 )
