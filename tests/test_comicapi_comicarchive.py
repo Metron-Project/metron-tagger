@@ -92,3 +92,9 @@ class TestComicArchive(unittest.TestCase):
         self.assertEqual(test_md.issue, "1")
         self.assertEqual(test_md.year, "1994")
 
+    def test_archive_apply_file_info_to_metadata(self):
+        test_md = GenericMetadata()
+        self.ca.applyArchiveInfoToMetadata(test_md)
+        # TODO: Need to test calculate page sizes
+        self.assertEqual(test_md.pageCount, 3)
+
