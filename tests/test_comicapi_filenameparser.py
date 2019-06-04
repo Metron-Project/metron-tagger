@@ -9,6 +9,14 @@ class TestFileNameParser(unittest.TestCase):
         self.comic = "Afterlife_With_Archie_V1_#002_(of_08)_(2013)"
         self.fnp = fn()
 
+    def test_special_format(self):
+        comic = "Aquaman TPB (1994)"
+        _, issue_start, _ = self.fnp.getIssueNumber(comic)
+        series, volume = self.fnp.getSeriesName(comic, issue_start)
+        self.assertEqual(issue_start, 0)
+        self.assertEqual(series, "Aquaman")
+        self.assertEqual(volume, "1994")
+
     def test_get_issue_number(self):
         """Returns a tuple of issue number string, and start and end indexes in the filename"""
         issue, issue_start, issue_end = self.fnp.getIssueNumber(self.comic)
