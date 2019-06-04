@@ -25,7 +25,7 @@ class TestComicArchive(unittest.TestCase):
         )
         img_3.write(b"yet more data")
 
-        self.zipfile = os.path.join(self.tmp_archive_dir.name, "comic")
+        self.zipfile = os.path.join(self.tmp_archive_dir.name, "Aquaman #1 (1994)")
 
         # Create zipfile
         open(make_archive(self.zipfile, "zip", self.tmp_image_dir.name), "rb").read()
@@ -85,4 +85,10 @@ class TestComicArchive(unittest.TestCase):
         # Get page 2
         img = self.ca.getPage(1)
         self.assertIsNotNone(img)
+
+    def test_archive_metadata_from_filename(self):
+        test_md = self.ca.metadataFromFilename()
+        self.assertEqual(test_md.series, "Aquaman")
+        self.assertEqual(test_md.issue, "1")
+        self.assertEqual(test_md.year, "1994")
 
