@@ -51,18 +51,6 @@ class ZipArchiver:
     def __init__(self, path):
         self.path = path
 
-    def getArchiveComment(self):
-        zf = zipfile.ZipFile(self.path, "r")
-        comment = zf.comment
-        zf.close()
-        return comment
-
-    def setArchiveComment(self, comment):
-        zf = zipfile.ZipFile(self.path, "a")
-        zf.comment = bytes(comment, "utf-8")
-        zf.close()
-        return True
-
     def readArchiveFile(self, archive_file):
         data = ""
         zf = zipfile.ZipFile(self.path, "r")
@@ -137,81 +125,12 @@ class ZipArchiver:
             if item.filename not in exclude_list:
                 zout.writestr(item, buffer)
 
-        # preserve the old comment
-        zout.comment = zin.comment
-
         zout.close()
         zin.close()
 
         # replace with the new file
         os.remove(self.path)
         os.rename(tmp_name, self.path)
-
-    @classmethod
-    def writeZipComment(cls, filename, comment):
-        """
-        This is a custom function for writing a comment to a zip file,
-        since the built-in one doesn't seem to work on Windows and Mac OS/X
-
-        Fortunately, the zip comment is at the end of the file, and it's
-        easy to manipulate.  See this website for more info:
-        see: http://en.wikipedia.org/wiki/Zip_(file_format)#Structure
-        """
-
-        # get file size
-        statinfo = os.stat(filename)
-        file_length = statinfo.st_size
-
-        try:
-            fo = open(filename, "r+b")
-
-            # the starting position, relative to EOF
-            pos = -4
-
-            found = False
-            value = bytearray()
-
-            # walk backwards to find the "End of Central Directory" record
-            while (not found) and (-pos != file_length):
-                # seek, relative to EOF
-                fo.seek(pos, 2)
-
-                value = fo.read(4)
-
-                # look for the end of central directory signature
-                if bytearray(value) == bytearray([0x50, 0x4B, 0x05, 0x06]):
-                    found = True
-                else:
-                    # not found, step back another byte
-                    pos = pos - 1
-                # print pos,"{1} int: {0:x}".format(bytearray(value)[0], value)
-
-            if found:
-
-                # now skip forward 20 bytes to the comment length word
-                pos += 20
-                fo.seek(pos, 2)
-
-                # Pack the length of the comment string
-                format_h = "H"  # one 2-byte integer
-                comment_length = struct.pack(
-                    format_h, len(comment)
-                )  # pack integer in a binary string
-
-                # write out the length
-                fo.write(comment_length)
-                fo.seek(pos + 2, 2)
-
-                # write out the comment itself
-                fo.write(bytes(comment))
-                fo.truncate()
-                fo.close()
-            else:
-                raise Exception("Failed to write comment to zip file!")
-        except Exception:
-            return False
-        else:
-            return True
 
     def copyFromArchive(self, otherArchive):
         """Replace the current zip with one copied from another archive"""
@@ -223,12 +142,6 @@ class ZipArchiver:
                 if data is not None:
                     zout.writestr(fname, data)
             zout.close()
-
-            # preserve the old comment
-            comment = otherArchive.getArchiveComment()
-            if comment is not None:
-                if not self.writeZipComment(self.path, comment):
-                    return False
         except Exception as e:
             print(f"Error while copying to {self.path}: {e}", file=sys.stderr)
             return False
@@ -245,14 +158,6 @@ class UnknownArchiver:
 
     def __init__(self, path):
         self.path = path
-
-    @classmethod
-    def getArchiveComment(self):
-        return ""
-
-    @classmethod
-    def setArchiveComment(self, comment):
-        return False
 
     @classmethod
     def readArchiveFile(self):
