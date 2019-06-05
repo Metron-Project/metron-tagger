@@ -89,6 +89,7 @@ class MetronTalker:
             title_list.append(title)
         metadata.title = listToString(title_list)
 
+        metadata.publisher = issue_results["publisher"]
         metadata.day, metadata.month, metadata.year = self.parseDateStr(
             issue_results["cover_date"]
         )
