@@ -40,7 +40,8 @@ A command-line tool to tag comic archives with metadata from [metron.cloud](http
 ```
 usage: metron_tagger.py [-h] [-r] [-o] [--id ID] [-d] [--ignore-existing]
                         [--missing] [-u USER] [-p PASSWORD]
-                        [--set-metron-user] [--version]
+                        [--set-metron-user] [-s] [--sort-dir SORT_DIR]
+                        [--set-sort-dir] [--version]
                         path [path ...]
 
 Read in a file or set of files, and return the result.
@@ -65,5 +66,11 @@ optional arguments:
   -p PASSWORD, --password PASSWORD
                         Metron user password (default: None)
   --set-metron-user     Save the Metron user settings (default: False)
+  -s, --sort            Sort files that contain metadata tags. (default:
+                        False)
+  --sort-dir SORT_DIR   Directory wher files should be sorted to. This should
+                        not have a trailing path serparator. (default: None)
+  --set-sort-dir        Set the directory where files should be sorted.
+                        (default: False)
   --version             Show the version number and exit
 ```
