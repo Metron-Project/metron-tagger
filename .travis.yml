@@ -1,9 +1,10 @@
+dist: xenial
 language: python
-matrix:
-  include:
-    - python: 3.7
-    dist: xenial
-    sudo: true
+python:
+  - "3.7"
 install:
   - pip install pipenv
   - pipenv install
+# command to run tests
+script:
+  - python3 -m pytest --cov=metrontagger tests/
