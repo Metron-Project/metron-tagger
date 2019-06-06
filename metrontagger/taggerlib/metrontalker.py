@@ -62,8 +62,10 @@ class MetronTalker:
     def fetchIssueDataByIssueId(self, issue_id):
         url = self.api_base_url + f"/issue/{issue_id}/?format=json"
         resp = self.fetchResponse(url)
+        md = self.mapMetronDataToMetadata(resp)
+        md.isEmpty = False
 
-        return self.mapMetronDataToMetadata(resp)
+        return md
 
     def searchForIssue(self, series, num, year):
         url = self.api_base_url + f"/issue/?series_name={series}&number={num}"
