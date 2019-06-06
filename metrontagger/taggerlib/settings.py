@@ -18,6 +18,7 @@ class MetronTaggerSettings:
         # Metron creditials
         self.metron_user = ""
         self.metron_pass = ""
+        self.sort_dir = ""
 
     def __init__(self, config_dir=None):
         self.settings_file = ""
@@ -47,10 +48,14 @@ class MetronTaggerSettings:
         if self.config.has_option("metron", "password"):
             self.metron_pass = self.config["metron"]["password"]
 
+        if self.config.has_option("DEFAULT", "sort_dir"):
+            self.sort_dir = self.config["DEFAULT"]["sort_dir"]
+
     def save(self):
         if not self.config.has_section("metron"):
             self.config.add_section("metron")
 
+        self.config["DEFAULT"]["sort_dir"] = self.sort_dir
         self.config["metron"]["user"] = self.metron_user
         self.config["metron"]["password"] = self.metron_pass
 

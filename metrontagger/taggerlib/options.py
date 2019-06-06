@@ -51,6 +51,22 @@ def make_parser():
         "--set-metron-user", help="Save the Metron user settings", action="store_true"
     )
     parser.add_argument(
+        "-s",
+        "--sort",
+        help="Sort files that contain metadata tags.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--sort-dir",
+        help="Directory wher files should be sorted to. This should not have a trailing path serparator.",
+    )
+    parser.add_argument(
+        "--set-sort-dir",
+        help="Set the directory where files should be sorted.",
+        action="store_true",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version="%(prog)s {}".format(version),

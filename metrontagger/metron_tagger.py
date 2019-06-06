@@ -2,6 +2,7 @@ import os
 import sys
 import urllib.parse
 from base64 import standard_b64encode
+from shutil import Error, move
 
 # Append sys.path so imports work.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
@@ -14,10 +15,39 @@ from metrontagger.taggerlib.filerenamer import FileRenamer
 from metrontagger.taggerlib.metrontalker import MetronTalker
 from metrontagger.taggerlib.options import make_parser
 from metrontagger.taggerlib.settings import MetronTaggerSettings
+from metrontagger.taggerlib.utils import cleanup_string
 
 
 # Load the settings
 SETTINGS = MetronTaggerSettings()
+
+
+def sort_file(comic, sort_dir):
+    ca = ComicArchive(comic)
+    if ca.hasMetadata(MetaDataStyle.CIX):
+        md = ca.readMetadata(MetaDataStyle.CIX)
+    else:
+        print(f"{os.path.basename(comic)} has no metadata. skipping...")
+        return
+
+    if md is not None:
+        # Cleanup the publisher & series metadata so the play nicely with filesystems.
+        publisher = cleanup_string(md.publisher)
+        series = cleanup_string(md.series)
+        new_path = sort_dir + os.sep + publisher + os.sep + series + os.sep
+    else:
+        return
+
+    if not os.path.isdir(new_path):
+        os.makedirs(new_path)
+
+    try:
+        move(comic, new_path)
+        print(f"moved {os.path.basename(comic)} to {new_path}")
+    except Error:
+        print(
+            f"{os.path.basename(comic)} already exists in sort directory... not moving."
+        )
 
 
 def create_metron_talker():
@@ -93,7 +123,10 @@ def main():
     if opts.password:
         SETTINGS.metron_pass = opts.password
 
-    if opts.set_metron_user:
+    if opts.sort_dir:
+        SETTINGS.sort_dir = opts.sort_dir
+
+    if opts.set_metron_user or opts.set_sort_dir:
         SETTINGS.save()
 
     # Parse paths to get file list
@@ -182,6 +215,13 @@ def main():
             new_abs_path = unique_file(os.path.join(folder, new_name))
             os.rename(f, new_abs_path)
             print(f"renamed '{os.path.basename(f)}' -> '{new_name}'")
+
+    if opts.sort:
+        if not SETTINGS.sort_dir:
+            print("Unable to sort files. No destination directory was provided.")
+
+        for comic in file_list:
+            sort_file(comic, SETTINGS.sort_dir)
 
 
 if __name__ == "__main__":
