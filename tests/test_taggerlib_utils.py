@@ -28,3 +28,7 @@ class TestTaggerlibUtils(unittest.TestCase):
         test_str = "What If? (2019)"
         res = cleanup_string(test_str)
         self.assertEqual(res, "What If (2019)")
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -69,3 +69,7 @@ class TestMetronTalker(unittest.TestCase):
         self.assertEqual(md.publisher, "DC Comics")
         self.assertEqual(md.issue, "1")
         self.assertEqual(md.year, "1986")
+
+
+if __name__ == "__main__":
+    unittest.main()

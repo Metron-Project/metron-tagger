@@ -98,3 +98,6 @@ class TestComicArchive(unittest.TestCase):
         # TODO: Need to test calculate page sizes
         self.assertEqual(test_md.pageCount, 3)
 
+
+if __name__ == "__main__":
+    unittest.main()

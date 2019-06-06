@@ -58,3 +58,6 @@ class TestOptions(unittest.TestCase):
         self.assertTrue(parsed.ignore_existing)
         self.assertEqual(parsed.path, [self.path.name])
 
+
+if __name__ == "__main__":
+    unittest.main()

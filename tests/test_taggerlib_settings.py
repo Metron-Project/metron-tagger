@@ -24,3 +24,7 @@ class TestSettings(unittest.TestCase):
         new_config = MetronTaggerSettings(config_dir=self.tmp_dir.name)
         self.assertEqual(new_config.metron_user, user)
         self.assertEqual(new_config.metron_pass, dummy)
+
+
+if __name__ == "__main__":
+    unittest.main()

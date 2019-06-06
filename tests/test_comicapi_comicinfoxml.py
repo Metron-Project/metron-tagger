@@ -48,3 +48,7 @@ class TestComicInfoXml(unittest.TestCase):
         self.assertEqual(new_md.year, self.md.year)
         self.assertEqual(new_md.month, self.md.month)
         self.assertEqual(new_md.day, self.md.day)
+
+
+if __name__ == "__main__":
+    unittest.main()

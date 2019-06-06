@@ -64,3 +64,7 @@ class TestFileNameParser(unittest.TestCase):
         self.assertEqual(self.fnp.issue, "2")
         self.assertEqual(self.fnp.issue_count, "8")
         self.assertEqual(self.fnp.year, "2013")
+
+
+if __name__ == "__main__":
+    unittest.main()

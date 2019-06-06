@@ -59,3 +59,7 @@ class TestGenericMetadata(unittest.TestCase):
     def test_no_metadata_print_str(self):
         md = GenericMetadata()
         self.assertEqual(str(md), "No metadata")
+
+
+if __name__ == "__main__":
+    unittest.main()
