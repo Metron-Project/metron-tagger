@@ -2,6 +2,7 @@
 
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/e2b6caca439a4684a96b01844ced5207)](https://app.codacy.com/app/bpepple/metron-tagger?utm_source=github.com&utm_medium=referral&utm_content=bpepple/metron-tagger&utm_campaign=Badge_Grade_Dashboard)
 [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/eed1b6534cbf46ee9184dfe26e994d46)](https://www.codacy.com/app/bpepple/metron-tagger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=bpepple/metron-tagger&amp;utm_campaign=Badge_Coverage)
+[![Build Status](https://travis-ci.org/bpepple/metron-tagger.svg?branch=master)](https://travis-ci.org/bpepple/metron-tagger)
 
 ### Quick Description
 
