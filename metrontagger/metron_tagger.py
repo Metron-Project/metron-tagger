@@ -31,7 +31,7 @@ def sort_file(comic, sort_dir):
         return
 
     if md is not None:
-        # Cleanup the publisher & series metadata so the play nicely with filesystems.
+        # Cleanup the publisher & series metadata so they play nicely with filesystems.
         publisher = cleanup_string(md.publisher)
         series = cleanup_string(md.series)
         new_path = sort_dir + os.sep + publisher + os.sep + series + os.sep
@@ -219,7 +219,9 @@ def main():
     if opts.sort:
         if not SETTINGS.sort_dir:
             print("Unable to sort files. No destination directory was provided.")
+            return
 
+        print("** Starting sorting of comic archives **")
         for comic in file_list:
             sort_file(comic, SETTINGS.sort_dir)
 
