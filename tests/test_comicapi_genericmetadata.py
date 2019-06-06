@@ -8,11 +8,13 @@ class TestGenericMetadata(unittest.TestCase):
         self.md.series = "Aquaman"
         self.md.issue = "0"
         self.md.title = "A Crash of Symbols"
+        self.md.isEmpty = False
 
         self.new_md = GenericMetadata()
         self.new_md.year = "1994"
         self.new_md.month = "10"
         self.new_md.day = "1"
+        self.md.isEmpty = False
 
     def test_metadata_overlay(self):
         self.md.overlay(self.new_md)
@@ -49,3 +51,11 @@ class TestGenericMetadata(unittest.TestCase):
 
         self.assertEqual(self.md.credits, result)
 
+    def test_metadata_print_str(self):
+        self.assertEqual(
+            str(self.md), "series: Aquaman\nissue:  0\ntitle:  A Crash of Symbols\n"
+        )
+
+    def test_no_metadata_print_str(self):
+        md = GenericMetadata()
+        self.assertEqual(str(md), "No metadata")
