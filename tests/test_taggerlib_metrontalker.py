@@ -13,6 +13,7 @@ class TestMetronTalker(unittest.TestCase):
             "id": 2471,
             "publisher": "DC Comics",
             "series": "Aquaman",
+            "volume": "2",
             "number": "1",
             "name": [],
             "cover_date": "1986-02-01",
@@ -66,6 +67,7 @@ class TestMetronTalker(unittest.TestCase):
         md = self.talker.mapMetronDataToMetadata(self.resp)
         self.assertIsNotNone(md)
         self.assertEqual(md.series, "Aquaman")
+        self.assertEqual(md.volume, "2")
         self.assertEqual(md.publisher, "DC Comics")
         self.assertEqual(md.issue, "1")
         self.assertEqual(md.year, "1986")

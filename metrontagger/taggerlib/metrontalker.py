@@ -80,6 +80,7 @@ class MetronTalker:
         metadata = GenericMetadata()
 
         metadata.series = issue_results["series"]
+        metadata.volume = issue_results["volume"]
 
         num_s = IssueString(issue_results["number"]).asString()
 
