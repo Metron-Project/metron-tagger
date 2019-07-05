@@ -26,10 +26,22 @@ class FileSorter:
             # Cleanup the publisher & series metadata so they play nicely with filesystems.
             publisher = cleanup_string(md.publisher)
             series = cleanup_string(md.series)
-            # TODO: Use a template to define sort directory path
-            new_path = (
-                self.sort_directory + os.sep + publisher + os.sep + series + os.sep
-            )
+            if md.volume:
+                volume = "v" + cleanup_string(md.volume)
+                new_path = (
+                    self.sort_directory
+                    + os.sep
+                    + publisher
+                    + os.sep
+                    + series
+                    + os.sep
+                    + volume
+                    + os.sep
+                )
+            else:
+                new_path = (
+                    self.sort_directory + os.sep + publisher + os.sep + series + os.sep
+                )
         else:
             return False
 
