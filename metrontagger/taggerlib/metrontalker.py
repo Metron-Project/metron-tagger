@@ -67,10 +67,15 @@ class MetronTalker:
 
         return md
 
-    def searchForIssue(self, series, num, year):
-        url = self.api_base_url + f"/issue/?series_name={series}&number={num}"
-        if year:
-            url += f"&cover_year={year}"
+    def searchForIssue(self, query_dict):
+        url = (
+            self.api_base_url
+            + f"/issue/?series_name={query_dict['series']}&number={query_dict['number']}"
+        )
+        if query_dict["volume"]:
+            url += f"&series_volume={query_dict['volume']}"
+        if query_dict["year"]:
+            url += f"&cover_year={query_dict['year']}"
         url += "&format=json"
         resp = self.fetchResponse(url)
 
