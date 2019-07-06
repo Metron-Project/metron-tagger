@@ -69,8 +69,14 @@ def getIssueId(filename, talker):
     series_word_list = fnp.series.split()
     series_string = " ".join(series_word_list).strip()
     series_string = urllib.parse.quote_plus(series_string.encode("utf-8"))
+    query_dict = {
+        "series": series_string,
+        "volume": fnp.volume,
+        "number": fnp.issue,
+        "year": fnp.year,
+    }
 
-    search_results = talker.searchForIssue(series_string, fnp.issue, fnp.year)
+    search_results = talker.searchForIssue(query_dict)
     search_results_count = search_results["count"]
 
     if not search_results_count > 0:
