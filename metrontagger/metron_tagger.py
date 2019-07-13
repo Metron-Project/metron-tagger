@@ -66,7 +66,9 @@ def getIssueId(filename, talker):
     fnp = FileNameParser()
     fnp.parseFilename(filename)
 
-    series_word_list = fnp.series.split()
+    # Substitute colon for hyphen when searching for series name
+    fixed_txt = fnp.series.replace(" - ", ": ")
+    series_word_list = fixed_txt.split()
     series_string = " ".join(series_word_list).strip()
     series_string = urllib.parse.quote_plus(series_string.encode("utf-8"))
     query_dict = {
