@@ -1,13 +1,11 @@
 import os
 import sys
-import urllib.parse
 from base64 import standard_b64encode
 
 # Append sys.path so imports work.
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 from metrontagger.comicapi.comicarchive import ComicArchive, MetaDataStyle
-from metrontagger.comicapi.filenameparser import FileNameParser
 from metrontagger.comicapi.genericmetadata import GenericMetadata
 from metrontagger.comicapi.utils import get_recursive_filelist, unique_file
 from metrontagger.taggerlib.filerenamer import FileRenamer
@@ -15,6 +13,7 @@ from metrontagger.taggerlib.filesorter import FileSorter
 from metrontagger.taggerlib.metrontalker import MetronTalker
 from metrontagger.taggerlib.options import make_parser
 from metrontagger.taggerlib.settings import MetronTaggerSettings
+from metrontagger.taggerlib.utils import create_issue_query_dict
 
 
 # Load the settings
@@ -95,21 +94,7 @@ def processFile(filename, match_results, talker):
         print(f"{os.path.basename(filename)} is not writable.")
         return
 
-    fnp = FileNameParser()
-    fnp.parseFilename(filename)
-
-    # Substitute colon for hyphen when searching for series name
-    fixed_txt = fnp.series.replace(" - ", ": ")
-    series_word_list = fixed_txt.split()
-    series_string = " ".join(series_word_list).strip()
-    series_string = urllib.parse.quote_plus(series_string.encode("utf-8"))
-    query_dict = {
-        "series": series_string,
-        "volume": fnp.volume,
-        "number": fnp.issue,
-        "year": fnp.year,
-    }
-
+    query_dict = create_issue_query_dict(filename)
     res = talker.searchForIssue(query_dict)
     res_count = res["count"]
 
