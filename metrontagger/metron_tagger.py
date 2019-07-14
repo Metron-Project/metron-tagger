@@ -135,9 +135,6 @@ def main():
         print("No files to process. Exiting.")
         sys.exit(0)
 
-    # Initialize class to handle results for files with multiple matches
-    match_results = OnlineMatchResults()
-
     if opts.missing:
         print("** Showing files without metadata **")
         for f in file_list:
@@ -175,6 +172,8 @@ def main():
     if opts.online:
         print("** Starting online search and tagging **")
 
+        # Initialize class to handle results for files with multiple matches
+        match_results = OnlineMatchResults()
         talker = create_metron_talker()
 
         # Let's look online to see if we can find any matches on Metron.
