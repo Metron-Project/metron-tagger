@@ -99,15 +99,19 @@ def processFile(filename, match_results, talker):
     res_count = res["count"]
 
     issue_id = None
+    multiple_match = False
     if not res_count > 0:
         issue_id = None
+        multiple_match = False
     elif res_count > 1:
         issue_id = None
+        multiple_match = True
         match_results.multipleMatches.append(MultipleMatch(filename, res["results"]))
     elif res_count == 1:
         issue_id = res["results"][0]["id"]
+        multiple_match = False
 
-    return issue_id
+    return issue_id, multiple_match
 
 
 def main():
@@ -178,7 +182,7 @@ def main():
 
         # Let's look online to see if we can find any matches on Metron.
         for filename in file_list:
-            issue_id = processFile(filename, match_results, talker)
+            issue_id, multiple_match = processFile(filename, match_results, talker)
             if issue_id:
                 success = getIssueMetadata(filename, issue_id, talker)
                 if success:
@@ -188,8 +192,9 @@ def main():
                         f"there was a problem writing metadate for '{os.path.basename(filename)}'."
                     )
             else:
-                print(f"no match for '{os.path.basename(filename)}'.")
-                continue
+                if not multiple_match:
+                    print(f"no match for '{os.path.basename(filename)}'.")
+                    continue
 
         # If there are any files with multiple matches let's handle those now.
         if len(match_results.multipleMatches) > 0:
