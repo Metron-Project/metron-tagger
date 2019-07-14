@@ -21,6 +21,17 @@ from metrontagger.taggerlib.settings import MetronTaggerSettings
 SETTINGS = MetronTaggerSettings()
 
 
+class MultipleMatch:
+    def __init__(self, filename, match_list):
+        self.filename = filename
+        self.matches = match_list
+
+
+class OnlineMatchResults:
+    def __init__(self):
+        self.multipleMatches = []
+
+
 def create_metron_talker():
     auth = f"{SETTINGS.metron_user}:{SETTINGS.metron_pass}"
     base64string = standard_b64encode(auth.encode("utf-8"))
@@ -30,11 +41,24 @@ def create_metron_talker():
 
 
 def createPagelistMetadata(ca):
-
     md = GenericMetadata()
     md.setDefaultPageList(ca.getNumberOfPages())
 
     return md
+
+
+def getIssueMetadata(filename, issue_id, talker):
+    success = False
+
+    metron_md = talker.fetchIssueDataByIssueId(issue_id)
+    if metron_md:
+        ca = ComicArchive(filename)
+        md = createPagelistMetadata(ca)
+        md.overlay(metron_md)
+        ca.writeMetadata(md, MetaDataStyle.CIX)
+        success = True
+
+    return success
 
 
 def selectChoiceFromMultipleMatches(filename, match_set):
@@ -61,7 +85,16 @@ def selectChoiceFromMultipleMatches(filename, match_set):
     return issue_id
 
 
-def getIssueId(filename, talker):
+def processFile(filename, match_results, talker):
+    ca = ComicArchive(filename)
+
+    if not ca.seemsToBeAComicArchive():
+        print(f"{os.path.basename(filename)} does not appear to be a comic archive.")
+        return
+
+    if not ca.isWritable():
+        print(f"{os.path.basename(filename)} is not writable.")
+        return
 
     fnp = FileNameParser()
     fnp.parseFilename(filename)
@@ -78,15 +111,17 @@ def getIssueId(filename, talker):
         "year": fnp.year,
     }
 
-    search_results = talker.searchForIssue(query_dict)
-    search_results_count = search_results["count"]
+    res = talker.searchForIssue(query_dict)
+    res_count = res["count"]
 
-    if not search_results_count > 0:
+    issue_id = None
+    if not res_count > 0:
         issue_id = None
-    elif search_results_count > 1:
-        issue_id = selectChoiceFromMultipleMatches(filename, search_results["results"])
-    elif search_results_count == 1:
-        issue_id = search_results["results"][0]["id"]
+    elif res_count > 1:
+        issue_id = None
+        match_results.multipleMatches.append(MultipleMatch(filename, res["results"]))
+    elif res_count == 1:
+        issue_id = res["results"][0]["id"]
 
     return issue_id
 
@@ -116,6 +151,9 @@ def main():
         print("No files to process. Exiting.")
         sys.exit(0)
 
+    # Initialize class to handle results for files with multiple matches
+    match_results = OnlineMatchResults()
+
     if opts.missing:
         print("** Showing files without metadata **")
         for f in file_list:
@@ -139,8 +177,8 @@ def main():
             print("More than one file was passed for Id processing. Exiting...")
             sys.exit(0)
 
-        f = file_list[0]
-        ca = ComicArchive(f)
+        filename = file_list[0]
+        ca = ComicArchive(filename)
         if ca.isWritable():
             md = createPagelistMetadata(ca)
             talker = create_metron_talker()
@@ -148,31 +186,40 @@ def main():
             if metron_md:
                 md.overlay(metron_md)
                 ca.writeMetadata(md, MetaDataStyle.CIX)
-                print(f"match found for '{os.path.basename(f)}'.")
+                print(f"match found for '{os.path.basename(filename)}'.")
 
     if opts.online:
         print("** Starting online search and tagging **")
 
         talker = create_metron_talker()
 
-        for f in file_list:
-            ca = ComicArchive(f)
-            if opts.ignore_existing:
-                if ca.hasMetadata(MetaDataStyle.CIX):
-                    continue
+        # Let's look online to see if we can find any matches on Metron.
+        for filename in file_list:
+            issue_id = processFile(filename, match_results, talker)
+            if issue_id:
+                success = getIssueMetadata(filename, issue_id, talker)
+                if success:
+                    print(f"match found for '{os.path.basename(filename)}'.")
+                else:
+                    print(
+                        f"there was a problem writing metadate for '{os.path.basename(filename)}'."
+                    )
+            else:
+                print(f"no match for '{os.path.basename(filename)}'.")
+                continue
 
-            if ca.isWritable():
-                md = createPagelistMetadata(ca)
-                issue_id = getIssueId(f, talker)
-                if not issue_id:
-                    print(f"no match for '{os.path.basename(f)}'.")
-                    continue
-
-                metron_md = talker.fetchIssueDataByIssueId(issue_id)
-                if metron_md:
-                    md.overlay(metron_md)
-                    ca.writeMetadata(md, MetaDataStyle.CIX)
-                    print(f"match found for '{os.path.basename(f)}'.")
+        # If there are any files with multiple matches let's handle those now.
+        if len(match_results.multipleMatches) > 0:
+            for match_set in match_results.multipleMatches:
+                issue_id = selectChoiceFromMultipleMatches(
+                    match_set.filename, match_set.matches
+                )
+                if issue_id:
+                    success = getIssueMetadata(match_set.filename, issue_id, talker)
+                    if not success:
+                        print(
+                            f"Unable to retrieve metadata for '{os.path.basename(match_set.filename)}'."
+                        )
 
     if opts.rename:
         print("** Starting comic archive renaming **")
