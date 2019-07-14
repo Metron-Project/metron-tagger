@@ -67,8 +67,7 @@ def selectChoiceFromMultipleMatches(filename, match_set):
     # sort match list by cover date
     match_set = sorted(match_set, key=lambda m: m["cover_date"])
 
-    for (counter, m) in enumerate(match_set):
-        counter += 1
+    for (counter, m) in enumerate(match_set, start=1):
         print(f"{counter}. {m['__str__']} ({m['cover_date']})")
 
     while True:
