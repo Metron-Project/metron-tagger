@@ -76,11 +76,40 @@ class TestMetronTalker(TestCase):
 
     @patch("metrontagger.taggerlib.metrontalker.MetronTalker.fetchResponse")
     def test_fetch_issue_by_id(self, MockFetch):
-        MockFetch.return_value.fetchResponse.return_value = self.resp
+        MockFetch.return_value = self.resp
         talker = MetronTalker(self.base64string)
-        md = talker.fetchIssueDataByIssueId(1)
+        md = talker.fetchIssueDataByIssueId("1")
         self.assertIsNotNone(md)
         self.assertIsInstance(md, GenericMetadata)
+        self.assertEqual(md.series, self.resp["series"])
+        self.assertEqual(md.issue, self.resp["number"])
+
+    @patch("metrontagger.taggerlib.metrontalker.MetronTalker.fetchResponse")
+    def test_search_for_issue(self, MockFetch):
+        query_dict = {"series": "aquaman", "volume": "", "number": "10", "year": ""}
+        res = {
+            "count": 7,
+            "next": None,
+            "previous": None,
+            "results": [
+                {"id": 3643, "__str__": "Aquaman #10", "cover_date": "1963-08-01"},
+                {"id": 2519, "__str__": "Aquaman #10", "cover_date": "1992-09-01"},
+                {"id": 1786, "__str__": "Aquaman #10", "cover_date": "1995-07-01"},
+                {"id": 2439, "__str__": "Aquaman #10", "cover_date": "2003-11-01"},
+                {"id": 2534, "__str__": "Aquaman #10", "cover_date": "2012-08-01"},
+                {"id": 2908, "__str__": "Aquaman #10", "cover_date": "2017-01-01"},
+                {
+                    "id": 3631,
+                    "__str__": "Aquaman and the Others #10",
+                    "cover_date": "2014-04-01",
+                },
+            ],
+        }
+        MockFetch.return_value = res
+        talker = MetronTalker(self.base64string)
+        response = talker.searchForIssue(query_dict)
+        self.assertIsNotNone(response)
+        self.assertEqual(response, res)
 
 
 if __name__ == "__main__":
