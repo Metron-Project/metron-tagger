@@ -1,14 +1,16 @@
 from base64 import standard_b64encode
 from unittest import TestCase, main
+from unittest.mock import patch
 
+from metrontagger.comicapi.genericmetadata import GenericMetadata
 from metrontagger.taggerlib.metrontalker import MetronTalker
 
 
 class TestMetronTalker(TestCase):
     def setUp(self):
         auth = f"test_user:test_auth"
-        base64string = standard_b64encode(auth.encode("utf-8"))
-        self.talker = MetronTalker(base64string)
+        self.base64string = standard_b64encode(auth.encode("utf-8"))
+        self.talker = MetronTalker(self.base64string)
         self.resp = {
             "id": 2471,
             "publisher": "DC Comics",
@@ -71,6 +73,14 @@ class TestMetronTalker(TestCase):
         self.assertEqual(md.publisher, "DC Comics")
         self.assertEqual(md.issue, "1")
         self.assertEqual(md.year, "1986")
+
+    @patch("metrontagger.taggerlib.metrontalker.MetronTalker.fetchResponse")
+    def test_fetch_issue_by_id(self, MockFetch):
+        MockFetch.return_value.fetchResponse.return_value = self.resp
+        talker = MetronTalker(self.base64string)
+        md = talker.fetchIssueDataByIssueId(1)
+        self.assertIsNotNone(md)
+        self.assertIsInstance(md, GenericMetadata)
 
 
 if __name__ == "__main__":
