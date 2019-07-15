@@ -1,10 +1,10 @@
-import unittest
 from base64 import standard_b64encode
+from unittest import TestCase, main
 
 from metrontagger.taggerlib.metrontalker import MetronTalker
 
 
-class TestMetronTalker(unittest.TestCase):
+class TestMetronTalker(TestCase):
     def setUp(self):
         auth = f"test_user:test_auth"
         base64string = standard_b64encode(auth.encode("utf-8"))
@@ -74,4 +74,4 @@ class TestMetronTalker(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

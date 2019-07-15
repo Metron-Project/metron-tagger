@@ -1,9 +1,9 @@
-import unittest
+from unittest import TestCase, main
 
 from metrontagger.comicapi.issuestring import IssueString
 
 
-class TestIssueString(unittest.TestCase):
+class TestIssueString(TestCase):
     def test_issue_string_pad(self):
         val = IssueString(int(1)).asString(pad=3)
         self.assertEqual(val, "001")
@@ -46,4 +46,4 @@ class TestIssueString(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

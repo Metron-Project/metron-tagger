@@ -1,14 +1,14 @@
 import os
 import tempfile
-import unittest
 from shutil import make_archive
+from unittest import TestCase, main
 
 from metrontagger.comicapi.comicarchive import ComicArchive, MetaDataStyle
 from metrontagger.comicapi.genericmetadata import GenericMetadata
 from metrontagger.taggerlib.filesorter import FileSorter
 
 
-class TestFileSorter(unittest.TestCase):
+class TestFileSorter(TestCase):
     def setUp(self):
         self.tmp_archive_dir = tempfile.TemporaryDirectory()
         self.tmp_image_dir = tempfile.TemporaryDirectory()
@@ -52,3 +52,7 @@ class TestFileSorter(unittest.TestCase):
         fs = FileSorter(self.tmp_sort_dir.name)
         res = fs.sort_comics(self.zfile + ".zip")
         self.assertTrue(res)
+
+
+if __name__ == "__main__":
+    main()
