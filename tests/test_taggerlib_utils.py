@@ -1,10 +1,10 @@
 import tempfile
-import unittest
+from unittest import TestCase, main
 
 from metrontagger.taggerlib.utils import cleanup_string, create_issue_query_dict
 
 
-class TestTaggerlibUtils(unittest.TestCase):
+class TestTaggerlibUtils(TestCase):
     def setUp(self):
         self.series = "Aquaman"
         self.number = "1"
@@ -50,4 +50,4 @@ class TestTaggerlibUtils(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

@@ -1,10 +1,10 @@
 import tempfile
-import unittest
+from unittest import TestCase, main
 
 from metrontagger.taggerlib.settings import MetronTaggerSettings
 
 
-class TestSettings(unittest.TestCase):
+class TestSettings(TestCase):
     def setUp(self):
         self.tmp_dir = tempfile.TemporaryDirectory()
 
@@ -27,4 +27,4 @@ class TestSettings(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

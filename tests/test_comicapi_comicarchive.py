@@ -1,13 +1,13 @@
-import unittest
+import os
 import tempfile
 from shutil import make_archive
-import os
+from unittest import TestCase, main
 
 from metrontagger.comicapi.comicarchive import ComicArchive, MetaDataStyle
 from metrontagger.comicapi.genericmetadata import GenericMetadata
 
 
-class TestComicArchive(unittest.TestCase):
+class TestComicArchive(TestCase):
     def setUp(self):
         self.tmp_archive_dir = tempfile.TemporaryDirectory()
         self.tmp_image_dir = tempfile.TemporaryDirectory()
@@ -100,4 +100,4 @@ class TestComicArchive(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

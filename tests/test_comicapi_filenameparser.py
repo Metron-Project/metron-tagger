@@ -1,10 +1,11 @@
-import unittest
-import tempfile
 import os
+import tempfile
+from unittest import TestCase, main
+
 from metrontagger.comicapi.filenameparser import FileNameParser as fn
 
 
-class TestFileNameParser(unittest.TestCase):
+class TestFileNameParser(TestCase):
     def setUp(self):
         self.comic = "Afterlife_With_Archie_V1_#002_(of_08)_(2013)"
         self.fnp = fn()
@@ -67,4 +68,4 @@ class TestFileNameParser(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

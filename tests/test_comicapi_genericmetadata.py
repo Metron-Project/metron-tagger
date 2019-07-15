@@ -1,8 +1,9 @@
-import unittest
+from unittest import TestCase, main
+
 from metrontagger.comicapi.genericmetadata import GenericMetadata
 
 
-class TestGenericMetadata(unittest.TestCase):
+class TestGenericMetadata(TestCase):
     def setUp(self):
         self.md = GenericMetadata()
         self.md.series = "Aquaman"
@@ -62,4 +63,4 @@ class TestGenericMetadata(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

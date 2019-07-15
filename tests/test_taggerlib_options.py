@@ -1,10 +1,10 @@
 import tempfile
-import unittest
+from unittest import TestCase, main
 
 from metrontagger.taggerlib.options import make_parser
 
 
-class TestOptions(unittest.TestCase):
+class TestOptions(TestCase):
     def setUp(self):
         self.parser = make_parser()
         self.path = tempfile.TemporaryDirectory()
@@ -60,4 +60,4 @@ class TestOptions(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

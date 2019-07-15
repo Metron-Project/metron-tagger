@@ -1,11 +1,11 @@
 import tempfile
-import unittest
+from unittest import TestCase, main
 
 from metrontagger.comicapi.comicinfoxml import ComicInfoXml
 from metrontagger.comicapi.genericmetadata import GenericMetadata
 
 
-class TestComicInfoXml(unittest.TestCase):
+class TestComicInfoXml(TestCase):
     def setUp(self):
         self.md = GenericMetadata()
         self.md.series = "Aquaman"
@@ -51,4 +51,4 @@ class TestComicInfoXml(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()

@@ -1,13 +1,13 @@
 import os
 import tempfile
-import unittest
 from shutil import make_archive
+from unittest import TestCase, main
 
 from metrontagger.comicapi.genericmetadata import GenericMetadata
 from metrontagger.taggerlib.filerenamer import FileRenamer
 
 
-class TestFileRenamer(unittest.TestCase):
+class TestFileRenamer(TestCase):
     def setUp(self):
         self.tmp_archive_dir = tempfile.TemporaryDirectory()
         self.tmp_image_dir = tempfile.TemporaryDirectory()
@@ -47,4 +47,4 @@ class TestFileRenamer(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()
