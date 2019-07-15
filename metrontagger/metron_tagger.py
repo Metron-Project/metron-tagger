@@ -163,15 +163,10 @@ def main():
             sys.exit(0)
 
         filename = file_list[0]
-        ca = ComicArchive(filename)
-        if ca.isWritable():
-            md = createPagelistMetadata(ca)
-            talker = create_metron_talker()
-            metron_md = talker.fetchIssueDataByIssueId(opts.id)
-            if metron_md:
-                md.overlay(metron_md)
-                ca.writeMetadata(md, MetaDataStyle.CIX)
-                print(f"match found for '{os.path.basename(filename)}'.")
+        talker = create_metron_talker()
+        success = getIssueMetadata(filename, opts.id, talker)
+        if success:
+            print(f"match found for '{os.path.basename(filename)}'.")
 
     if opts.online:
         print("** Starting online search and tagging **")
