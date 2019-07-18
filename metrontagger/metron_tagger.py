@@ -28,6 +28,8 @@ class MultipleMatch:
 
 class OnlineMatchResults:
     def __init__(self):
+        self.goodMatches = []
+        self.noMatches = []
         self.multipleMatches = []
 
 
@@ -102,16 +104,44 @@ def processFile(filename, match_results, talker):
     multiple_match = False
     if not res_count > 0:
         issue_id = None
+        match_results.noMatches.append(filename)
         multiple_match = False
     elif res_count > 1:
         issue_id = None
-        multiple_match = True
         match_results.multipleMatches.append(MultipleMatch(filename, res["results"]))
+        multiple_match = True
     elif res_count == 1:
         issue_id = res["results"][0]["id"]
+        match_results.goodMatches.append(filename)
         multiple_match = False
 
     return issue_id, multiple_match
+
+
+def postProcessMatches(match_results, talker):
+    # Print file matching results.
+    if len(match_results.goodMatches) > 0:
+        print("\nSuccessful matches:\n------------------")
+        for f in match_results.goodMatches:
+            print(f)
+
+    if len(match_results.noMatches) > 0:
+        print("\nNo matches:\n------------------")
+        for f in match_results.noMatches:
+            print(f)
+
+    # Handle files with multiple matches.
+    if len(match_results.multipleMatches) > 0:
+        for match_set in match_results.multipleMatches:
+            issue_id = selectChoiceFromMultipleMatches(
+                match_set.filename, match_set.matches
+            )
+            if issue_id:
+                success = getIssueMetadata(match_set.filename, issue_id, talker)
+                if not success:
+                    print(
+                        f"Unable to retrieve metadata for '{os.path.basename(match_set.filename)}'."
+                    )
 
 
 def main():
@@ -191,18 +221,8 @@ def main():
                     print(f"no match for '{os.path.basename(filename)}'.")
                     continue
 
-        # If there are any files with multiple matches let's handle those now.
-        if len(match_results.multipleMatches) > 0:
-            for match_set in match_results.multipleMatches:
-                issue_id = selectChoiceFromMultipleMatches(
-                    match_set.filename, match_set.matches
-                )
-                if issue_id:
-                    success = getIssueMetadata(match_set.filename, issue_id, talker)
-                    if not success:
-                        print(
-                            f"Unable to retrieve metadata for '{os.path.basename(match_set.filename)}'."
-                        )
+        # Print match results & handle files with multiple matches
+        postProcessMatches(match_results, talker)
 
     if opts.rename:
         print("** Starting comic archive renaming **")
