@@ -90,7 +90,7 @@ def processFile(filename, match_results, talker, ignore):
 
     if not ca.seemsToBeAComicArchive():
         print(f"{os.path.basename(filename)} does not appear to be a comic archive.")
-        return
+        return None, False
 
     if ignore:
         if ca.hasCIX():
@@ -99,7 +99,7 @@ def processFile(filename, match_results, talker, ignore):
 
     if not ca.isWritable():
         print(f"{os.path.basename(filename)} is not writable.")
-        return
+        return None, False
 
     query_dict = create_issue_query_dict(filename)
     res = talker.searchForIssue(query_dict)
