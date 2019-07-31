@@ -41,7 +41,11 @@ class MetronTalker:
     @sleep_and_retry
     @limits(calls=20, period=ONE_MINUTE)
     def fetchResponse(self, url):
-        request = Request(url)
+        if url.lower().startswith("https"):
+            request = Request(url)
+        else:
+            raise ValueError from None
+
         request.add_header("Authorization", self.auth_str)
         request.add_header("User-Agent", self.user_agent)
 
