@@ -84,7 +84,7 @@ class MetronTalker:
     def mapMetronDataToMetadata(self, issue_results):
         metadata = GenericMetadata()
 
-        metadata.series = issue_results["series"]
+        metadata.series = issue_results["series"]["name"]
         metadata.volume = issue_results["volume"]
 
         num_s = IssueString(issue_results["number"]).asString()
@@ -97,7 +97,7 @@ class MetronTalker:
             title_list.append(title)
         metadata.title = listToString(title_list)
 
-        metadata.publisher = issue_results["publisher"]
+        metadata.publisher = issue_results["publisher"]["name"]
         metadata.day, metadata.month, metadata.year = self.parseDateStr(
             issue_results["cover_date"]
         )
