@@ -85,16 +85,21 @@ def selectChoiceFromMultipleMatches(filename, match_set):
     return issue_id
 
 
-def processFile(filename, match_results, talker):
+def processFile(filename, match_results, talker, ignore):
     ca = ComicArchive(filename)
 
     if not ca.seemsToBeAComicArchive():
         print(f"{os.path.basename(filename)} does not appear to be a comic archive.")
-        return
+        return None, False
+
+    if ignore:
+        if ca.hasCIX():
+            print(f"{os.path.basename(filename)} has metadata. Skipping...")
+            return None, False
 
     if not ca.isWritable():
         print(f"{os.path.basename(filename)} is not writable.")
-        return
+        return None, False
 
     query_dict = create_issue_query_dict(filename)
     res = talker.searchForIssue(query_dict)
@@ -207,7 +212,9 @@ def main():
 
         # Let's look online to see if we can find any matches on Metron.
         for filename in file_list:
-            issue_id, multiple_match = processFile(filename, match_results, talker)
+            issue_id, multiple_match = processFile(
+                filename, match_results, talker, opts.ignore_existing
+            )
             if issue_id:
                 success = getIssueMetadata(filename, issue_id, talker)
                 if success:
