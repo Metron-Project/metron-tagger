@@ -233,6 +233,10 @@ def main():
 
     if opts.rename:
         print("** Starting comic archive renaming **")
+
+        # Lists to track filename changes
+        new_file_names = []
+        original_files_changed = []
         for f in file_list:
             ca = ComicArchive(f)
             if not ca.hasCIX():
@@ -250,7 +254,18 @@ def main():
             folder = os.path.dirname(os.path.abspath(f))
             new_abs_path = unique_file(os.path.join(folder, new_name))
             os.rename(f, new_abs_path)
+            # track what files are being renamed
+            new_file_names.append(new_abs_path)
+            original_files_changed.append(f)
+
             print(f"renamed '{os.path.basename(f)}' -> '{new_name}'")
+
+        # Update file_list for renamed files
+        for original_file in original_files_changed:
+            file_list.remove(original_file)
+
+        for new_file in new_file_names:
+            file_list.append(new_file)
 
     if opts.sort:
         if not SETTINGS.sort_dir:
