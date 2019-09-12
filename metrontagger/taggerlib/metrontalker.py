@@ -1,5 +1,6 @@
 import json
 import platform
+import ssl
 import time
 from datetime import datetime
 from urllib.error import HTTPError
@@ -23,6 +24,7 @@ class MetronTalker:
         self.user_agent = (
             f"Metron-Tagger/{version} ({platform.system()}; {platform.release()})"
         )
+        self.ssl = ssl.SSLContext(ssl.PROTOCOL_TLS)
 
     @classmethod
     def parseDateStr(self, date_str):
@@ -41,16 +43,12 @@ class MetronTalker:
     @sleep_and_retry
     @limits(calls=20, period=ONE_MINUTE)
     def fetchResponse(self, url):
-        if url.lower().startswith("https"):
-            request = Request(url)
-        else:
-            raise ValueError from None
-
+        request = Request(url)
         request.add_header("Authorization", self.auth_str)
         request.add_header("User-Agent", self.user_agent)
 
         try:
-            content = urlopen(request)
+            content = urlopen(request, context=self.ssl)
         except HTTPError as e:
             # TODO: Look into handling throttling better, but for now let's use this.
             if e.code == 429:
