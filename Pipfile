@@ -7,7 +7,6 @@ verify_ssl = true
 coverage = "*"
 pytest = "*"
 pytest-cov = "*"
-pylint = "*"
 
 [packages]
 natsort = "*"
