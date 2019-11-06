@@ -80,6 +80,19 @@ class TestMetronTalker(TestCase):
     def test_map_resp_to_metadata(self):
         md = self.talker.mapMetronDataToMetadata(self.resp)
         self.assertIsNotNone(md)
+        self.assertEqual(md.title, self.resp["name"][0])
+        self.assertEqual(md.series, self.resp["series"]["name"])
+        self.assertEqual(md.volume, self.resp["volume"])
+        self.assertEqual(md.publisher, self.resp["publisher"]["name"])
+        self.assertEqual(md.issue, self.resp["number"])
+        self.assertEqual(md.year, "1994")
+
+    def test_map_resp_to_metadata_with_no_story_name(self):
+        test_data = self.resp
+        test_data["name"] = None
+        md = self.talker.mapMetronDataToMetadata(test_data)
+        self.assertIsNotNone(md)
+        self.assertIsNone(md.title)
         self.assertEqual(md.series, self.resp["series"]["name"])
         self.assertEqual(md.volume, self.resp["volume"])
         self.assertEqual(md.publisher, self.resp["publisher"]["name"])

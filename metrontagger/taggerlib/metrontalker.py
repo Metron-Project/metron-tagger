@@ -94,10 +94,11 @@ class MetronTalker:
         metadata.issue = num_s
 
         titles = issue_results["name"]
-        title_list = []
-        for title in titles:
-            title_list.append(title)
-        metadata.title = listToString(title_list)
+        if titles is not None:
+            title_list = []
+            for title in titles:
+                title_list.append(title)
+            metadata.title = listToString(title_list)
 
         metadata.publisher = issue_results["publisher"]["name"]
         metadata.day, metadata.month, metadata.year = self.parseDateStr(
