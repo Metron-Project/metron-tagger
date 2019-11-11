@@ -245,7 +245,7 @@ def main():
 
             md = ca.readMetadata(MetaDataStyle.CIX)
             renamer = FileRenamer(md)
-            new_name = renamer.determineName(f)
+            new_name = renamer.determine_name(f)
 
             if new_name == os.path.basename(f):
                 print("Filename is already good!", file=sys.stderr)

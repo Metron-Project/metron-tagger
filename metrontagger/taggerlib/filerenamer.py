@@ -22,27 +22,37 @@ from metrontagger.comicapi.issuestring import IssueString
 
 
 class FileRenamer:
+    """Class to rename a comic archive based on it's metadata tag"""
+
     def __init__(self, metadata):
-        self.setMetadata(metadata)
-        self.setTemplate("%series% v%volume% #%issue% (of %issuecount%) (%year%)")
+        self.set_metadata(metadata)
+        self.set_template("%series% v%volume% #%issue% (of %issuecount%) (%year%)")
         self.smart_cleanup = True
         self.issue_zero_padding = 3
 
-    def setMetadata(self, metadata):
+    def set_metadata(self, metadata):
+        """Method to set the metadata"""
         self.metdata = metadata
 
-    def setIssueZeroPadding(self, count):
+    def set_issue_zero_padding(self, count):
+        """Method to set the padding for the issue's number"""
         self.issue_zero_padding = count
 
-    def setSmartCleanup(self, on):
-        self.smart_cleanup = on
+    def set_smart_cleanup(self, enabled):
+        """Method to use smart clean up. Currently not used"""
+        self.smart_cleanup = enabled
 
-    def setTemplate(self, template):
+    def set_template(self, template):
+        """
+        Method to use a user's custom file naming template.
+        Currently this hasn't been implemented
+        """
         self.template = template
 
-    def replaceToken(self, text, value, token):
+    def replace_token(self, text, value, token):
+        """Method to replace a value with another value"""
         # helper func
-        def isToken(word):
+        def is_token(word):
             return word[0] == "%" and word[-1:] == "%"
 
         if value is not None:
@@ -58,7 +68,7 @@ class FileRenamer:
                 # as in "...(of %issuecount%)..."
                 if token == "%issuecount%":
                     for idx, word in enumerate(text_list):
-                        if token in word and not isToken(text_list[idx - 1]):
+                        if token in word and not is_token(text_list[idx - 1]):
                             text_list[idx - 1] = ""
 
                 text_list = [x for x in text_list if token not in x]
@@ -66,49 +76,59 @@ class FileRenamer:
             else:
                 return text.replace(token, "")
 
-    def determineName(self, filename, ext=None):
-
-        md = self.metdata
+    def determine_name(self, filename, ext=None):
+        """Method to create the new filename based on the files metadata"""
+        meta_data = self.metdata
         new_name = self.template
 
-        new_name = self.replaceToken(new_name, md.series, "%series%")
-        new_name = self.replaceToken(new_name, md.volume, "%volume%")
+        new_name = self.replace_token(new_name, meta_data.series, "%series%")
+        new_name = self.replace_token(new_name, meta_data.volume, "%volume%")
 
-        if md.issue is not None:
+        if meta_data.issue is not None:
             issue_str = "{0}".format(
-                IssueString(md.issue).asString(pad=self.issue_zero_padding)
+                IssueString(meta_data.issue).asString(pad=self.issue_zero_padding)
             )
         else:
             issue_str = None
-        new_name = self.replaceToken(new_name, issue_str, "%issue%")
+        new_name = self.replace_token(new_name, issue_str, "%issue%")
 
-        new_name = self.replaceToken(new_name, md.issueCount, "%issuecount%")
-        new_name = self.replaceToken(new_name, md.year, "%year%")
-        new_name = self.replaceToken(new_name, md.publisher, "%publisher%")
-        new_name = self.replaceToken(new_name, md.title, "%title%")
-        new_name = self.replaceToken(new_name, md.month, "%month%")
+        new_name = self.replace_token(new_name, meta_data.issueCount, "%issuecount%")
+        new_name = self.replace_token(new_name, meta_data.year, "%year%")
+        new_name = self.replace_token(new_name, meta_data.publisher, "%publisher%")
+        new_name = self.replace_token(new_name, meta_data.title, "%title%")
+        new_name = self.replace_token(new_name, meta_data.month, "%month%")
         month_name = None
-        if md.month is not None:
-            if (isinstance(md.month, str) and md.month.isdigit()) or isinstance(
-                md.month, int
-            ):
-                if int(md.month) in range(1, 13):
-                    dt = datetime.datetime(1970, int(md.month), 1, 0, 0)
-                    month_name = dt.strftime("%B")
-        new_name = self.replaceToken(new_name, month_name, "%month_name%")
+        if meta_data.month is not None:
+            if (
+                isinstance(meta_data.month, str) and meta_data.month.isdigit()
+            ) or isinstance(meta_data.month, int):
+                if int(meta_data.month) in range(1, 13):
+                    date_time = datetime.datetime(1970, int(meta_data.month), 1, 0, 0)
+                    month_name = date_time.strftime("%B")
+        new_name = self.replace_token(new_name, month_name, "%month_name%")
 
-        new_name = self.replaceToken(new_name, md.genre, "%genre%")
-        new_name = self.replaceToken(new_name, md.language, "%language_code%")
-        new_name = self.replaceToken(new_name, md.criticalRating, "%criticalrating%")
-        new_name = self.replaceToken(new_name, md.alternateSeries, "%alternateseries%")
-        new_name = self.replaceToken(new_name, md.alternateNumber, "%alternatenumber%")
-        new_name = self.replaceToken(new_name, md.alternateCount, "%alternatecount%")
-        new_name = self.replaceToken(new_name, md.imprint, "%imprint%")
-        new_name = self.replaceToken(new_name, md.format, "%format%")
-        new_name = self.replaceToken(new_name, md.maturityRating, "%maturityrating%")
-        new_name = self.replaceToken(new_name, md.storyArc, "%storyarc%")
-        new_name = self.replaceToken(new_name, md.seriesGroup, "%seriesgroup%")
-        new_name = self.replaceToken(new_name, md.scanInfo, "%scaninfo%")
+        new_name = self.replace_token(new_name, meta_data.genre, "%genre%")
+        new_name = self.replace_token(new_name, meta_data.language, "%language_code%")
+        new_name = self.replace_token(
+            new_name, meta_data.criticalRating, "%criticalrating%"
+        )
+        new_name = self.replace_token(
+            new_name, meta_data.alternateSeries, "%alternateseries%"
+        )
+        new_name = self.replace_token(
+            new_name, meta_data.alternateNumber, "%alternatenumber%"
+        )
+        new_name = self.replace_token(
+            new_name, meta_data.alternateCount, "%alternatecount%"
+        )
+        new_name = self.replace_token(new_name, meta_data.imprint, "%imprint%")
+        new_name = self.replace_token(new_name, meta_data.format, "%format%")
+        new_name = self.replace_token(
+            new_name, meta_data.maturityRating, "%maturityrating%"
+        )
+        new_name = self.replace_token(new_name, meta_data.storyArc, "%storyarc%")
+        new_name = self.replace_token(new_name, meta_data.seriesGroup, "%seriesgroup%")
+        new_name = self.replace_token(new_name, meta_data.scanInfo, "%scaninfo%")
 
         if self.smart_cleanup:
 
