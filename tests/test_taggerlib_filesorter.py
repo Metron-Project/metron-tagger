@@ -33,15 +33,15 @@ class TestFileSorter(TestCase):
         open(make_archive(self.zfile, "zip", self.tmp_image_dir.name), "rb").read()
 
         # Create test metadata
-        md = GenericMetadata()
-        md.series = "Aquaman"
-        md.issue = "1"
-        md.year = "2011"
-        md.publisher = "DC Comics"
+        meta_data = GenericMetadata()
+        meta_data.series = "Aquaman"
+        meta_data.issue = "1"
+        meta_data.year = "2011"
+        meta_data.publisher = "DC Comics"
 
         # Now write it to the zipfile
-        ca = ComicArchive(self.zfile + ".zip")
-        ca.writeMetadata(md, MetaDataStyle.CIX)
+        comic_archive = ComicArchive(self.zfile + ".zip")
+        comic_archive.writeMetadata(meta_data, MetaDataStyle.CIX)
 
     def tearDown(self):
         self.tmp_archive_dir.cleanup()
@@ -49,8 +49,8 @@ class TestFileSorter(TestCase):
         self.tmp_image_dir.cleanup()
 
     def test_sort_file(self):
-        fs = FileSorter(self.tmp_sort_dir.name)
-        res = fs.sort_comics(self.zfile + ".zip")
+        file_sorter = FileSorter(self.tmp_sort_dir.name)
+        res = file_sorter.sort_comics(self.zfile + ".zip")
         self.assertTrue(res)
 
 
