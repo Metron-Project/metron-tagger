@@ -51,7 +51,7 @@ def createPagelistMetadata(ca):
 def getIssueMetadata(filename, issue_id, talker):
     success = False
 
-    metron_md = talker.fetchIssueDataByIssueId(issue_id)
+    metron_md = talker.fetch_issue_data_by_issue_id(issue_id)
     if metron_md:
         ca = ComicArchive(filename)
         md = createPagelistMetadata(ca)
@@ -102,7 +102,7 @@ def processFile(filename, match_results, talker, ignore):
         return None, False
 
     query_dict = create_issue_query_dict(filename)
-    res = talker.searchForIssue(query_dict)
+    res = talker.search_for_issue(query_dict)
     res_count = res["count"]
 
     issue_id = None

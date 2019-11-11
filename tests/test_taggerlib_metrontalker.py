@@ -78,39 +78,39 @@ class TestMetronTalker(TestCase):
         }
 
     def test_map_resp_to_metadata(self):
-        md = self.talker.mapMetronDataToMetadata(self.resp)
-        self.assertIsNotNone(md)
-        self.assertEqual(md.title, self.resp["name"][0])
-        self.assertEqual(md.series, self.resp["series"]["name"])
-        self.assertEqual(md.volume, self.resp["volume"])
-        self.assertEqual(md.publisher, self.resp["publisher"]["name"])
-        self.assertEqual(md.issue, self.resp["number"])
-        self.assertEqual(md.year, "1994")
+        meta_data = self.talker.map_metron_data_to_metadata(self.resp)
+        self.assertIsNotNone(meta_data)
+        self.assertEqual(meta_data.title, self.resp["name"][0])
+        self.assertEqual(meta_data.series, self.resp["series"]["name"])
+        self.assertEqual(meta_data.volume, self.resp["volume"])
+        self.assertEqual(meta_data.publisher, self.resp["publisher"]["name"])
+        self.assertEqual(meta_data.issue, self.resp["number"])
+        self.assertEqual(meta_data.year, "1994")
 
     def test_map_resp_to_metadata_with_no_story_name(self):
         test_data = self.resp
         test_data["name"] = None
-        md = self.talker.mapMetronDataToMetadata(test_data)
-        self.assertIsNotNone(md)
-        self.assertIsNone(md.title)
-        self.assertEqual(md.series, self.resp["series"]["name"])
-        self.assertEqual(md.volume, self.resp["volume"])
-        self.assertEqual(md.publisher, self.resp["publisher"]["name"])
-        self.assertEqual(md.issue, self.resp["number"])
-        self.assertEqual(md.year, "1994")
+        meta_data = self.talker.map_metron_data_to_metadata(test_data)
+        self.assertIsNotNone(meta_data)
+        self.assertIsNone(meta_data.title)
+        self.assertEqual(meta_data.series, self.resp["series"]["name"])
+        self.assertEqual(meta_data.volume, self.resp["volume"])
+        self.assertEqual(meta_data.publisher, self.resp["publisher"]["name"])
+        self.assertEqual(meta_data.issue, self.resp["number"])
+        self.assertEqual(meta_data.year, "1994")
 
-    @patch("metrontagger.taggerlib.metrontalker.MetronTalker.fetchResponse")
-    def test_fetch_issue_by_id(self, MockFetch):
-        MockFetch.return_value = self.resp
+    @patch("metrontagger.taggerlib.metrontalker.MetronTalker.fetch_response")
+    def test_fetch_issue_by_id(self, mock_fetch):
+        mock_fetch.return_value = self.resp
         talker = MetronTalker(self.base64string)
-        md = talker.fetchIssueDataByIssueId("1")
-        self.assertIsNotNone(md)
-        self.assertIsInstance(md, GenericMetadata)
-        self.assertEqual(md.series, self.resp["series"]["name"])
-        self.assertEqual(md.issue, self.resp["number"])
+        meta_data = talker.fetch_issue_data_by_issue_id("1")
+        self.assertIsNotNone(meta_data)
+        self.assertIsInstance(meta_data, GenericMetadata)
+        self.assertEqual(meta_data.series, self.resp["series"]["name"])
+        self.assertEqual(meta_data.issue, self.resp["number"])
 
-    @patch("metrontagger.taggerlib.metrontalker.MetronTalker.fetchResponse")
-    def test_search_for_issue(self, MockFetch):
+    @patch("metrontagger.taggerlib.metrontalker.MetronTalker.fetch_response")
+    def test_search_for_issue(self, mock_fetch):
         query_dict = {"series": "aquaman", "volume": "", "number": "10", "year": ""}
         res = {
             "count": 7,
@@ -130,9 +130,9 @@ class TestMetronTalker(TestCase):
                 },
             ],
         }
-        MockFetch.return_value = res
+        mock_fetch.return_value = res
         talker = MetronTalker(self.base64string)
-        response = talker.searchForIssue(query_dict)
+        response = talker.search_for_issue(query_dict)
         self.assertIsNotNone(response)
         self.assertEqual(response, res)
 
