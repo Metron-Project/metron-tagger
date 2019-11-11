@@ -273,9 +273,9 @@ def main():
             return
 
         print("** Starting sorting of comic archives **")
-        fs = FileSorter(SETTINGS.sort_dir)
+        file_sorter = FileSorter(SETTINGS.sort_dir)
         for comic in file_list:
-            result = fs.sort_comics(comic)
+            result = file_sorter.sort_comics(comic)
             if not result:
                 print(f"unable to move {os.path.basename(comic)}.")
 
