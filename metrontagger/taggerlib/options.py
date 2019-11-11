@@ -1,7 +1,7 @@
 """Utility to create an argument parser"""
 import argparse
 
-from .. import version
+from .. import VERSION
 
 
 def make_parser():
@@ -72,7 +72,7 @@ def make_parser():
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s {}".format(version),
+        version="%(prog)s {}".format(VERSION),
         help="Show the version number and exit",
     )
 

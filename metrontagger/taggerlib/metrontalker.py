@@ -13,7 +13,7 @@ from metrontagger.comicapi.genericmetadata import GenericMetadata
 from metrontagger.comicapi.issuestring import IssueString
 from metrontagger.comicapi.utils import listToString
 
-from .. import version
+from .. import VERSION
 
 ONE_MINUTE = 60
 
@@ -25,7 +25,7 @@ class MetronTalker:
         self.api_base_url = "https://metron.cloud/api"
         self.auth_str = f"Basic {auth.decode('utf-8')}"
         self.user_agent = (
-            f"Metron-Tagger/{version} ({platform.system()}; {platform.release()})"
+            f"Metron-Tagger/{VERSION} ({platform.system()}; {platform.release()})"
         )
         self.ssl = ssl.SSLContext(ssl.PROTOCOL_TLS)
 
@@ -125,7 +125,7 @@ class MetronTalker:
 
         now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         metadata.notes = (
-            f"Tagged with MetronTagger-{version} using info from Metron on {now_date}. "
+            f"Tagged with MetronTagger-{VERSION} using info from Metron on {now_date}. "
             + f"[issue_id:{issue_results['id']}]"
         )
 
