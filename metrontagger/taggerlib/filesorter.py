@@ -2,8 +2,8 @@
 import os
 from shutil import Error, move
 
-from metrontagger.comicapi.comicarchive import ComicArchive, MetaDataStyle
-from metrontagger.taggerlib.utils import cleanup_string
+from ..comicapi.comicarchive import ComicArchive, MetaDataStyle
+from .utils import cleanup_string
 
 
 class FileSorter:

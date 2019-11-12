@@ -1,7 +1,7 @@
 """Some miscellaneous functions"""
 import urllib.parse
 
-from metrontagger.comicapi.filenameparser import FileNameParser
+from ..comicapi.filenameparser import FileNameParser
 
 
 def cleanup_string(path_name):

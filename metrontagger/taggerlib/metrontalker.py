@@ -9,9 +9,9 @@ from urllib.request import Request, urlopen
 
 from ratelimit import limits, sleep_and_retry
 
-from metrontagger.comicapi.genericmetadata import GenericMetadata
-from metrontagger.comicapi.issuestring import IssueString
-from metrontagger.comicapi.utils import listToString
+from ..comicapi.genericmetadata import GenericMetadata
+from ..comicapi.issuestring import IssueString
+from ..comicapi.utils import listToString
 
 from .. import VERSION
 
