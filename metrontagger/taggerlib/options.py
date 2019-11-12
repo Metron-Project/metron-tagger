@@ -1,9 +1,11 @@
+"""Utility to create an argument parser"""
 import argparse
 
-from .. import version
+from .. import VERSION
 
 
 def make_parser():
+    """Function to create the argument parser"""
     parser = argparse.ArgumentParser(
         description="Read in a file or set of files, and return the result.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -59,7 +61,8 @@ def make_parser():
     )
     parser.add_argument(
         "--sort-dir",
-        help="Directory wher files should be sorted to. This should not have a trailing path serparator.",
+        help="Directory wher files should be sorted to. "
+        + "This should not have a trailing path serparator.",
     )
     parser.add_argument(
         "--set-sort-dir",
@@ -69,7 +72,7 @@ def make_parser():
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s {}".format(version),
+        version="%(prog)s {}".format(VERSION),
         help="Show the version number and exit",
     )
 

@@ -1,9 +1,11 @@
+"""Some miscellaneous functions"""
 import urllib.parse
 
-from metrontagger.comicapi.filenameparser import FileNameParser
+from ..comicapi.filenameparser import FileNameParser
 
 
 def cleanup_string(path_name):
+    """Function to remove some characters that don't play nicely on Windows machines filesystem"""
     path_name = path_name.replace("/", "-")
     path_name = path_name.replace(" :", " -")
     path_name = path_name.replace(": ", " - ")
@@ -14,6 +16,7 @@ def cleanup_string(path_name):
 
 
 def create_issue_query_dict(filename):
+    """Function to create a diction of values based on the provided filename"""
     fnp = FileNameParser()
     fnp.parseFilename(filename)
 

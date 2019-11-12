@@ -1,3 +1,4 @@
+"""Main project file"""
 import os
 import sys
 from base64 import standard_b64encode
@@ -19,21 +20,27 @@ from metrontagger.taggerlib.utils import create_issue_query_dict
 # Load the settings
 SETTINGS = MetronTaggerSettings()
 
-
+# TODO: Consider making this a dict or tuple
 class MultipleMatch:
+    """Class to hold information on searches with multiple matches"""
+
     def __init__(self, filename, match_list):
         self.filename = filename
         self.matches = match_list
 
 
+# TODO: Consider making this a dict or tuple
 class OnlineMatchResults:
+    """Class to track online match results"""
+
     def __init__(self):
-        self.goodMatches = []
-        self.noMatches = []
-        self.multipleMatches = []
+        self.good_matches = []
+        self.no_matches = []
+        self.multiple_matches = []
 
 
 def create_metron_talker():
+    """Function that creates the metron talker"""
     auth = f"{SETTINGS.metron_user}:{SETTINGS.metron_pass}"
     base64string = standard_b64encode(auth.encode("utf-8"))
     talker = MetronTalker(base64string)
@@ -41,35 +48,44 @@ def create_metron_talker():
     return talker
 
 
-def createPagelistMetadata(ca):
-    md = GenericMetadata()
-    md.setDefaultPageList(ca.getNumberOfPages())
+def create_pagelist_metadata(comic_archive):
+    """Function that returns the metadata for the total number of pages"""
+    meta_data = GenericMetadata()
+    meta_data.setDefaultPageList(comic_archive.getNumberOfPages())
 
-    return md
+    return meta_data
 
 
-def getIssueMetadata(filename, issue_id, talker):
+def get_issue_metadata(filename, issue_id, talker):
+    """
+    Function to get an issue's metadata from Metron and the write that
+    information to a tag in the comic archive
+    """
     success = False
 
-    metron_md = talker.fetchIssueDataByIssueId(issue_id)
+    metron_md = talker.fetch_issue_data_by_issue_id(issue_id)
     if metron_md:
-        ca = ComicArchive(filename)
-        md = createPagelistMetadata(ca)
-        md.overlay(metron_md)
-        ca.writeMetadata(md, MetaDataStyle.CIX)
+        comic_archive = ComicArchive(filename)
+        meta_data = create_pagelist_metadata(comic_archive)
+        meta_data.overlay(metron_md)
+        comic_archive.writeMetadata(meta_data, MetaDataStyle.CIX)
         success = True
 
     return success
 
 
-def selectChoiceFromMultipleMatches(filename, match_set):
+def select_choice_from_multiple_matches(filename, match_set):
+    """
+    Function to ask user to choice which issue metadata to write,
+    when there are multiple choices
+    """
     print(f"{os.path.basename(filename)} - Multiple results found")
 
     # sort match list by cover date
     match_set = sorted(match_set, key=lambda m: m["cover_date"])
 
-    for (counter, m) in enumerate(match_set, start=1):
-        print(f"{counter}. {m['__str__']} ({m['cover_date']})")
+    for (counter, match) in enumerate(match_set, start=1):
+        print(f"{counter}. {match['__str__']} ({match['cover_date']})")
 
     while True:
         i = input("Choose a match #, or 's' to skip: ")
@@ -85,64 +101,71 @@ def selectChoiceFromMultipleMatches(filename, match_set):
     return issue_id
 
 
-def processFile(filename, match_results, talker, ignore):
-    ca = ComicArchive(filename)
+def process_file(filename, match_results, talker, ignore):
+    """
+    Main function to attempt query Metron and write a tag
+    """
+    comic_archive = ComicArchive(filename)
 
-    if not ca.seemsToBeAComicArchive():
+    if not comic_archive.seemsToBeAComicArchive():
         print(f"{os.path.basename(filename)} does not appear to be a comic archive.")
         return None, False
 
     if ignore:
-        if ca.hasCIX():
+        if comic_archive.hasCIX():
             print(f"{os.path.basename(filename)} has metadata. Skipping...")
             return None, False
 
-    if not ca.isWritable():
+    if not comic_archive.isWritable():
         print(f"{os.path.basename(filename)} is not writable.")
         return None, False
 
     query_dict = create_issue_query_dict(filename)
-    res = talker.searchForIssue(query_dict)
+    res = talker.search_for_issue(query_dict)
     res_count = res["count"]
 
     issue_id = None
     multiple_match = False
     if not res_count > 0:
         issue_id = None
-        match_results.noMatches.append(filename)
+        match_results.no_matches.append(filename)
         multiple_match = False
     elif res_count > 1:
         issue_id = None
-        match_results.multipleMatches.append(MultipleMatch(filename, res["results"]))
+        match_results.multiple_matches.append(MultipleMatch(filename, res["results"]))
         multiple_match = True
     elif res_count == 1:
         issue_id = res["results"][0]["id"]
-        match_results.goodMatches.append(filename)
+        match_results.good_matches.append(filename)
         multiple_match = False
 
     return issue_id, multiple_match
 
 
-def postProcessMatches(match_results, talker):
+def post_process_matches(match_results, talker):
+    """
+    Function to print match results and if there are
+    multiple matches, prompt the user
+    """
     # Print file matching results.
-    if len(match_results.goodMatches) > 0:
+    if match_results.good_matches:
         print("\nSuccessful matches:\n------------------")
-        for f in match_results.goodMatches:
-            print(f)
+        for comic in match_results.good_matches:
+            print(comic)
 
-    if len(match_results.noMatches) > 0:
+    if match_results.no_matches:
         print("\nNo matches:\n------------------")
-        for f in match_results.noMatches:
-            print(f)
+        for comic in match_results.no_matches:
+            print(comic)
 
     # Handle files with multiple matches.
-    if len(match_results.multipleMatches) > 0:
-        for match_set in match_results.multipleMatches:
-            issue_id = selectChoiceFromMultipleMatches(
+    if match_results.multiple_matches:
+        for match_set in match_results.multiple_matches:
+            issue_id = select_choice_from_multiple_matches(
                 match_set.filename, match_set.matches
             )
             if issue_id:
-                success = getIssueMetadata(match_set.filename, issue_id, talker)
+                success = get_issue_metadata(match_set.filename, issue_id, talker)
                 if not success:
                     print(
                         f"Unable to retrieve metadata for '{os.path.basename(match_set.filename)}'."
@@ -150,6 +173,9 @@ def postProcessMatches(match_results, talker):
 
 
 def main():
+    """
+    Main func
+    """
 
     parser = make_parser()
     opts = parser.parse_args()
@@ -175,22 +201,22 @@ def main():
         sys.exit(0)
 
     if opts.missing:
-        print("** Showing files without metadata **")
-        for f in file_list:
-            ca = ComicArchive(f)
-            if ca.hasMetadata(MetaDataStyle.CIX):
+        print("\nShowing files without metadata:\n-------------------------------")
+        for comic in file_list:
+            comic_archive = ComicArchive(comic)
+            if comic_archive.hasMetadata(MetaDataStyle.CIX):
                 continue
-            print(f"no metadata in '{os.path.basename(f)}'")
+            print(f"no metadata in '{os.path.basename(comic)}'")
 
     if opts.delete:
-        print("** Removing metadata **")
-        for f in file_list:
-            ca = ComicArchive(f)
-            if ca.hasMetadata(MetaDataStyle.CIX):
-                ca.removeMetadata(MetaDataStyle.CIX)
-                print(f"removed metadata from '{os.path.basename(f)}'.")
+        print("\nRemoving metadata:\n-----------------")
+        for comic in file_list:
+            comic_archive = ComicArchive(comic)
+            if comic_archive.hasMetadata(MetaDataStyle.CIX):
+                comic_archive.removeMetadata(MetaDataStyle.CIX)
+                print(f"removed metadata from '{os.path.basename(comic)}'.")
             else:
-                print(f"no metadata in '{os.path.basename(f)}'.")
+                print(f"no metadata in '{os.path.basename(comic)}'.")
 
     if opts.id:
         if len(file_list) > 1:
@@ -199,12 +225,14 @@ def main():
 
         filename = file_list[0]
         talker = create_metron_talker()
-        success = getIssueMetadata(filename, opts.id, talker)
+        success = get_issue_metadata(filename, opts.id, talker)
         if success:
             print(f"match found for '{os.path.basename(filename)}'.")
 
     if opts.online:
-        print("** Starting online search and tagging **")
+        print(
+            "\nStarting online search and tagging:\n----------------------------------"
+        )
 
         # Initialize class to handle results for files with multiple matches
         match_results = OnlineMatchResults()
@@ -212,11 +240,11 @@ def main():
 
         # Let's look online to see if we can find any matches on Metron.
         for filename in file_list:
-            issue_id, multiple_match = processFile(
+            issue_id, multiple_match = process_file(
                 filename, match_results, talker, opts.ignore_existing
             )
             if issue_id:
-                success = getIssueMetadata(filename, issue_id, talker)
+                success = get_issue_metadata(filename, issue_id, talker)
                 if success:
                     print(f"match found for '{os.path.basename(filename)}'.")
                 else:
@@ -229,36 +257,36 @@ def main():
                     continue
 
         # Print match results & handle files with multiple matches
-        postProcessMatches(match_results, talker)
+        post_process_matches(match_results, talker)
 
     if opts.rename:
-        print("** Starting comic archive renaming **")
+        print("\nStarting comic archive renaming:\n-------------------------------")
 
         # Lists to track filename changes
         new_file_names = []
         original_files_changed = []
-        for f in file_list:
-            ca = ComicArchive(f)
-            if not ca.hasCIX():
-                print(f"skipping '{os.path.basename(f)}'. No metadata available.")
+        for comic in file_list:
+            comic_archive = ComicArchive(comic)
+            if not comic_archive.hasCIX():
+                print(f"skipping '{os.path.basename(comic)}'. No metadata available.")
                 continue
 
-            md = ca.readMetadata(MetaDataStyle.CIX)
-            renamer = FileRenamer(md)
-            new_name = renamer.determineName(f)
+            meta_data = comic_archive.readMetadata(MetaDataStyle.CIX)
+            renamer = FileRenamer(meta_data)
+            new_name = renamer.determine_name(comic)
 
-            if new_name == os.path.basename(f):
+            if new_name == os.path.basename(comic):
                 print("Filename is already good!", file=sys.stderr)
                 continue
 
-            folder = os.path.dirname(os.path.abspath(f))
+            folder = os.path.dirname(os.path.abspath(comic))
             new_abs_path = unique_file(os.path.join(folder, new_name))
-            os.rename(f, new_abs_path)
+            os.rename(comic, new_abs_path)
             # track what files are being renamed
             new_file_names.append(new_abs_path)
-            original_files_changed.append(f)
+            original_files_changed.append(comic)
 
-            print(f"renamed '{os.path.basename(f)}' -> '{new_name}'")
+            print(f"renamed '{os.path.basename(comic)}' -> '{new_name}'")
 
         # Update file_list for renamed files
         for original_file in original_files_changed:
@@ -272,10 +300,12 @@ def main():
             print("Unable to sort files. No destination directory was provided.")
             return
 
-        print("** Starting sorting of comic archives **")
-        fs = FileSorter(SETTINGS.sort_dir)
+        print(
+            "\nStarting sorting of comic archives:\n----------------------------------"
+        )
+        file_sorter = FileSorter(SETTINGS.sort_dir)
         for comic in file_list:
-            result = fs.sort_comics(comic)
+            result = file_sorter.sort_comics(comic)
             if not result:
                 print(f"unable to move {os.path.basename(comic)}.")
 

@@ -1,10 +1,11 @@
+"""Setup file for metron-tagger"""
 from setuptools import find_packages, setup
 
 import metrontagger
 
 setup(
     name="metron-tagger",
-    version=metrontagger.version,
+    version=metrontagger.VERSION,
     description="A program to write metadata from metron.cloud to a comic archive",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

@@ -1,33 +1,38 @@
+"""Class to sort comic file based on it's metadata tags"""
 import os
 from shutil import Error, move
 
-from metrontagger.comicapi.comicarchive import ComicArchive, MetaDataStyle
-from metrontagger.taggerlib.utils import cleanup_string
+from ..comicapi.comicarchive import ComicArchive, MetaDataStyle
+from .utils import cleanup_string
 
 
 class FileSorter:
+    """Class to move comic files based on it's metadata tags"""
+
     def __init__(self, directory):
         self.set_directory(directory)
 
     def set_directory(self, directory):
+        """Directory where comic files are to be moved"""
         self.sort_directory = directory
 
-    def set_template(self, template):
-        self.template = template
+    # def set_template(self, template):
+    #     self.template = template
 
     def sort_comics(self, comic):
-        ca = ComicArchive(comic)
-        if ca.hasMetadata(MetaDataStyle.CIX):
-            md = ca.readMetadata(MetaDataStyle.CIX)
+        """Method to move the comic file based on it's metadata tag"""
+        comic_archive = ComicArchive(comic)
+        if comic_archive.hasMetadata(MetaDataStyle.CIX):
+            meta_data = comic_archive.readMetadata(MetaDataStyle.CIX)
         else:
             return False
 
-        if md is not None:
+        if meta_data is not None:
             # Cleanup the publisher & series metadata so they play nicely with filesystems.
-            publisher = cleanup_string(md.publisher)
-            series = cleanup_string(md.series)
-            if md.volume:
-                volume = "v" + cleanup_string(md.volume)
+            publisher = cleanup_string(meta_data.publisher)
+            series = cleanup_string(meta_data.series)
+            if meta_data.volume:
+                volume = "v" + cleanup_string(meta_data.volume)
                 new_path = (
                     self.sort_directory
                     + os.sep

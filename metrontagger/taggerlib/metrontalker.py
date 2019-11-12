@@ -1,3 +1,4 @@
+"""Python class to communicate with Metron.cloud"""
 import json
 import platform
 import ssl
@@ -8,26 +9,31 @@ from urllib.request import Request, urlopen
 
 from ratelimit import limits, sleep_and_retry
 
-from metrontagger.comicapi.genericmetadata import GenericMetadata
-from metrontagger.comicapi.issuestring import IssueString
-from metrontagger.comicapi.utils import listToString
+from ..comicapi.genericmetadata import GenericMetadata
+from ..comicapi.issuestring import IssueString
+from ..comicapi.utils import listToString
 
-from .. import version
+from .. import VERSION
 
 ONE_MINUTE = 60
 
 
 class MetronTalker:
+    """Python class to communicate with Metron's REST"""
+
     def __init__(self, auth):
         self.api_base_url = "https://metron.cloud/api"
         self.auth_str = f"Basic {auth.decode('utf-8')}"
         self.user_agent = (
-            f"Metron-Tagger/{version} ({platform.system()}; {platform.release()})"
+            f"Metron-Tagger/{VERSION} ({platform.system()}; {platform.release()})"
         )
         self.ssl = ssl.SSLContext(ssl.PROTOCOL_TLS)
 
     @classmethod
-    def parseDateStr(self, date_str):
+    def parse_date_string(cls, date_str):
+        """
+        Classmethod that takes a date from Metron's REST API and splits it into it's components
+        """
         day = None
         month = None
         year = None
@@ -42,34 +48,40 @@ class MetronTalker:
 
     @sleep_and_retry
     @limits(calls=20, period=ONE_MINUTE)
-    def fetchResponse(self, url):
+    def fetch_response(self, url):
+        """Function to retrieve a response from Metron's REST API"""
         request = Request(url)
         request.add_header("Authorization", self.auth_str)
         request.add_header("User-Agent", self.user_agent)
 
         try:
             content = urlopen(request, context=self.ssl)
-        except HTTPError as e:
+        except HTTPError as http_error:
             # TODO: Look into handling throttling better, but for now let's use this.
-            if e.code == 429:
+            if http_error.code == 429:
                 print("Exceeded api rate limit. Sleeping for 30 seconds...")
                 time.sleep(30)
-                return self.fetchResponse(url)
+                return self.fetch_response(url)
             raise
 
         resp = json.loads(content.read().decode("utf-8"))
 
         return resp
 
-    def fetchIssueDataByIssueId(self, issue_id):
+    def fetch_issue_data_by_issue_id(self, issue_id):
+        """Method to get an issue's metadata by supplying the issue id"""
         url = self.api_base_url + f"/issue/{issue_id}/?format=json"
-        resp = self.fetchResponse(url)
-        md = self.mapMetronDataToMetadata(resp)
-        md.isEmpty = False
+        resp = self.fetch_response(url)
+        meta_data = self.map_metron_data_to_metadata(resp)
+        meta_data.isEmpty = False
 
-        return md
+        return meta_data
 
-    def searchForIssue(self, query_dict):
+    def search_for_issue(self, query_dict):
+        """
+        Method to search for an issue based on a dictionary of
+        words, volume number, or year.
+        """
         url = (
             self.api_base_url
             + f"/issue/?series_name={query_dict['series']}&number={query_dict['number']}"
@@ -79,11 +91,15 @@ class MetronTalker:
         if query_dict["year"]:
             url += f"&cover_year={query_dict['year']}"
         url += "&format=json"
-        resp = self.fetchResponse(url)
+        resp = self.fetch_response(url)
 
         return resp
 
-    def mapMetronDataToMetadata(self, issue_results):
+    def map_metron_data_to_metadata(self, issue_results):
+        """
+        Method to map the issue results from Metron's REST API
+        to metadata
+        """
         metadata = GenericMetadata()
 
         metadata.series = issue_results["series"]["name"]
@@ -101,15 +117,15 @@ class MetronTalker:
             metadata.title = listToString(title_list)
 
         metadata.publisher = issue_results["publisher"]["name"]
-        metadata.day, metadata.month, metadata.year = self.parseDateStr(
+        metadata.day, metadata.month, metadata.year = self.parse_date_string(
             issue_results["cover_date"]
         )
 
         metadata.comments = issue_results["desc"]
 
-        d = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         metadata.notes = (
-            f"Tagged with MetronTagger-{version} using info from Metron on {d}. "
+            f"Tagged with MetronTagger-{VERSION} using info from Metron on {now_date}. "
             + f"[issue_id:{issue_results['id']}]"
         )
 
@@ -136,7 +152,7 @@ class MetronTalker:
         arc_list = []
         for arc in story_arc_credits:
             arc_list.append(arc["name"])
-        if len(arc_list) > 0:
+        if arc_list:
             metadata.storyArc = listToString(arc_list)
 
         return metadata

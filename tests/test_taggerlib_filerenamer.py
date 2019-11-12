@@ -31,18 +31,18 @@ class TestFileRenamer(TestCase):
         open(make_archive(self.zipfile, "zip", self.tmp_image_dir.name), "rb").read()
 
         # Create test metadata
-        self.md = GenericMetadata()
-        self.md.series = "Aquaman"
-        self.md.issue = "1"
-        self.md.year = "2011"
+        self.meta_data = GenericMetadata()
+        self.meta_data.series = "Aquaman"
+        self.meta_data.issue = "1"
+        self.meta_data.year = "2011"
 
     def tearDown(self):
         self.tmp_archive_dir.cleanup()
         self.tmp_image_dir.cleanup()
 
     def test_determine_name(self):
-        renamer = FileRenamer(self.md)
-        new_name = renamer.determineName(self.zipfile + ".zip")
+        renamer = FileRenamer(self.meta_data)
+        new_name = renamer.determine_name(self.zipfile + ".zip")
         self.assertEqual(new_name, "Aquaman #001 (2011).zip")
 
 
