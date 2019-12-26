@@ -9,11 +9,10 @@ from urllib.request import Request, urlopen
 
 from ratelimit import limits, sleep_and_retry
 
+from .. import VERSION
 from ..comicapi.genericmetadata import GenericMetadata
 from ..comicapi.issuestring import IssueString
 from ..comicapi.utils import listToString
-
-from .. import VERSION
 
 ONE_MINUTE = 60
 
