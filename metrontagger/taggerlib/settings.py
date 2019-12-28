@@ -1,20 +1,20 @@
 """Class to handle project settings"""
 import configparser
-import os
 import platform
+from os import environ
+from pathlib import Path, PurePath
 
 
 class MetronTaggerSettings:
     """Class to handle project settings"""
+
     @staticmethod
     def get_settings_folder():
         """Method to determine where the users settings should be saved"""
         if platform.system() == "Windows":
-            folder = os.path.join(os.environ["APPDATA"], "MetronTagger")
+            folder = PurePath(environ["APPDATA"]).joinpath("MetronTagger")
         else:
-            folder = os.path.join(os.path.expanduser("~"), ".MetronTagger")
-        if folder is not None:
-            folder = folder
+            folder = Path.home().joinpath(".MetronTagger")
         return folder
 
     def set_default_values(self):
@@ -30,15 +30,19 @@ class MetronTaggerSettings:
         self.set_default_values()
 
         self.config = configparser.ConfigParser()
+
+        if config_dir:
+            config_dir = Path(config_dir)
+
         self.folder = config_dir or MetronTaggerSettings.get_settings_folder()
 
-        if not os.path.exists(self.folder):
-            os.makedirs(self.folder)
+        self.settings_file = self.folder.joinpath("settings.ini")
 
-        self.settings_file = os.path.join(self.folder, "settings.ini")
+        if not self.settings_file.parent.exists():
+            self.settings_file.parent.mkdir()
 
         # Write the config file if it doesn't exist
-        if not os.path.exists(self.settings_file):
+        if not self.settings_file.exists():
             self.save()
         else:
             self.load()
@@ -65,5 +69,5 @@ class MetronTaggerSettings:
         self.config["metron"]["user"] = self.metron_user
         self.config["metron"]["password"] = self.metron_pass
 
-        with open(self.settings_file, "w") as configfile:
+        with self.settings_file.open("w") as configfile:
             self.config.write(configfile)
