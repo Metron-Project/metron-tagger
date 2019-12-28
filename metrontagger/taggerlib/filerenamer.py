@@ -15,8 +15,8 @@
 # limitations under the License.
 
 import datetime
-import os
 import re
+from pathlib import Path
 
 from ..comicapi.issuestring import IssueString
 
@@ -152,7 +152,7 @@ class FileRenamer:
             new_name = " ".join(new_name.split())
 
         if ext is None:
-            ext = os.path.splitext(filename)[1]
+            ext = Path(filename).suffix
 
         new_name += ext
 
