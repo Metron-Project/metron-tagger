@@ -3,22 +3,19 @@ import os
 import sys
 from base64 import standard_b64encode
 
-# Append sys.path so imports work.
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-
-from metrontagger.comicapi.comicarchive import ComicArchive, MetaDataStyle
-from metrontagger.comicapi.genericmetadata import GenericMetadata
-from metrontagger.comicapi.utils import get_recursive_filelist, unique_file
-from metrontagger.taggerlib.filerenamer import FileRenamer
-from metrontagger.taggerlib.filesorter import FileSorter
-from metrontagger.taggerlib.metrontalker import MetronTalker
-from metrontagger.taggerlib.options import make_parser
-from metrontagger.taggerlib.settings import MetronTaggerSettings
-from metrontagger.taggerlib.utils import create_issue_query_dict
-
+from .comicapi.comicarchive import ComicArchive, MetaDataStyle
+from .comicapi.genericmetadata import GenericMetadata
+from .comicapi.utils import get_recursive_filelist, unique_file
+from .taggerlib.filerenamer import FileRenamer
+from .taggerlib.filesorter import FileSorter
+from .taggerlib.metrontalker import MetronTalker
+from .taggerlib.options import make_parser
+from .taggerlib.settings import MetronTaggerSettings
+from .taggerlib.utils import create_issue_query_dict
 
 # Load the settings
 SETTINGS = MetronTaggerSettings()
+
 
 # TODO: Consider making this a dict or tuple
 class MultipleMatch:
