@@ -16,7 +16,7 @@ setup(
     packages=find_packages(),
     python_requires=">=3.7",
     install_requires=["natsort", "pillow", "ratelimit"],
-    entry_points={"console_scripts": ["metron-tagger=metrontagger.metron_tagger:main"]},
+    entry_points={"console_scripts": ["metron-tagger=metrontagger.main:main"]},
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Console",

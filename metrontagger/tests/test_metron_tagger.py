@@ -1,7 +1,7 @@
 """Main metron_tagger tests"""
 from unittest import TestCase, main
 
-from metrontagger.metron_tagger import create_metron_talker
+from metrontagger.main import create_metron_talker
 from metrontagger.taggerlib.metrontalker import MetronTalker
 
 
