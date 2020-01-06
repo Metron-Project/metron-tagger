@@ -98,7 +98,7 @@ def select_choice_from_multiple_matches(filename, match_set):
     return issue_id
 
 
-def process_file(filename, match_results, talker, ignore):
+def process_file(filename, match_results, talker):
     """
     Main function to attempt query Metron and write a tag
     """
@@ -107,11 +107,6 @@ def process_file(filename, match_results, talker, ignore):
     if not comic_archive.seemsToBeAComicArchive():
         print(f"{os.path.basename(filename)} does not appear to be a comic archive.")
         return None, False
-
-    if ignore:
-        if comic_archive.hasCIX():
-            print(f"{os.path.basename(filename)} has metadata. Skipping...")
-            return None, False
 
     if not comic_archive.isWritable():
         print(f"{os.path.basename(filename)} is not writable.")
@@ -237,9 +232,13 @@ def main():
 
         # Let's look online to see if we can find any matches on Metron.
         for filename in file_list:
-            issue_id, multiple_match = process_file(
-                filename, match_results, talker, opts.ignore_existing
-            )
+            if opts.ignore_existing:
+                comic_archive = ComicArchive(filename)
+                if comic_archive.hasCIX():
+                    print(f"{os.path.basename(filename)} has metadata. Skipping...")
+                    continue
+
+            issue_id, multiple_match = process_file(filename, match_results, talker)
             if issue_id:
                 success = get_issue_metadata(filename, issue_id, talker)
                 if success:
