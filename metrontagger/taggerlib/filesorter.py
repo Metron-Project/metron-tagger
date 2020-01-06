@@ -1,5 +1,6 @@
 """Class to sort comic file based on it's metadata tags"""
-import os
+import pathlib
+from os import fspath
 from shutil import Error, move
 
 from ..comicapi.comicarchive import ComicArchive, MetaDataStyle
@@ -28,34 +29,27 @@ class FileSorter:
             return False
 
         if meta_data is not None:
-            # Cleanup the publisher & series metadata so they play nicely with filesystems.
             publisher = cleanup_string(meta_data.publisher)
             series = cleanup_string(meta_data.series)
+
+            new_path = pathlib.Path(self.sort_directory).joinpath(publisher, series)
+
+            # If volume number is present add it to the directory path
             if meta_data.volume:
                 volume = "v" + cleanup_string(meta_data.volume)
-                new_path = (
-                    self.sort_directory
-                    + os.sep
-                    + publisher
-                    + os.sep
-                    + series
-                    + os.sep
-                    + volume
-                    + os.sep
-                )
-            else:
-                new_path = (
-                    self.sort_directory + os.sep + publisher + os.sep + series + os.sep
-                )
+                new_path.joinpath(volume)
         else:
             return False
 
-        if not os.path.isdir(new_path):
-            os.makedirs(new_path)
+        if not new_path.is_dir():
+            new_path.mkdir(parents=True)
 
+        original_path = pathlib.Path(comic)
         try:
-            move(comic, new_path)
-            print(f"moved {os.path.basename(comic)} to {new_path}.")
+            # Until python 3.9 is released, we need to force the Path
+            # objects to strings so shutils.move will work correctly.
+            move(fspath(original_path), fspath(new_path))
+            print(f"moved '{original_path.name}' to '{new_path}'")
         except Error:
             return False
 
