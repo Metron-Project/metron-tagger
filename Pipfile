@@ -10,9 +10,8 @@ pytest-cov = "*"
 flake8 = "*"
 
 [packages]
-natsort = "*"
-pillow = "*"
 ratelimit = "*"
+darkseid = "*"
 
 [requires]
 python_version = "3.6"
