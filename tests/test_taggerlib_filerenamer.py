@@ -3,7 +3,7 @@ import tempfile
 from shutil import make_archive
 from unittest import TestCase, main
 
-from metrontagger.comicapi.genericmetadata import GenericMetadata
+from darkseid.genericmetadata import GenericMetadata
 from metrontagger.taggerlib.filerenamer import FileRenamer
 
 

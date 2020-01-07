@@ -2,7 +2,7 @@ from base64 import standard_b64encode
 from unittest import TestCase, main
 from unittest.mock import patch
 
-from metrontagger.comicapi.genericmetadata import GenericMetadata
+from darkseid.genericmetadata import GenericMetadata
 from metrontagger.taggerlib.metrontalker import MetronTalker
 
 
