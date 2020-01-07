@@ -1,7 +1,7 @@
 """Some miscellaneous functions"""
 import urllib.parse
 
-from ..comicapi.filenameparser import FileNameParser
+from darkseid.filenameparser import FileNameParser
 
 
 def cleanup_string(path_name):

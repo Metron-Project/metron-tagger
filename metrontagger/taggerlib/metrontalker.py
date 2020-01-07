@@ -7,12 +7,12 @@ from datetime import datetime
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
+from darkseid.genericmetadata import GenericMetadata
+from darkseid.issuestring import IssueString
+from darkseid.utils import listToString
 from ratelimit import limits, sleep_and_retry
 
 from .. import VERSION
-from ..comicapi.genericmetadata import GenericMetadata
-from ..comicapi.issuestring import IssueString
-from ..comicapi.utils import listToString
 
 ONE_MINUTE = 60
 

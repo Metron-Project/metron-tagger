@@ -3,9 +3,10 @@ import os
 import sys
 from base64 import standard_b64encode
 
-from .comicapi.comicarchive import ComicArchive, MetaDataStyle
-from .comicapi.genericmetadata import GenericMetadata
-from .comicapi.utils import get_recursive_filelist, unique_file
+from darkseid.comicarchive import ComicArchive, MetaDataStyle
+from darkseid.genericmetadata import GenericMetadata
+from darkseid.utils import get_recursive_filelist, unique_file
+
 from .taggerlib.filerenamer import FileRenamer
 from .taggerlib.filesorter import FileSorter
 from .taggerlib.metrontalker import MetronTalker

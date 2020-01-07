@@ -3,7 +3,8 @@ import pathlib
 from os import fspath
 from shutil import Error, move
 
-from ..comicapi.comicarchive import ComicArchive, MetaDataStyle
+from darkseid.comicarchive import ComicArchive, MetaDataStyle
+
 from .utils import cleanup_string
 
 

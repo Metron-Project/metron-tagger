@@ -3,8 +3,8 @@ import tempfile
 from shutil import make_archive
 from unittest import TestCase, main
 
-from metrontagger.comicapi.comicarchive import ComicArchive, MetaDataStyle
-from metrontagger.comicapi.genericmetadata import GenericMetadata
+from darkseid.comicarchive import ComicArchive, MetaDataStyle
+from darkseid.genericmetadata import GenericMetadata
 from metrontagger.taggerlib.filesorter import FileSorter
 
 
