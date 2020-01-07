@@ -2,8 +2,8 @@
 import tempfile
 from unittest import TestCase, main
 
-from ..comicapi.comicinfoxml import ComicInfoXml
-from ..comicapi.genericmetadata import GenericMetadata
+from metrontagger.comicapi.comicinfoxml import ComicInfoXml
+from metrontagger.comicapi.genericmetadata import GenericMetadata
 
 
 class TestComicInfoXml(TestCase):

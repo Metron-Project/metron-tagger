@@ -3,7 +3,7 @@ import os
 import tempfile
 from unittest import TestCase, main
 
-from ..comicapi.filenameparser import FileNameParser as fn
+from metrontagger.comicapi.filenameparser import FileNameParser as fn
 
 
 class TestFileNameParser(TestCase):

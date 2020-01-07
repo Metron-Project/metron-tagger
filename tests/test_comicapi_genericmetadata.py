@@ -1,6 +1,6 @@
 from unittest import TestCase, main
 
-from ..comicapi.genericmetadata import GenericMetadata
+from metrontagger.comicapi.genericmetadata import GenericMetadata
 
 
 class TestGenericMetadata(TestCase):

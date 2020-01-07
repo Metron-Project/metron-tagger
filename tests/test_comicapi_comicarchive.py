@@ -4,8 +4,8 @@ import tempfile
 from shutil import make_archive
 from unittest import TestCase, main
 
-from ..comicapi.comicarchive import ComicArchive, MetaDataStyle
-from ..comicapi.genericmetadata import GenericMetadata
+from metrontagger.comicapi.comicarchive import ComicArchive, MetaDataStyle
+from metrontagger.comicapi.genericmetadata import GenericMetadata
 
 
 class TestComicArchive(TestCase):
