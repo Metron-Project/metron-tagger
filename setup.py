@@ -14,7 +14,7 @@ setup(
     url="https://github.com/bpepple/metron-tagger",
     license="GPLv3",
     packages=find_packages(exclude=["tests"]),
-    python_requires=">=3.7",
+    python_requires=">=3.6",
     install_requires=["natsort", "pillow", "ratelimit"],
     entry_points={"console_scripts": ["metron-tagger=metrontagger.main:main"]},
     classifiers=[
@@ -23,7 +23,7 @@ setup(
         "Intended Audience :: End Users/Desktop",
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Natural Language :: English",
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.6",
         "Topic :: Utilities",
         "Topic :: Other/Nonlisted Topic",
         "Operating System :: MacOS :: MacOS X",
