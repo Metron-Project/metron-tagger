@@ -13,7 +13,7 @@ setup(
     author_email="bdpepple@gmail.com",
     url="https://github.com/bpepple/metron-tagger",
     license="GPLv3",
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests"]),
     python_requires=">=3.7",
     install_requires=["natsort", "pillow", "ratelimit"],
     entry_points={"console_scripts": ["metron-tagger=metrontagger.main:main"]},
