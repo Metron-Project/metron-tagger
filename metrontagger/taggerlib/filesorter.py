@@ -38,7 +38,7 @@ class FileSorter:
             # If volume number is present add it to the directory path
             if meta_data.volume:
                 volume = "v" + cleanup_string(meta_data.volume)
-                new_path.joinpath(volume)
+                new_path = new_path.joinpath(volume)
         else:
             return False
 
