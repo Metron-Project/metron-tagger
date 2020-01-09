@@ -24,8 +24,8 @@ class FileSorter:
     def sort_comics(self, comic):
         """Method to move the comic file based on it's metadata tag"""
         comic_archive = ComicArchive(comic)
-        if comic_archive.hasMetadata(MetaDataStyle.CIX):
-            meta_data = comic_archive.readMetadata(MetaDataStyle.CIX)
+        if comic_archive.has_metadata(MetaDataStyle.CIX):
+            meta_data = comic_archive.read_metadata(MetaDataStyle.CIX)
         else:
             return False
 

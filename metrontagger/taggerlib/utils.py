@@ -18,7 +18,7 @@ def cleanup_string(path_name):
 def create_issue_query_dict(filename):
     """Function to create a diction of values based on the provided filename"""
     fnp = FileNameParser()
-    fnp.parseFilename(filename)
+    fnp.parse_filename(filename)
 
     # Substitute colon for hyphen when searching for series name
     fixed_txt = fnp.series.replace(" - ", ": ")

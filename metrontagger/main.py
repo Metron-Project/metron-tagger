@@ -49,7 +49,7 @@ def create_metron_talker():
 def create_pagelist_metadata(comic_archive):
     """Function that returns the metadata for the total number of pages"""
     meta_data = GenericMetadata()
-    meta_data.setDefaultPageList(comic_archive.getNumberOfPages())
+    meta_data.set_default_page_list(comic_archive.get_number_of_pages())
 
     return meta_data
 
@@ -66,7 +66,7 @@ def get_issue_metadata(filename, issue_id, talker):
         comic_archive = ComicArchive(filename)
         meta_data = create_pagelist_metadata(comic_archive)
         meta_data.overlay(metron_md)
-        comic_archive.writeMetadata(meta_data, MetaDataStyle.CIX)
+        comic_archive.write_metadata(meta_data, MetaDataStyle.CIX)
         success = True
 
     return success
@@ -105,11 +105,11 @@ def process_file(filename, match_results, talker):
     """
     comic_archive = ComicArchive(filename)
 
-    if not comic_archive.seemsToBeAComicArchive():
+    if not comic_archive.seems_to_be_a_comic_archive():
         print(f"{os.path.basename(filename)} does not appear to be a comic archive.")
         return None, False
 
-    if not comic_archive.isWritable():
+    if not comic_archive.is_writable():
         print(f"{os.path.basename(filename)} is not writable.")
         return None, False
 
@@ -197,7 +197,7 @@ def main():
         print("\nShowing files without metadata:\n-------------------------------")
         for comic in file_list:
             comic_archive = ComicArchive(comic)
-            if comic_archive.hasMetadata(MetaDataStyle.CIX):
+            if comic_archive.has_metadata(MetaDataStyle.CIX):
                 continue
             print(f"no metadata in '{os.path.basename(comic)}'")
 
@@ -205,8 +205,8 @@ def main():
         print("\nRemoving metadata:\n-----------------")
         for comic in file_list:
             comic_archive = ComicArchive(comic)
-            if comic_archive.hasMetadata(MetaDataStyle.CIX):
-                comic_archive.removeMetadata(MetaDataStyle.CIX)
+            if comic_archive.has_metadata(MetaDataStyle.CIX):
+                comic_archive.remove_metadata(MetaDataStyle.CIX)
                 print(f"removed metadata from '{os.path.basename(comic)}'.")
             else:
                 print(f"no metadata in '{os.path.basename(comic)}'.")
@@ -235,7 +235,7 @@ def main():
         for filename in file_list:
             if opts.ignore_existing:
                 comic_archive = ComicArchive(filename)
-                if comic_archive.hasCIX():
+                if comic_archive.check_for_cix():
                     print(f"{os.path.basename(filename)} has metadata. Skipping...")
                     continue
 
@@ -264,11 +264,11 @@ def main():
         original_files_changed = []
         for comic in file_list:
             comic_archive = ComicArchive(comic)
-            if not comic_archive.hasCIX():
+            if not comic_archive.check_for_cix():
                 print(f"skipping '{os.path.basename(comic)}'. No metadata available.")
                 continue
 
-            meta_data = comic_archive.readMetadata(MetaDataStyle.CIX)
+            meta_data = comic_archive.read_metadata(MetaDataStyle.CIX)
             renamer = FileRenamer(meta_data)
             new_name = renamer.determine_name(comic)
 

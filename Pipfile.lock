@@ -18,18 +18,18 @@
     "default": {
         "darkseid": {
             "hashes": [
-                "sha256:31441555c7f6192c3d64920fafa72d2cbb2c63009117f67ebbb8936b82d729a2",
-                "sha256:5898a7c3bdcb7feecc421a8515ea89c0360bd7e4c066c36f3d36d280de1ac7cb"
+                "sha256:0bc0955915baa9c2b263fa09635ddf92da0d70bfd0aaa2c12fa2aab0f71a23ff",
+                "sha256:ead037cb77a6955962b5b6f6de6ec99c434821fb2cdc4e332213d6461cb2b29c"
             ],
             "index": "pypi",
-            "version": "==0.5.0"
+            "version": "==0.6.0"
         },
         "natsort": {
             "hashes": [
-                "sha256:4f0de45639f1fa43dede43ae1919bcab66e0a6fc19b68ea24f0a250814b4f176",
-                "sha256:58c6fb2f355117e88a19808394ec1ed30a2ff881bdd2c81c436952caebd30668"
+                "sha256:41c9e0b5fb168d849656b3ea4d455385ec1036451167a9d977f94e63cb07a3d4",
+                "sha256:7207cddc510e1d5e728a7f73a0230f20a65e3346acd54856be6252291690d3ec"
             ],
-            "version": "==6.2.0"
+            "version": "==7.0.0"
         },
         "pillow": {
             "hashes": [

@@ -74,13 +74,13 @@ class FileRenamer:
 
         if meta_data.issue is not None:
             issue_str = "{0}".format(
-                IssueString(meta_data.issue).asString(pad=self.issue_zero_padding)
+                IssueString(meta_data.issue).as_string(pad=self.issue_zero_padding)
             )
         else:
             issue_str = None
         new_name = self.replace_token(new_name, issue_str, "%issue%")
 
-        new_name = self.replace_token(new_name, meta_data.issueCount, "%issuecount%")
+        new_name = self.replace_token(new_name, meta_data.issue_count, "%issuecount%")
         new_name = self.replace_token(new_name, meta_data.year, "%year%")
         new_name = self.replace_token(new_name, meta_data.publisher, "%publisher%")
         new_name = self.replace_token(new_name, meta_data.title, "%title%")
@@ -98,25 +98,25 @@ class FileRenamer:
         new_name = self.replace_token(new_name, meta_data.genre, "%genre%")
         new_name = self.replace_token(new_name, meta_data.language, "%language_code%")
         new_name = self.replace_token(
-            new_name, meta_data.criticalRating, "%criticalrating%"
+            new_name, meta_data.critical_rating, "%criticalrating%"
         )
         new_name = self.replace_token(
-            new_name, meta_data.alternateSeries, "%alternateseries%"
+            new_name, meta_data.alternate_series, "%alternateseries%"
         )
         new_name = self.replace_token(
-            new_name, meta_data.alternateNumber, "%alternatenumber%"
+            new_name, meta_data.alternate_number, "%alternatenumber%"
         )
         new_name = self.replace_token(
-            new_name, meta_data.alternateCount, "%alternatecount%"
+            new_name, meta_data.alternate_count, "%alternatecount%"
         )
         new_name = self.replace_token(new_name, meta_data.imprint, "%imprint%")
         new_name = self.replace_token(new_name, meta_data.format, "%format%")
         new_name = self.replace_token(
-            new_name, meta_data.maturityRating, "%maturityrating%"
+            new_name, meta_data.maturity_rating, "%maturityrating%"
         )
-        new_name = self.replace_token(new_name, meta_data.storyArc, "%storyarc%")
-        new_name = self.replace_token(new_name, meta_data.seriesGroup, "%seriesgroup%")
-        new_name = self.replace_token(new_name, meta_data.scanInfo, "%scaninfo%")
+        new_name = self.replace_token(new_name, meta_data.story_arc, "%storyarc%")
+        new_name = self.replace_token(new_name, meta_data.series_group, "%seriesgroup%")
+        new_name = self.replace_token(new_name, meta_data.scan_info, "%scaninfo%")
 
         if self.smart_cleanup:
 

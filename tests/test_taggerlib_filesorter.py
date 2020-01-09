@@ -41,7 +41,7 @@ class TestFileSorter(TestCase):
 
         # Now write it to the zipfile
         comic_archive = ComicArchive(self.zfile + ".zip")
-        comic_archive.writeMetadata(meta_data, MetaDataStyle.CIX)
+        comic_archive.write_metadata(meta_data, MetaDataStyle.CIX)
 
     def tearDown(self):
         self.tmp_archive_dir.cleanup()
