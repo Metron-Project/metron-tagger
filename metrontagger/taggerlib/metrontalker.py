@@ -9,7 +9,7 @@ from urllib.request import Request, urlopen
 
 from darkseid.genericmetadata import GenericMetadata
 from darkseid.issuestring import IssueString
-from darkseid.utils import listToString
+from darkseid.utils import list_to_string
 from ratelimit import limits, sleep_and_retry
 
 from .. import VERSION
@@ -104,7 +104,7 @@ class MetronTalker:
         metadata.series = issue_results["series"]["name"]
         metadata.volume = issue_results["volume"]
 
-        num_s = IssueString(issue_results["number"]).asString()
+        num_s = IssueString(issue_results["number"]).as_string()
 
         metadata.issue = num_s
 
@@ -113,7 +113,7 @@ class MetronTalker:
             title_list = []
             for title in titles:
                 title_list.append(title)
-            metadata.title = listToString(title_list)
+            metadata.title = list_to_string(title_list)
 
         metadata.publisher = issue_results["publisher"]["name"]
         metadata.day, metadata.month, metadata.year = self.parse_date_string(
@@ -133,25 +133,25 @@ class MetronTalker:
             if "role" in person:
                 roles = person["role"]
                 for role in roles:
-                    metadata.addCredit(person["creator"], role["name"], False)
+                    metadata.add_credit(person["creator"], role["name"], False)
 
         character_credits = issue_results["characters"]
         character_list = []
         for character in character_credits:
             character_list.append(character["name"])
-        metadata.characters = listToString(character_list)
+        metadata.characters = list_to_string(character_list)
 
         team_credits = issue_results["teams"]
         team_list = []
         for team in team_credits:
             team_list.append(team["name"])
-        metadata.teams = listToString(team_list)
+        metadata.teams = list_to_string(team_list)
 
         story_arc_credits = issue_results["arcs"]
         arc_list = []
         for arc in story_arc_credits:
             arc_list.append(arc["name"])
         if arc_list:
-            metadata.storyArc = listToString(arc_list)
+            metadata.story_arc = list_to_string(arc_list)
 
         return metadata
