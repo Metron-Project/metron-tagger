@@ -14,7 +14,7 @@ class MetronTaggerSettings:
         if platform.system() == "Windows":
             folder = PurePath(environ["APPDATA"]).joinpath("MetronTagger")
         else:
-            folder = Path.home().joinpath(".MetronTagger")
+            folder = Path.home() / ".MetronTagger"
         return folder
 
     def __init__(self, config_dir=None):
@@ -30,7 +30,7 @@ class MetronTaggerSettings:
 
         self.folder = config_dir or MetronTaggerSettings.get_settings_folder()
 
-        self.settings_file = self.folder.joinpath("settings.ini")
+        self.settings_file = self.folder / "settings.ini"
 
         if not self.settings_file.parent.exists():
             self.settings_file.parent.mkdir()
