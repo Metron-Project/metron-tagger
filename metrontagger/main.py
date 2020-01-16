@@ -3,7 +3,7 @@ import os
 import sys
 from base64 import standard_b64encode
 
-from darkseid.comicarchive import ComicArchive, MetaDataStyle
+from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
 from darkseid.utils import get_recursive_filelist, unique_file
 
@@ -66,7 +66,7 @@ def get_issue_metadata(filename, issue_id, talker):
         comic_archive = ComicArchive(filename)
         meta_data = create_pagelist_metadata(comic_archive)
         meta_data.overlay(metron_md)
-        comic_archive.write_metadata(meta_data, MetaDataStyle.CIX)
+        comic_archive.write_metadata(meta_data)
         success = True
 
     return success
@@ -197,7 +197,7 @@ def main():
         print("\nShowing files without metadata:\n-------------------------------")
         for comic in file_list:
             comic_archive = ComicArchive(comic)
-            if comic_archive.has_metadata(MetaDataStyle.CIX):
+            if comic_archive.has_metadata():
                 continue
             print(f"no metadata in '{os.path.basename(comic)}'")
 
@@ -205,8 +205,8 @@ def main():
         print("\nRemoving metadata:\n-----------------")
         for comic in file_list:
             comic_archive = ComicArchive(comic)
-            if comic_archive.has_metadata(MetaDataStyle.CIX):
-                comic_archive.remove_metadata(MetaDataStyle.CIX)
+            if comic_archive.has_metadata():
+                comic_archive.remove_metadata()
                 print(f"removed metadata from '{os.path.basename(comic)}'.")
             else:
                 print(f"no metadata in '{os.path.basename(comic)}'.")
@@ -235,7 +235,7 @@ def main():
         for filename in file_list:
             if opts.ignore_existing:
                 comic_archive = ComicArchive(filename)
-                if comic_archive.check_for_cix():
+                if comic_archive.has_metadata():
                     print(f"{os.path.basename(filename)} has metadata. Skipping...")
                     continue
 
@@ -264,11 +264,11 @@ def main():
         original_files_changed = []
         for comic in file_list:
             comic_archive = ComicArchive(comic)
-            if not comic_archive.check_for_cix():
+            if not comic_archive.has_metadata():
                 print(f"skipping '{os.path.basename(comic)}'. No metadata available.")
                 continue
 
-            meta_data = comic_archive.read_metadata(MetaDataStyle.CIX)
+            meta_data = comic_archive.read_metadata()
             renamer = FileRenamer(meta_data)
             new_name = renamer.determine_name(comic)
 

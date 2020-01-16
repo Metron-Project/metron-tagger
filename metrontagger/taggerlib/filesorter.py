@@ -3,7 +3,7 @@ import pathlib
 from os import fspath
 from shutil import Error, move
 
-from darkseid.comicarchive import ComicArchive, MetaDataStyle
+from darkseid.comicarchive import ComicArchive
 
 from .utils import cleanup_string
 
@@ -24,8 +24,8 @@ class FileSorter:
     def sort_comics(self, comic):
         """Method to move the comic file based on it's metadata tag"""
         comic_archive = ComicArchive(comic)
-        if comic_archive.has_metadata(MetaDataStyle.CIX):
-            meta_data = comic_archive.read_metadata(MetaDataStyle.CIX)
+        if comic_archive.has_metadata():
+            meta_data = comic_archive.read_metadata()
         else:
             return False
 

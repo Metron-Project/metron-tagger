@@ -3,7 +3,7 @@ import tempfile
 from shutil import make_archive
 from unittest import TestCase, main
 
-from darkseid.comicarchive import ComicArchive, MetaDataStyle
+from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
 from metrontagger.taggerlib.filesorter import FileSorter
 
@@ -41,7 +41,7 @@ class TestFileSorter(TestCase):
 
         # Now write it to the zipfile
         comic_archive = ComicArchive(self.zfile + ".zip")
-        comic_archive.write_metadata(meta_data, MetaDataStyle.CIX)
+        comic_archive.write_metadata(meta_data)
 
     def tearDown(self):
         self.tmp_archive_dir.cleanup()
