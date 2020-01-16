@@ -17,17 +17,11 @@ class MetronTaggerSettings:
             folder = Path.home().joinpath(".MetronTagger")
         return folder
 
-    def set_default_values(self):
-        """Method to set default values as empty"""
+    def __init__(self, config_dir=None):
         # Metron creditials
         self.metron_user = ""
         self.metron_pass = ""
         self.sort_dir = ""
-
-    def __init__(self, config_dir=None):
-        self.settings_file = ""
-        self.folder = ""
-        self.set_default_values()
 
         self.config = configparser.ConfigParser()
 

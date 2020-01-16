@@ -69,7 +69,7 @@ class MetronTalker:
 
     def fetch_issue_data_by_issue_id(self, issue_id):
         """Method to get an issue's metadata by supplying the issue id"""
-        url = self.api_base_url + f"/issue/{issue_id}/?format=json"
+        url = f"{self.api_base_url}/issue/{issue_id}/?format=json"
         resp = self.fetch_response(url)
         meta_data = self.map_metron_data_to_metadata(resp)
         meta_data.isEmpty = False
@@ -81,10 +81,7 @@ class MetronTalker:
         Method to search for an issue based on a dictionary of
         words, volume number, or year.
         """
-        url = (
-            self.api_base_url
-            + f"/issue/?series_name={query_dict['series']}&number={query_dict['number']}"
-        )
+        url = f"{self.api_base_url}/issue/?series_name={query_dict['series']}&number={query_dict['number']}"
         if query_dict["volume"]:
             url += f"&series_volume={query_dict['volume']}"
         if query_dict["year"]:

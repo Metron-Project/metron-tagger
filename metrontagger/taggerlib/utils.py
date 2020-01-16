@@ -1,5 +1,5 @@
 """Some miscellaneous functions"""
-import urllib.parse
+from urllib.parse import quote_plus
 
 from darkseid.filenameparser import FileNameParser
 
@@ -24,8 +24,8 @@ def create_issue_query_dict(filename):
     fixed_txt = fnp.series.replace(" - ", ": ")
     series_word_list = fixed_txt.split()
     series_string = " ".join(series_word_list).strip()
-    series_string = urllib.parse.quote_plus(series_string.encode("utf-8"))
-    number = urllib.parse.quote_plus(fnp.issue.encode("utf-8"))
+    series_string = quote_plus(series_string.encode("utf-8"))
+    number = quote_plus(fnp.issue.encode("utf-8"))
     query_dict = {
         "series": series_string,
         "volume": fnp.volume,
