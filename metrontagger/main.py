@@ -283,7 +283,9 @@ def main():
             new_file_names.append(new_abs_path)
             original_files_changed.append(comic)
 
-            print(f"renamed '{os.path.basename(comic)}' -> '{new_name}'")
+            print(
+                f"renamed '{os.path.basename(comic)}' -> '{os.path.basename(new_abs_path)}'"
+            )
 
         # Update file_list for renamed files
         for original_file in original_files_changed:
