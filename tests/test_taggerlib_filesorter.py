@@ -35,6 +35,7 @@ class TestFileSorter(TestCase):
         # Create test metadata
         meta_data = GenericMetadata()
         meta_data.series = "Aquaman"
+        meta_data.volume = "1"
         meta_data.issue = "1"
         meta_data.year = "2011"
         meta_data.publisher = "DC Comics"
@@ -52,6 +53,16 @@ class TestFileSorter(TestCase):
         file_sorter = FileSorter(self.tmp_sort_dir.name)
         res = file_sorter.sort_comics(self.zfile + ".zip")
         self.assertTrue(res)
+
+    def test_sort_files_without_metadata(self):
+        # If we add more tests we should probably create another tmpfile
+        # since we are removing the metadata from the tmpfile
+        comic = ComicArchive(self.zfile + ".zip")
+        comic.remove_metadata()
+
+        file_sorter = FileSorter(self.tmp_sort_dir.name)
+        res = file_sorter.sort_comics(self.zfile + ".zip")
+        self.assertFalse(res)
 
 
 if __name__ == "__main__":
