@@ -1,45 +1,70 @@
-## Metron-Tagger
+=============
+Metron-Tagger
+=============
 
-[![PyPI version](https://badge.fury.io/py/metron-tagger.svg)](https://badge.fury.io/py/metron-tagger)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/e2b6caca439a4684a96b01844ced5207)](https://app.codacy.com/app/bpepple/metron-tagger?utm_source=github.com&utm_medium=referral&utm_content=bpepple/metron-tagger&utm_campaign=Badge_Grade_Dashboard)
-[![Codacy Badge](https://api.codacy.com/project/badge/Coverage/eed1b6534cbf46ee9184dfe26e994d46)](https://www.codacy.com/app/bpepple/metron-tagger?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=bpepple/metron-tagger&amp;utm_campaign=Badge_Coverage)
-[![Build Status](https://travis-ci.org/bpepple/metron-tagger.svg?branch=master)](https://travis-ci.org/bpepple/metron-tagger)
+.. image:: https://img.shields.io/pypi/v/metron-tagger.svg
+    :target: https://pypi.org/project/metron-tagger/
 
-### Quick Description
+.. image:: https://img.shields.io/pypi/pyversions/metron-tagger.svg
+    :target: https://pypi.org/project/metron-tagger/
+
+.. image:: https://codecov.io/gh/bpepple/metron-tagger/branch/master/graph/badge.svg
+    :target: https://codecov.io/gh/bpepple/metron-tagger
+    :alt: Code coverage Status
+
+.. image:: https://travis-ci.org/bpepple/metron-tagger.svg?branch=master
+    :target: https://travis-ci.org/bpepple/metron-tagger
+
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/psf/black
+
+Quick Description
+-----------------
 
 A command-line tool to tag comic archives with metadata from [metron.cloud](https://metron.cloud).
 
-### Installation
+Installation
+------------
 
-- PyPi
+PyPi
+~~~~
 
-  Install it yourself:
+Or install it yourself:
 
-  ```
-    $ pip3 install --user metron-tagger
-  ```
-    
-- GitHub
+.. code:: bash
 
-  Installing the latest version from Github:
-  ```
-    $ git clone https://github.com/bpepple/metron-tagger.git
-    $ cd metron-tagger
-    $ python3 setup.py install
-  ```
+  $ pip install --user metron-tagger
 
+GitHub
+~~~~~~
 
-### FAQ
+Installing the latest version from Github:
+
+.. code:: bash
+
+  $ git clone https://github.com/bpepple/metron-tagger.git
+  $ cd metron-tagger
+  $ python3 setup.py install
+
+FAQ
+---
 
 1. **Why no cbr (rar) support?**
 
-   * I'm not aware of any provider (Comixology, Humble Bundle, DriveThru Comics, etc.) of legally downloadable DRM-free comics that use the rar format.
-   * It's a non-free software file format.
-   * It is trivial to convert to cbz (zip) format.
-   
-### Help
+  * I'm not aware of any provider (Comixology, Humble Bundle, DriveThru Comics, etc.) of legally downloadable DRM-free comics that use the rar format.
+  * It's a non-free software file format.
+  * It is trivial to convert to cbz (zip) format.
 
-```
+Bugs/Requests
+-------------
+
+Please use the `GitHub issue tracker <https://github.com/bpepple/metron-tagger/issues>`_ to submit bugs or request features.
+
+Help
+----
+
+.. code:: bash
+
 usage: metron_tagger.py [-h] [-r] [-o] [--id ID] [-d] [--ignore-existing]
                         [--missing] [-u USER] [-p PASSWORD]
                         [--set-metron-user] [-s] [--sort-dir SORT_DIR]
@@ -75,4 +100,9 @@ optional arguments:
   --set-sort-dir        Set the directory where files should be sorted.
                         (default: False)
   --version             Show the version number and exit
-```
+
+License
+-------
+
+This project is licensed under the `GPLv3 License <LICENSE>`_.
+
