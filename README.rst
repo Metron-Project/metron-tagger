@@ -60,47 +60,6 @@ Bugs/Requests
 
 Please use the `GitHub issue tracker <https://github.com/bpepple/metron-tagger/issues>`_ to submit bugs or request features.
 
-Help
-----
-
-.. code:: bash
-
-usage: metron_tagger.py [-h] [-r] [-o] [--id ID] [-d] [--ignore-existing]
-                        [--missing] [-u USER] [-p PASSWORD]
-                        [--set-metron-user] [-s] [--sort-dir SORT_DIR]
-                        [--set-sort-dir] [--version]
-                        path [path ...]
-
-Read in a file or set of files, and return the result.
-
-positional arguments:
-  path                  Path of a file or a folder of files.
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -r, --rename          Rename comic archive from the files metadata.
-                        (default: False)
-  -o, --online          Search online and attempt to identify comic archive.
-                        (default: False)
-  --id ID               Identify file for tagging with the Metron Issue Id.
-                        (default: None)
-  -d, --delete          Delete the metadata tags from the file. (default:
-                        False)
-  --ignore-existing     Ignore files that have existing metadata tag.
-                        (default: False)
-  --missing             List files without metadata. (default: False)
-  -u USER, --user USER  Metron user identity (default: None)
-  -p PASSWORD, --password PASSWORD
-                        Metron user password (default: None)
-  --set-metron-user     Save the Metron user settings (default: False)
-  -s, --sort            Sort files that contain metadata tags. (default:
-                        False)
-  --sort-dir SORT_DIR   Directory wher files should be sorted to. This should
-                        not have a trailing path serparator. (default: None)
-  --set-sort-dir        Set the directory where files should be sorted.
-                        (default: False)
-  --version             Show the version number and exit
-
 License
 -------
 
