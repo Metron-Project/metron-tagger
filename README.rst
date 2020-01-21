@@ -51,11 +51,11 @@ Installing the latest version from Github:
 FAQ
 ---
 
-1. Why no .cbr (rar) support?
+**Why no .cbr (rar) support?**
 
-  - I'm not aware of any provider (Comixology, Humble Bundle, DriveThru Comics, etc.) of legally downloadable DRM-free comics that use the rar format.
-  - It's a non-free software file format.
-  - It is trivial to convert to cbz (zip) format.
+- I'm not aware of any provider (Comixology, Humble Bundle, DriveThru Comics, etc.) of legally downloadable DRM-free comics that use the rar format.
+- It's a non-free software file format.
+- It is trivial to convert to cbz (zip) format.
 
 Bugs/Requests
 -------------
