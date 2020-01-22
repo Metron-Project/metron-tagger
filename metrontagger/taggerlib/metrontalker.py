@@ -101,12 +101,10 @@ class MetronTalker:
         metadata.series = issue_results["series"]["name"]
         metadata.volume = issue_results["volume"]
 
-        num_s = IssueString(issue_results["number"]).as_string()
-
-        metadata.issue = num_s
+        metadata.issue = IssueString(issue_results["number"]).as_string()
 
         titles = issue_results["name"]
-        if titles is not None:
+        if titles:
             title_list = []
             for title in titles:
                 title_list.append(title)
@@ -126,29 +124,32 @@ class MetronTalker:
         )
 
         person_credits = issue_results["credits"]
-        for person in person_credits:
-            if "role" in person:
-                roles = person["role"]
-                for role in roles:
-                    metadata.add_credit(person["creator"], role["name"], False)
+        if person_credits:
+            for person in person_credits:
+                if "role" in person:
+                    roles = person["role"]
+                    for role in roles:
+                        metadata.add_credit(person["creator"], role["name"], False)
 
         character_credits = issue_results["characters"]
-        character_list = []
-        for character in character_credits:
-            character_list.append(character["name"])
-        metadata.characters = list_to_string(character_list)
+        if character_credits:
+            character_list = []
+            for character in character_credits:
+                character_list.append(character["name"])
+            metadata.characters = list_to_string(character_list)
 
         team_credits = issue_results["teams"]
-        team_list = []
-        for team in team_credits:
-            team_list.append(team["name"])
-        metadata.teams = list_to_string(team_list)
+        if team_credits:
+            team_list = []
+            for team in team_credits:
+                team_list.append(team["name"])
+            metadata.teams = list_to_string(team_list)
 
         story_arc_credits = issue_results["arcs"]
-        arc_list = []
-        for arc in story_arc_credits:
-            arc_list.append(arc["name"])
-        if arc_list:
+        if story_arc_credits:
+            arc_list = []
+            for arc in story_arc_credits:
+                arc_list.append(arc["name"])
             metadata.story_arc = list_to_string(arc_list)
 
         return metadata
