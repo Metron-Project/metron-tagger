@@ -81,6 +81,7 @@ class TestMetronTalker(TestCase):
         meta_data = self.talker.map_metron_data_to_metadata(self.resp)
         self.assertIsNotNone(meta_data)
         self.assertEqual(meta_data.title, self.resp["name"][0])
+        self.assertEqual(meta_data.story_arc, self.resp["arcs"][0]["name"])
         self.assertEqual(meta_data.series, self.resp["series"]["name"])
         self.assertEqual(meta_data.volume, self.resp["volume"])
         self.assertEqual(meta_data.publisher, self.resp["publisher"]["name"])
