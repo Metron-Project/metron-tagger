@@ -12,14 +12,7 @@ class FileSorter:
     """Class to move comic files based on it's metadata tags"""
 
     def __init__(self, directory):
-        self.set_directory(directory)
-
-    def set_directory(self, directory):
-        """Directory where comic files are to be moved"""
         self.sort_directory = directory
-
-    # def set_template(self, template):
-    #     self.template = template
 
     def sort_comics(self, comic):
         """Method to move the comic file based on it's metadata tag"""
@@ -31,14 +24,8 @@ class FileSorter:
 
         publisher = cleanup_string(meta_data.publisher)
         series = cleanup_string(meta_data.series)
-
-        new_path = pathlib.Path(self.sort_directory) / publisher / series
-
-        # If volume number is present add it to the directory path
-        # TODO: Make this optional based on user's config
-        if meta_data.volume:
-            volume = "v" + cleanup_string(meta_data.volume)
-            new_path = new_path / volume
+        volume = "v" + cleanup_string(meta_data.volume)
+        new_path = pathlib.Path(self.sort_directory) / publisher / series / volume
 
         if not new_path.is_dir():
             new_path.mkdir(parents=True)
