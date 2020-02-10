@@ -76,7 +76,7 @@ def select_choice_from_multiple_matches(filename, match_set):
     Function to ask user to choice which issue metadata to write,
     when there are multiple choices
     """
-    print(f"\n{filename.name} - Multiple results found:\n")
+    print(f"\n{filename.name} - Multiple results found:")
 
     # sort match list by cover date
     match_set = sorted(match_set, key=lambda m: m["cover_date"])
