@@ -12,12 +12,12 @@ script:
   - python3 -m pytest --cov=metrontagger tests/
 after_success:
   - codecov
-deploy:
-  provider: pypi
-  user: $PYPI_USER
-  password: $PYPI_PASS
-  distributions: "sdist bdist_wheel"
-  on:
-    tags: true
-    branch: master
-    repo: bpepple/metron-tagger
+# deploy:
+#   provider: pypi
+#   user: $PYPI_USER
+#   password: $PYPI_PASS
+#   distributions: "sdist bdist_wheel"
+#   on:
+#     tags: true
+#     branch: master
+#     repo: bpepple/metron-tagger
