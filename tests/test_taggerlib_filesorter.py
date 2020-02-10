@@ -1,10 +1,12 @@
 import os
 import tempfile
+from pathlib import Path
 from shutil import make_archive
 from unittest import TestCase, main
 
 from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
+
 from metrontagger.taggerlib.filesorter import FileSorter
 
 
@@ -33,16 +35,16 @@ class TestFileSorter(TestCase):
         open(make_archive(self.zfile, "zip", self.tmp_image_dir.name), "rb").read()
 
         # Create test metadata
-        meta_data = GenericMetadata()
-        meta_data.series = "Aquaman"
-        meta_data.volume = "1"
-        meta_data.issue = "1"
-        meta_data.year = "2011"
-        meta_data.publisher = "DC Comics"
+        self.meta_data = GenericMetadata()
+        self.meta_data.series = "Aquaman"
+        self.meta_data.volume = "1"
+        self.meta_data.issue = "1"
+        self.meta_data.year = "2011"
+        self.meta_data.publisher = "DC Comics"
 
         # Now write it to the zipfile
         comic_archive = ComicArchive(self.zfile + ".zip")
-        comic_archive.write_metadata(meta_data)
+        comic_archive.write_metadata(self.meta_data)
 
     def tearDown(self):
         self.tmp_archive_dir.cleanup()
@@ -50,8 +52,12 @@ class TestFileSorter(TestCase):
         self.tmp_image_dir.cleanup()
 
     def test_sort_file(self):
+        result_dir = Path(self.tmp_sort_dir.name).joinpath(
+            self.meta_data.publisher, self.meta_data.series, f"v{self.meta_data.volume}"
+        )
         file_sorter = FileSorter(self.tmp_sort_dir.name)
         res = file_sorter.sort_comics(self.zfile + ".zip")
+        self.assertTrue(result_dir.is_dir())
         self.assertTrue(res)
 
     def test_sort_files_without_metadata(self):

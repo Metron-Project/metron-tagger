@@ -18,6 +18,12 @@ Metron-Tagger
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
 
+.. image:: https://img.shields.io/pypi/wheel/metron-tagger.svg
+    :target: https://pypi.org/project/metron-tagger/
+
+.. image:: https://img.shields.io/pypi/dm/metron-tagger.svg
+    :target: https://pypi.org/project/metron-tagger/
+
 Quick Description
 -----------------
 

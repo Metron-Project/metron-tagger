@@ -2,6 +2,8 @@ dist: xenial
 language: python
 python:
   - "3.6"
+  - "3.7"
+  - "3.8"
 install:
   - pip install pipenv
   - pipenv install --dev 
@@ -10,3 +12,12 @@ script:
   - python3 -m pytest --cov=metrontagger tests/
 after_success:
   - codecov
+deploy:
+  provider: pypi
+  user: $PYPI_USER
+  password: $PYPI_PASS
+  distributions: "sdist bdist_wheel"
+  on:
+    tags: true
+    branch: master
+    repo: bpepple/metron-tagger
