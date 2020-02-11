@@ -8,12 +8,8 @@ from unittest.mock import patch
 
 from darkseid.comicarchive import ComicArchive
 
-from metrontagger.main import get_issue_metadata
+from metrontagger.main import create_metron_talker, get_issue_metadata
 from metrontagger.taggerlib.metrontalker import MetronTalker
-
-
-def test_create_metron_talker(talker):
-    assert isinstance(talker, MetronTalker)
 
 
 class TestMetronTagger(TestCase):
@@ -74,6 +70,11 @@ class TestMetronTagger(TestCase):
     def tearDown(self):
         self.tmp_archive_dir.cleanup()
         self.tmp_image_dir.cleanup()
+
+    def test_create_metron_talker(self):
+        """ Check for MetronTalker is created """
+        talker = create_metron_talker()
+        self.assertIsInstance(talker, MetronTalker)
 
     @patch("metrontagger.taggerlib.metrontalker.MetronTalker.fetch_response")
     def test_get_issue_metadata(self, mock_fetch):
