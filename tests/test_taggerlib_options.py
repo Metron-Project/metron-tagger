@@ -1,63 +1,52 @@
-import tempfile
-from unittest import TestCase, main
+def test_creditial_options(parser, tmpdir):
+    parsed = parser.parse_args(
+        [
+            "--user",
+            "test_user",
+            "--password",
+            "test_passwd",
+            "--set-metron-user",
+            str(tmpdir),
+        ]
+    )
 
-from metrontagger.taggerlib.options import make_parser
-
-
-class TestOptions(TestCase):
-    def setUp(self):
-        self.parser = make_parser()
-        self.path = tempfile.TemporaryDirectory()
-
-    def tearDown(self):
-        self.path.cleanup()
-
-    def test_creditial_options(self):
-        parsed = self.parser.parse_args(
-            [
-                "--user",
-                "test_user",
-                "--password",
-                "test_passwd",
-                "--set-metron-user",
-                self.path.name,
-            ]
-        )
-        self.assertEqual(parsed.user, "test_user")
-        self.assertEqual(parsed.password, "test_passwd")
-        self.assertTrue(parsed.set_metron_user)
-        self.assertEqual(parsed.path, [self.path.name])
-
-    def test_online_option(self):
-        parsed = self.parser.parse_args(["-o", self.path.name])
-        self.assertTrue(parsed.online)
-        self.assertEqual(parsed.path, [self.path.name])
-
-    def test_id_option(self):
-        parsed = self.parser.parse_args(["--id", "1", self.path.name])
-        self.assertEqual(parsed.id, "1")
-        self.assertEqual(parsed.path, [self.path.name])
-
-    def test_delete_option(self):
-        parsed = self.parser.parse_args(["-d", self.path.name])
-        self.assertTrue(parsed.delete)
-        self.assertEqual(parsed.path, [self.path.name])
-
-    def test_missing_option(self):
-        parsed = self.parser.parse_args(["--missing", self.path.name])
-        self.assertTrue(parsed.missing)
-        self.assertEqual(parsed.path, [self.path.name])
-
-    def test_rename_option(self):
-        parsed = self.parser.parse_args(["-r", self.path.name])
-        self.assertTrue(parsed.rename)
-        self.assertEqual(parsed.path, [self.path.name])
-
-    def test_ignore_option(self):
-        parsed = self.parser.parse_args(["--ignore-existing", self.path.name])
-        self.assertTrue(parsed.ignore_existing)
-        self.assertEqual(parsed.path, [self.path.name])
+    assert parsed.user == "test_user"
+    assert parsed.password == "test_passwd"
+    assert parsed.set_metron_user is True
+    assert parsed.path == [str(tmpdir)]
 
 
-if __name__ == "__main__":
-    main()
+def test_online_option(parser, tmpdir):
+    parsed = parser.parse_args(["-o", str(tmpdir)])
+    assert parsed.online is True
+    assert parsed.path == [str(tmpdir)]
+
+
+def test_id_option(parser, tmpdir):
+    parsed = parser.parse_args(["--id", "1", str(tmpdir)])
+    assert parsed.id == "1"
+    assert parsed.path == [str(tmpdir)]
+
+
+def test_delete_option(parser, tmpdir):
+    parsed = parser.parse_args(["-d", str(tmpdir)])
+    assert parsed.delete is True
+    assert parsed.path == [str(tmpdir)]
+
+
+def test_missing_option(parser, tmpdir):
+    parsed = parser.parse_args(["--missing", str(tmpdir)])
+    assert parsed.missing is True
+    assert parsed.path == [str(tmpdir)]
+
+
+def test_rename_option(parser, tmpdir):
+    parsed = parser.parse_args(["-r", str(tmpdir)])
+    assert parsed.rename is True
+    assert parsed.path == [str(tmpdir)]
+
+
+def test_ignore_option(parser, tmpdir):
+    parsed = parser.parse_args(["--ignore-existing", str(tmpdir)])
+    assert parsed.ignore_existing is True
+    assert parsed.path == [str(tmpdir)]
