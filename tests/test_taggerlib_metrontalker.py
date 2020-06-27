@@ -1,119 +1,87 @@
-from base64 import standard_b64encode
-from unittest import TestCase, main
-from unittest.mock import patch
-
+import pytest
 from darkseid.genericmetadata import GenericMetadata
+
 from metrontagger.taggerlib.metrontalker import MetronTalker
 
 
-class TestMetronTalker(TestCase):
-    def setUp(self):
-        auth = f"test_user:test_auth"
-        self.base64string = standard_b64encode(auth.encode("utf-8"))
-        self.talker = MetronTalker(self.base64string)
-        self.resp = {
-            "id": 1778,
-            "publisher": {"id": 2, "name": "DC Comics"},
-            "series": {"id": 204, "name": "Aquaman"},
-            "volume": 4,
-            "number": "0",
-            "name": ["A Crash of Symbols"],
-            "cover_date": "1994-10-01",
-            "store_date": None,
-            "desc": "A ZERO HOUR tie-in! Aquaman battles against his father and the outcome leads to his discovery of a hidden heritage. When the water subsides, the Sea King's relationship with the surface world and his life as a hero will be forever affected!",
-            "image": "http://127.0.0.1:8000/media/issue/2019/04/01/aquaman-0.jpg",
-            "arcs": [{"id": 69, "name": "Zero Hour"}],
-            "credits": [
-                {
-                    "id": 1576,
-                    "creator": "Brad Vancata",
-                    "role": [{"id": 4, "name": "Inker"}],
-                },
-                {
-                    "id": 1575,
-                    "creator": "Dan Nakrosis",
-                    "role": [{"id": 6, "name": "Letterer"}],
-                },
-                {
-                    "id": 739,
-                    "creator": "Eddie Berganza",
-                    "role": [{"id": 12, "name": "Assistant Editor"}],
-                },
-                {
-                    "id": 1579,
-                    "creator": "Howard Shum",
-                    "role": [{"id": 4, "name": "Inker"}],
-                },
-                {
-                    "id": 1560,
-                    "creator": "Kevin Dooley",
-                    "role": [{"id": 8, "name": "Editor"}],
-                },
-                {
-                    "id": 1577,
-                    "creator": "Martin Egeland",
-                    "role": [
-                        {"id": 3, "name": "Penciller"},
-                        {"id": 7, "name": "Cover"},
-                    ],
-                },
-                {
-                    "id": 166,
-                    "creator": "Peter David",
-                    "role": [{"id": 1, "name": "Writer"}],
-                },
-                {
-                    "id": 1268,
-                    "creator": "Tom McCraw",
-                    "role": [{"id": 5, "name": "Colorist"}],
-                },
-            ],
-            "characters": [
-                {"id": 86, "name": "Aquaman"},
-                {"id": 1499, "name": "Dolphin"},
-                {"id": 416, "name": "Garth"},
-                {"id": 1500, "name": "Vulko"},
-            ],
-            "teams": [],
-        }
+@pytest.fixture()
+def metron_response():
+    resp = {
+        "id": 1778,
+        "publisher": {"id": 2, "name": "DC Comics"},
+        "series": {"id": 204, "name": "Aquaman"},
+        "volume": 4,
+        "number": "0",
+        "name": ["A Crash of Symbols"],
+        "cover_date": "1994-10-01",
+        "store_date": None,
+        "desc": "A ZERO HOUR tie-in!",
+        "image": "http://127.0.0.1:8000/media/issue/2019/04/01/aquaman-0.jpg",
+        "arcs": [{"id": 69, "name": "Zero Hour"}],
+        "credits": [
+            {
+                "id": 1576,
+                "creator": "Brad Vancata",
+                "role": [{"id": 4, "name": "Inker"}],
+            },
+            {
+                "id": 1575,
+                "creator": "Dan Nakrosis",
+                "role": [{"id": 6, "name": "Letterer"}],
+            },
+        ],
+        "characters": [
+            {"id": 86, "name": "Aquaman"},
+            {"id": 1499, "name": "Dolphin"},
+            {"id": 416, "name": "Garth"},
+            {"id": 1500, "name": "Vulko"},
+        ],
+        "teams": [{"id": 1, "name": "Justice League"}],
+    }
+    return resp
 
-    def test_map_resp_to_metadata(self):
-        meta_data = self.talker.map_metron_data_to_metadata(self.resp)
-        self.assertIsNotNone(meta_data)
-        self.assertEqual(meta_data.title, self.resp["name"][0])
-        self.assertEqual(meta_data.story_arc, self.resp["arcs"][0]["name"])
-        self.assertEqual(meta_data.series, self.resp["series"]["name"])
-        self.assertEqual(meta_data.volume, self.resp["volume"])
-        self.assertEqual(meta_data.publisher, self.resp["publisher"]["name"])
-        self.assertEqual(meta_data.issue, self.resp["number"])
-        self.assertEqual(meta_data.year, "1994")
 
-    def test_map_resp_to_metadata_with_no_story_name(self):
-        test_data = self.resp
-        test_data["name"] = None
-        meta_data = self.talker.map_metron_data_to_metadata(test_data)
-        self.assertIsNotNone(meta_data)
-        self.assertIsNone(meta_data.title)
-        self.assertEqual(meta_data.series, self.resp["series"]["name"])
-        self.assertEqual(meta_data.volume, self.resp["volume"])
-        self.assertEqual(meta_data.publisher, self.resp["publisher"]["name"])
-        self.assertEqual(meta_data.issue, self.resp["number"])
-        self.assertEqual(meta_data.year, "1994")
+def test_map_resp_to_metadata(talker, metron_response):
+    meta_data = talker.map_metron_data_to_metadata(metron_response)
+    assert meta_data is not None
+    assert meta_data.title == metron_response["name"][0]
+    assert meta_data.story_arc == metron_response["arcs"][0]["name"]
+    assert meta_data.series == metron_response["series"]["name"]
+    assert meta_data.volume == metron_response["volume"]
+    assert meta_data.publisher == metron_response["publisher"]["name"]
+    assert meta_data.issue == metron_response["number"]
+    assert meta_data.teams == metron_response["teams"][0]["name"]
+    assert meta_data.year == "1994"
 
-    @patch("metrontagger.taggerlib.metrontalker.MetronTalker.fetch_response")
-    def test_fetch_issue_by_id(self, mock_fetch):
-        mock_fetch.return_value = self.resp
-        talker = MetronTalker(self.base64string)
-        meta_data = talker.fetch_issue_data_by_issue_id("1")
-        self.assertIsNotNone(meta_data)
-        self.assertIsInstance(meta_data, GenericMetadata)
-        self.assertEqual(meta_data.series, self.resp["series"]["name"])
-        self.assertEqual(meta_data.issue, self.resp["number"])
 
-    @patch("metrontagger.taggerlib.metrontalker.MetronTalker.fetch_response")
-    def test_search_for_issue(self, mock_fetch):
-        query_dict = {"series": "aquaman", "volume": "", "number": "10", "year": ""}
-        res = {
+def test_map_resp_to_metadata_with_no_story_name(talker, metron_response):
+    test_data = metron_response
+    test_data["name"] = None
+    meta_data = talker.map_metron_data_to_metadata(test_data)
+    assert meta_data is not None
+    assert meta_data.title is None
+    assert meta_data.series == metron_response["series"]["name"]
+    assert meta_data.volume == metron_response["volume"]
+    assert meta_data.publisher == metron_response["publisher"]["name"]
+    assert meta_data.issue == metron_response["number"]
+    assert meta_data.year == "1994"
+
+
+class MockFetchIssueResponse:
+    @staticmethod
+    def fetch_issue_data_by_issue_id():
+        meta_data = GenericMetadata()
+        meta_data.series = "Aquaman"
+        meta_data.issue = "1"
+        meta_data.year = "1993"
+        meta_data.day = "15"
+        meta_data.add_credit("Peter David", "Writer", primary=True)
+        meta_data.add_credit("Martin Egeland", "Penciller")
+        return meta_data
+
+    @staticmethod
+    def search_for_issue():
+        result = {
             "count": 7,
             "next": None,
             "previous": None,
@@ -131,12 +99,35 @@ class TestMetronTalker(TestCase):
                 },
             ],
         }
-        mock_fetch.return_value = res
-        talker = MetronTalker(self.base64string)
-        response = talker.search_for_issue(query_dict)
-        self.assertIsNotNone(response)
-        self.assertEqual(response, res)
+        return result
 
 
-if __name__ == "__main__":
-    main()
+@pytest.fixture()
+def mock_fetch(monkeypatch):
+    def mock_get_issue(*args, **kwargs):
+        return MockFetchIssueResponse().fetch_issue_data_by_issue_id()
+
+    def mock_get_search(*args, **kwargs):
+        return MockFetchIssueResponse().search_for_issue()
+
+    monkeypatch.setattr(MetronTalker, "fetch_issue_data_by_issue_id", mock_get_issue)
+    monkeypatch.setattr(MetronTalker, "fetch_response", mock_get_search)
+
+
+def test_fetch_issue_by_id(talker, mock_fetch):
+    expected = MockFetchIssueResponse.fetch_issue_data_by_issue_id()
+    meta_data = talker.fetch_issue_data_by_issue_id("1")
+    assert meta_data is not None
+    assert isinstance(meta_data, GenericMetadata)
+    assert meta_data.series == expected.series
+    assert meta_data.issue == expected.issue
+    assert meta_data.year == expected.year
+    assert meta_data.day == expected.day
+    assert meta_data.credits[0] == expected.credits[0]
+
+
+def test_search_for_issue(talker, mock_fetch):
+    query_dict = {"series": "aquaman", "volume": "", "number": "10", "year": ""}
+    response = talker.search_for_issue(query_dict)
+    assert response is not None
+    assert response == MockFetchIssueResponse().search_for_issue()
