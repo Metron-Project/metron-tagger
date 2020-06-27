@@ -28,7 +28,13 @@ class FileSorter:
         new_path = pathlib.Path(self.sort_directory) / publisher / series / volume
 
         if not new_path.is_dir():
-            new_path.mkdir(parents=True)
+            try:
+                new_path.mkdir(parents=True)
+            except PermissionError:
+                print(
+                    f"due to permission error, failed to create directory: {new_path}"
+                )
+                return False
 
         original_path = pathlib.Path(comic)
         try:
