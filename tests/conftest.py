@@ -43,7 +43,7 @@ def fake_comic(tmp_path_factory):
     img_1.write_text(CONTENT)
     img_2 = test_dir / "image-2.jpg"
     img_2.write_text(CONTENT)
-    img_3 = test_dir /"image-3.jpg"
+    img_3 = test_dir / "image-3.jpg"
     img_3.write_text(CONTENT)
 
     z_file = tmp_path_factory.mktemp("comic") / "Aquaman v1 #001 (of 08) (1994).cbz"
