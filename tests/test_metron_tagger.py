@@ -1,36 +1,10 @@
 """Main metron_tagger tests"""
-
-import zipfile
-
 import pytest
 from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
 
 from metrontagger.main import SETTINGS, create_metron_talker, get_issue_metadata
 from metrontagger.taggerlib.metrontalker import MetronTalker
-
-CONTENT = "blah blah blah"
-
-
-@pytest.fixture()
-def fake_comic(tmp_path):
-    img_1 = tmp_path / "image-1.jpg"
-    img_1.write_text(CONTENT)
-    img_2 = tmp_path / "image-2.jpg"
-    img_2.write_text(CONTENT)
-    img_3 = tmp_path / "image-3.jpg"
-    img_3.write_text(CONTENT)
-
-    z_file = tmp_path / "Aquaman v1 #001 (of 08) (1994).cbz"
-    zf = zipfile.ZipFile(z_file, "w")
-    try:
-        zf.write(img_1)
-        zf.write(img_2)
-        zf.write(img_3)
-    finally:
-        zf.close()
-
-    return z_file
 
 
 class MockFetchIssueResponse:
