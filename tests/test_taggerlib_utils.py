@@ -3,16 +3,34 @@ from metrontagger.taggerlib.utils import cleanup_string, create_issue_query_dict
 
 def test_dict(tmp_path):
     series = "Aquaman"
-    number = "1"
-    year = "1962"
+    number = "9"
+    volume = "1"
+    year = "1999"
     # Make the tmp file
-    comic = tmp_path / f"{series} #{number} ({year}).cbz"
+    comic = tmp_path / f"{series} v{volume} #{number} ({year}).cbz"
 
     result = create_issue_query_dict(comic)
     expected = {
         "series": f"{series}",
-        "volume": "",
+        "volume": f"{volume}",
         "number": f"{number}",
+        "year": f"{year}",
+    }
+    assert result == expected
+
+
+def test_query_dict_without_issue_number(tmp_path):
+    series = "Batman"
+    year = "1990"
+    volume = "2"
+    # Make the tmp file
+    comic = tmp_path / f"{series} v{volume} ({year}).cbz"
+
+    result = create_issue_query_dict(comic)
+    expected = {
+        "series": f"{series}",
+        "volume": f"{volume}",
+        "number": "1",
         "year": f"{year}",
     }
     assert result == expected
