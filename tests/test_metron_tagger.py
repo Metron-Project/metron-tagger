@@ -1,15 +1,72 @@
 """Main metron_tagger tests"""
-import tempfile
-from base64 import standard_b64encode
-from pathlib import Path
-from shutil import make_archive
-from unittest import TestCase, main
-from unittest.mock import patch
 
+import zipfile
+
+import pytest
 from darkseid.comicarchive import ComicArchive
+from darkseid.genericmetadata import GenericMetadata
 
 from metrontagger.main import SETTINGS, create_metron_talker, get_issue_metadata
 from metrontagger.taggerlib.metrontalker import MetronTalker
+
+CONTENT = "blah blah blah"
+
+
+@pytest.fixture()
+def fake_comic(tmp_path):
+    img_1 = tmp_path / "image-1.jpg"
+    img_1.write_text(CONTENT)
+    img_2 = tmp_path / "image-2.jpg"
+    img_2.write_text(CONTENT)
+    img_3 = tmp_path / "image-3.jpg"
+    img_3.write_text(CONTENT)
+
+    z_file = tmp_path / "Aquaman v1 #001 (of 08) (1994).cbz"
+    zf = zipfile.ZipFile(z_file, "w")
+    try:
+        zf.write(img_1)
+        zf.write(img_2)
+        zf.write(img_3)
+    finally:
+        zf.close()
+
+    return z_file
+
+
+class MockFetchIssueResponse:
+    @staticmethod
+    def fetch_issue_data_by_issue_id():
+        meta_data = GenericMetadata()
+        meta_data.series = "Aquaman"
+        meta_data.issue = "1"
+        meta_data.year = "1993"
+        meta_data.day = "15"
+        meta_data.add_credit("Peter David", "Writer", primary=True)
+        meta_data.add_credit("Martin Egeland", "Penciller")
+        return meta_data
+
+
+@pytest.fixture()
+def mock_fetch(monkeypatch):
+    def mock_get_issue(*args, **kwargs):
+        return MockFetchIssueResponse().fetch_issue_data_by_issue_id()
+
+    monkeypatch.setattr(MetronTalker, "fetch_issue_data_by_issue_id", mock_get_issue)
+
+
+def test_get_issue_metadata(talker, fake_comic, mock_fetch):
+    # expected = MockFetchIssueResponse.issue_response()
+    res = get_issue_metadata(fake_comic, 1, talker)
+
+    # Check to see the zipfile had metadata written
+    comic = ComicArchive(fake_comic)
+    file_md = comic.read_metadata()
+
+    assert res is True
+    assert file_md is not None
+    assert file_md.series == "Aquaman"
+    assert file_md.issue == "1"
+    assert file_md.year == "1993"
 
 
 def test_create_metron_talker():
@@ -17,83 +74,3 @@ def test_create_metron_talker():
     SETTINGS.metron_pass = "test_password"
     talker = create_metron_talker()
     assert isinstance(talker, MetronTalker)
-
-
-class TestMetronTagger(TestCase):
-    """Tests"""
-
-    def setUp(self):
-        # Create a zipfile
-        self.tmp_archive_dir = tempfile.TemporaryDirectory()
-        self.tmp_image_dir = tempfile.TemporaryDirectory()
-        # Create 3 fake jpgs
-        img_1 = tempfile.NamedTemporaryFile(
-            suffix=".jpg", dir=self.tmp_image_dir.name, mode="wb"
-        )
-        img_1.write(b"test data")
-        img_2 = tempfile.NamedTemporaryFile(
-            suffix=".jpg", dir=self.tmp_image_dir.name, mode="wb"
-        )
-        img_2.write(b"more data")
-        img_3 = tempfile.NamedTemporaryFile(
-            suffix=".jpg", dir=self.tmp_image_dir.name, mode="wb"
-        )
-        img_3.write(b"yet more data")
-        self.zipfile = Path(self.tmp_archive_dir.name) / "comic"
-        open(make_archive(self.zipfile, "zip", self.tmp_image_dir.name), "rb").read()
-
-        # response for MetronTalker
-        auth = f"test_user:test_auth"
-        self.base64string = standard_b64encode(auth.encode("utf-8"))
-        self.talker = MetronTalker(self.base64string)
-        self.resp = {
-            "id": 1778,
-            "publisher": {"id": 2, "name": "DC Comics"},
-            "series": {"id": 204, "name": "Aquaman"},
-            "volume": 4,
-            "number": "0",
-            "name": ["A Crash of Symbols"],
-            "cover_date": "1994-10-01",
-            "store_date": None,
-            "desc": "A ZERO HOUR tie-in!",
-            "image": "http://127.0.0.1:8000/media/issue/2019/04/01/aquaman-0.jpg",
-            "arcs": [{"id": 69, "name": "Zero Hour"}],
-            "credits": [
-                {
-                    "id": 1576,
-                    "creator": "Brad Vancata",
-                    "role": [{"id": 4, "name": "Inker"}],
-                },
-                {
-                    "id": 1575,
-                    "creator": "Dan Nakrosis",
-                    "role": [{"id": 6, "name": "Letterer"}],
-                },
-            ],
-            "characters": [{"id": 86, "name": "Aquaman"}],
-            "teams": [],
-        }
-
-    def tearDown(self):
-        self.tmp_archive_dir.cleanup()
-        self.tmp_image_dir.cleanup()
-
-    @patch("metrontagger.taggerlib.metrontalker.MetronTalker.fetch_response")
-    def test_get_issue_metadata(self, mock_fetch):
-        """ Test to get issues metadata """
-        # Mock the fetch response
-        mock_fetch.return_value = self.resp
-        talker = MetronTalker(self.base64string)
-        res = get_issue_metadata(self.zipfile.with_suffix(".zip"), 1, talker)
-
-        # Check to see the zipfile had metadata written
-        comic_archive = ComicArchive(self.zipfile.with_suffix(".zip"))
-        file_md = comic_archive.read_metadata()
-
-        self.assertTrue(res)
-        self.assertIsNotNone(file_md)
-        self.assertEqual(file_md.series, "Aquaman")
-
-
-if __name__ == "__main__":
-    main()
