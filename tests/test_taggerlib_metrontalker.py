@@ -127,7 +127,7 @@ def test_fetch_issue_by_id(talker, mock_fetch):
 
 
 def test_search_for_issue(talker, mock_fetch):
-    query_dict = {"series": "aquaman", "volume": "", "number": "10", "year": ""}
+    query_dict = {"series": "aquaman", "volume": "1", "number": "10", "year": "1963"}
     response = talker.search_for_issue(query_dict)
     assert response is not None
     assert response == MockFetchIssueResponse().search_for_issue()
