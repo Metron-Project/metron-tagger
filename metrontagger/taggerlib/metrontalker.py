@@ -26,7 +26,7 @@ class MetronTalker:
         self.user_agent = (
             f"Metron-Tagger/{VERSION} ({platform.system()}; {platform.release()})"
         )
-        self.ssl = ssl.SSLContext(ssl.PROTOCOL_TLS)
+        self.ssl = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
 
     @classmethod
     def parse_date_string(cls, date_str):
