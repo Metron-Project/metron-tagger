@@ -40,9 +40,7 @@ def create_metron_talker():
     """Function that creates the metron talker"""
     auth = f"{SETTINGS.metron_user}:{SETTINGS.metron_pass}"
     base64string = standard_b64encode(auth.encode("utf-8"))
-    talker = MetronTalker(base64string)
-
-    return talker
+    return MetronTalker(base64string)
 
 
 def create_pagelist_metadata(comic_archive):

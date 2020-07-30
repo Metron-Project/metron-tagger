@@ -63,9 +63,7 @@ class MetronTalker:
                 return self.fetch_response(url)
             raise
 
-        resp = json.loads(content.read().decode("utf-8"))
-
-        return resp
+        return json.loads(content.read().decode("utf-8"))
 
     def fetch_issue_data_by_issue_id(self, issue_id):
         """Method to get an issue's metadata by supplying the issue id"""
@@ -87,9 +85,7 @@ class MetronTalker:
         if query_dict["year"]:
             url += f"&cover_year={query_dict['year']}"
         url += "&format=json"
-        resp = self.fetch_response(url)
-
-        return resp
+        return self.fetch_response(url)
 
     def map_metron_data_to_metadata(self, issue_results):
         """
@@ -105,9 +101,7 @@ class MetronTalker:
 
         titles = issue_results["name"]
         if titles:
-            title_list = []
-            for title in titles:
-                title_list.append(title)
+            title_list = [title for title in titles]
             metadata.title = list_to_string(title_list)
 
         metadata.publisher = issue_results["publisher"]["name"]
@@ -133,23 +127,17 @@ class MetronTalker:
 
         character_credits = issue_results["characters"]
         if character_credits:
-            character_list = []
-            for character in character_credits:
-                character_list.append(character["name"])
+            character_list = [character["name"] for character in character_credits]
             metadata.characters = list_to_string(character_list)
 
         team_credits = issue_results["teams"]
         if team_credits:
-            team_list = []
-            for team in team_credits:
-                team_list.append(team["name"])
+            team_list = [team["name"] for team in team_credits]
             metadata.teams = list_to_string(team_list)
 
         story_arc_credits = issue_results["arcs"]
         if story_arc_credits:
-            arc_list = []
-            for arc in story_arc_credits:
-                arc_list.append(arc["name"])
+            arc_list = [arc["name"] for arc in story_arc_credits]
             metadata.story_arc = list_to_string(arc_list)
 
         return metadata
