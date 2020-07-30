@@ -12,16 +12,14 @@ CONTENT = "blah blah blah"
 
 @pytest.fixture(scope="module")
 def parser():
-    parser = make_parser()
-    return parser
+    return make_parser()
 
 
 @pytest.fixture(scope="module")
 def talker():
     auth = f"test_user:test_auth"
     base64string = standard_b64encode(auth.encode("utf-8"))
-    talker = MetronTalker(base64string)
-    return talker
+    return MetronTalker(base64string)
 
 
 @pytest.fixture(scope="session")

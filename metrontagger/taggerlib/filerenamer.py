@@ -86,13 +86,16 @@ class FileRenamer:
         new_name = self.replace_token(new_name, meta_data.title, "%title%")
         new_name = self.replace_token(new_name, meta_data.month, "%month%")
         month_name = None
-        if meta_data.month is not None:
-            if (
-                isinstance(meta_data.month, str) and meta_data.month.isdigit()
-            ) or isinstance(meta_data.month, int):
-                if int(meta_data.month) in range(1, 13):
-                    date_time = datetime.datetime(1970, int(meta_data.month), 1, 0, 0)
-                    month_name = date_time.strftime("%B")
+        if (
+            meta_data.month is not None
+            and (
+                (isinstance(meta_data.month, str) and meta_data.month.isdigit())
+                or isinstance(meta_data.month, int)
+            )
+            and int(meta_data.month) in range(1, 13)
+        ):
+            date_time = datetime.datetime(1970, int(meta_data.month), 1, 0, 0)
+            month_name = date_time.strftime("%B")
         new_name = self.replace_token(new_name, month_name, "%month_name%")
 
         new_name = self.replace_token(new_name, meta_data.genre, "%genre%")

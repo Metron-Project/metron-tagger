@@ -6,7 +6,7 @@ from metrontagger.taggerlib.metrontalker import MetronTalker
 
 @pytest.fixture()
 def metron_response():
-    resp = {
+    return {
         "id": 1778,
         "publisher": {"id": 2, "name": "DC Comics"},
         "series": {"id": 204, "name": "Aquaman"},
@@ -38,7 +38,6 @@ def metron_response():
         ],
         "teams": [{"id": 1, "name": "Justice League"}],
     }
-    return resp
 
 
 def test_map_resp_to_metadata(talker, metron_response):
@@ -81,7 +80,7 @@ class MockFetchIssueResponse:
 
     @staticmethod
     def search_for_issue():
-        result = {
+        return {
             "count": 7,
             "next": None,
             "previous": None,
@@ -99,7 +98,6 @@ class MockFetchIssueResponse:
                 },
             ],
         }
-        return result
 
 
 @pytest.fixture()
