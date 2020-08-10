@@ -9,9 +9,10 @@ from darkseid.genericmetadata import GenericMetadata
 from metrontagger.main import (
     SETTINGS,
     create_metron_talker,
+    delete_comics_metadata,
     get_issue_metadata,
     list_comics_with_missing_metadata,
-    delete_comics_metadata,
+    sort_list_of_comics,
 )
 from metrontagger.taggerlib.metrontalker import MetronTalker
 
@@ -123,6 +124,24 @@ def test_delete_comics_without_metadata(fake_comic, fake_metadata):
     sys.stdout = capturedOutput
 
     delete_comics_metadata(fake_list)
+    sys.stdout = sys.__stdout__
+
+    assert expected_result == capturedOutput.getvalue()
+
+
+def test_sort_comics_without_sort_dir(fake_comic, tmpdir):
+    expected_result = "\nUnable to sort files. No destination directory was provided.\n"
+
+    # Create fake settings.
+    SETTINGS.sort_dir = ""
+
+    fake_list = [fake_comic]
+
+    # Capture the output so we can verify the print output
+    capturedOutput = io.StringIO()
+    sys.stdout = capturedOutput
+
+    sort_list_of_comics(fake_list)
     sys.stdout = sys.__stdout__
 
     assert expected_result == capturedOutput.getvalue()
