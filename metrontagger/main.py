@@ -165,6 +165,15 @@ def post_process_matches(match_results, talker):
                     )
 
 
+def list_comics_with_missing_metadata(file_list):
+    print("\nShowing files without metadata:\n-------------------------------")
+    for comic in file_list:
+        comic_archive = ComicArchive(comic)
+        if comic_archive.has_metadata():
+            continue
+        print(f"no metadata in '{comic.name}'")
+
+
 def main():
     """
     Main func
@@ -194,12 +203,7 @@ def main():
         exit(0)
 
     if opts.missing:
-        print("\nShowing files without metadata:\n-------------------------------")
-        for comic in file_list:
-            comic_archive = ComicArchive(comic)
-            if comic_archive.has_metadata():
-                continue
-            print(f"no metadata in '{comic.name}'")
+        list_comics_with_missing_metadata(file_list)
 
     if opts.delete:
         print("\nRemoving metadata:\n-----------------")
