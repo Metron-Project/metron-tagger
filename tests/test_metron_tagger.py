@@ -1,9 +1,17 @@
 """Main metron_tagger tests"""
+import io
+import sys
+
 import pytest
 from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
 
-from metrontagger.main import SETTINGS, create_metron_talker, get_issue_metadata
+from metrontagger.main import (
+    SETTINGS,
+    create_metron_talker,
+    get_issue_metadata,
+    list_comics_with_missing_metadata,
+)
 from metrontagger.taggerlib.metrontalker import MetronTalker
 
 
@@ -48,3 +56,26 @@ def test_create_metron_talker():
     SETTINGS.metron_pass = "test_password"
     talker = create_metron_talker()
     assert isinstance(talker, MetronTalker)
+
+
+def test_list_comics_with_missing_metadata(fake_comic):
+    expected_result = (
+        "\nShowing files without metadata:"
+        + "\n-------------------------------"
+        + "\nno metadata in 'Aquaman v1 #001 (of 08) (1994).cbz'"
+        + "\n"
+    )
+    # Make sure fake comic archive doesn't have any metadata
+    if ComicArchive(fake_comic).has_metadata():
+        ComicArchive(fake_comic).remove_metadata()
+
+    fake_list = [fake_comic]
+
+    # Capture the output so we can verify the print output
+    capturedOutput = io.StringIO()
+    sys.stdout = capturedOutput
+
+    list_comics_with_missing_metadata(fake_list)
+    sys.stdout = sys.__stdout__
+
+    assert expected_result == capturedOutput.getvalue()
