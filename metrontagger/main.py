@@ -171,6 +171,17 @@ def list_comics_with_missing_metadata(file_list):
         print(f"no metadata in '{comic.name}'")
 
 
+def delete_comics_metadata(file_list):
+    print("\nRemoving metadata:\n-----------------")
+    for comic in file_list:
+        comic_archive = ComicArchive(comic)
+        if comic_archive.has_metadata():
+            comic_archive.remove_metadata()
+            print(f"removed metadata from '{comic.name}'")
+        else:
+            print(f"no metadata in '{comic.name}'")
+
+
 def main():
     """
     Main func
@@ -203,14 +214,7 @@ def main():
         list_comics_with_missing_metadata(file_list)
 
     if opts.delete:
-        print("\nRemoving metadata:\n-----------------")
-        for comic in file_list:
-            comic_archive = ComicArchive(comic)
-            if comic_archive.has_metadata():
-                comic_archive.remove_metadata()
-                print(f"removed metadata from '{comic.name}'")
-            else:
-                print(f"no metadata in '{comic.name}'")
+        delete_comics_metadata(file_list)
 
     if opts.id:
         if len(file_list) > 1:
