@@ -11,7 +11,7 @@ from metrontagger.main import (
     create_metron_talker,
     get_issue_metadata,
     list_comics_with_missing_metadata,
-    delete_comics_metadata
+    delete_comics_metadata,
 )
 from metrontagger.taggerlib.metrontalker import MetronTalker
 
@@ -92,6 +92,29 @@ def test_delete_comics_with_metadata(fake_comic, fake_metadata):
     # If comic doesn't already have metadata let's add it
     if not ComicArchive(fake_comic).has_metadata():
         ComicArchive(fake_comic).write_metadata(fake_metadata)
+
+    fake_list = [fake_comic]
+
+    # Capture the output so we can verify the print output
+    capturedOutput = io.StringIO()
+    sys.stdout = capturedOutput
+
+    delete_comics_metadata(fake_list)
+    sys.stdout = sys.__stdout__
+
+    assert expected_result == capturedOutput.getvalue()
+
+
+def test_delete_comics_without_metadata(fake_comic, fake_metadata):
+    expected_result = (
+        "\nRemoving metadata:\n-----------------"
+        + "\nno metadata in 'Aquaman v1 #001 (of 08) (1994).cbz'"
+        + "\n"
+    )
+
+    # If comic has metadata let's remove it
+    if ComicArchive(fake_comic).has_metadata():
+        ComicArchive(fake_comic).remove_metadata()
 
     fake_list = [fake_comic]
 
