@@ -185,6 +185,19 @@ def delete_comics_metadata(file_list):
             print(f"no metadata in '{comic.name}'")
 
 
+def sort_list_of_comics(file_list):
+    if not SETTINGS.sort_dir:
+        print("\nUnable to sort files. No destination directory was provided.")
+        return
+
+    print("\nStarting sorting of comic archives:\n----------------------------------")
+    file_sorter = FileSorter(SETTINGS.sort_dir)
+    for comic in file_list:
+        result = file_sorter.sort_comics(comic)
+        if not result:
+            print(f"unable to move {comic.name}.")
+
+
 def main():
     """
     Main func
@@ -294,18 +307,7 @@ def main():
             file_list.append(new_file)
 
     if opts.sort:
-        if not SETTINGS.sort_dir:
-            print("Unable to sort files. No destination directory was provided.")
-            return
-
-        print(
-            "\nStarting sorting of comic archives:\n----------------------------------"
-        )
-        file_sorter = FileSorter(SETTINGS.sort_dir)
-        for comic in file_list:
-            result = file_sorter.sort_comics(comic)
-            if not result:
-                print(f"unable to move {comic.name}.")
+        sort_list_of_comics(file_list)
 
 
 if __name__ == "__main__":
