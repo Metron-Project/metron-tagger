@@ -1,6 +1,7 @@
 """Main metron_tagger tests"""
 import io
 import sys
+from pathlib import Path
 
 import pytest
 from darkseid.comicarchive import ComicArchive
@@ -170,4 +171,15 @@ def test_sort_comics_with_dir(fake_comic, fake_metadata, tmpdir):
     sort_list_of_comics(fake_list)
     sys.stdout = sys.__stdout__
 
+    # Path for moved file
+    moved_comic = (
+        Path(f"{SETTINGS.sort_dir}")
+        / f"{fake_metadata.publisher}"
+        / f"{fake_metadata.series}"
+        / f"v{fake_metadata.volume}"
+        / fake_comic.name
+    )
+
+    assert moved_comic.parent.is_dir()
+    assert moved_comic.is_file()
     assert expected_result == capturedOutput.getvalue()
