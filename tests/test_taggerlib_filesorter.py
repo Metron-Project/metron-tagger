@@ -6,7 +6,7 @@ from metrontagger.taggerlib.filesorter import FileSorter
 def test_sort_comic(fake_comic, fake_metadata, tmp_path):
     test_dir = tmp_path / "sort1"
     test_dir.mkdir()
-    
+
     result_dir = (
         test_dir
         / fake_metadata.publisher
