@@ -10,12 +10,12 @@ from metrontagger.taggerlib.options import make_parser
 CONTENT = "blah blah blah"
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def parser():
     return make_parser()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def talker():
     auth = f"test_user:test_auth"
     base64string = standard_b64encode(auth.encode("utf-8"))
@@ -34,7 +34,7 @@ def fake_metadata():
     return meta_data
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def fake_comic(tmp_path_factory):
     test_dir = tmp_path_factory.mktemp("data")
     img_1 = test_dir / "image-1.jpg"
