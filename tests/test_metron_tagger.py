@@ -145,3 +145,29 @@ def test_sort_comics_without_sort_dir(fake_comic, tmpdir):
     sys.stdout = sys.__stdout__
 
     assert expected_result == capturedOutput.getvalue()
+
+
+def test_sort_comics_with_dir(fake_comic, fake_metadata, tmpdir):
+    SETTINGS.sort_dir = tmpdir
+
+    expected_result = (
+        "\nStarting sorting of comic archives:\n----------------------------------\n"
+        + f"moved 'Aquaman v1 #001 (of 08) (1994).cbz' to "
+        + f"'{SETTINGS.sort_dir}/{fake_metadata.publisher}/{fake_metadata.series}/v{fake_metadata.volume}'\n"
+    )
+
+    comic = ComicArchive(fake_comic)
+
+    if not comic.has_metadata():
+        comic.write_metadata(fake_metadata)
+
+    fake_list = [fake_comic]
+
+    # Capture the output so we can verify the print output
+    capturedOutput = io.StringIO()
+    sys.stdout = capturedOutput
+
+    sort_list_of_comics(fake_list)
+    sys.stdout = sys.__stdout__
+
+    assert expected_result == capturedOutput.getvalue()
