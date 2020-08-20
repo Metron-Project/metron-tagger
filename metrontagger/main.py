@@ -1,6 +1,7 @@
 """Main project file"""
 from base64 import standard_b64encode
 from sys import exit
+from typing import List
 
 from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
@@ -21,7 +22,7 @@ SETTINGS = MetronTaggerSettings()
 class MultipleMatch:
     """Class to hold information on searches with multiple matches"""
 
-    def __init__(self, filename, match_list):
+    def __init__(self, filename, match_list) -> None:
         self.filename = filename
         self.matches = match_list
 
@@ -30,20 +31,20 @@ class MultipleMatch:
 class OnlineMatchResults:
     """Class to track online match results"""
 
-    def __init__(self):
-        self.good_matches = []
-        self.no_matches = []
-        self.multiple_matches = []
+    def __init__(self) -> None:
+        self.good_matches: List[str] = []
+        self.no_matches: List[str] = []
+        self.multiple_matches: List[str] = []
 
 
-def create_metron_talker():
+def create_metron_talker() -> MetronTalker:
     """Function that creates the metron talker"""
     auth = f"{SETTINGS.metron_user}:{SETTINGS.metron_pass}"
     base64string = standard_b64encode(auth.encode("utf-8"))
     return MetronTalker(base64string)
 
 
-def create_pagelist_metadata(comic_archive):
+def create_pagelist_metadata(comic_archive: ComicArchive) -> GenericMetadata:
     """Function that returns the metadata for the total number of pages"""
     meta_data = GenericMetadata()
     meta_data.set_default_page_list(comic_archive.get_number_of_pages())
@@ -51,7 +52,7 @@ def create_pagelist_metadata(comic_archive):
     return meta_data
 
 
-def get_issue_metadata(filename, issue_id, talker):
+def get_issue_metadata(filename: str, issue_id: int, talker: MetronTalker) -> bool:
     """
     Function to get an issue's metadata from Metron and the write that
     information to a tag in the comic archive
@@ -193,7 +194,7 @@ def main():
     if opts.missing:
         print("\nShowing files without metadata:\n-------------------------------")
         for comic in file_list:
-            comic_archive = ComicArchive(comic)
+            comic_archive = ComicArchive(str(comic))
             if comic_archive.has_metadata():
                 continue
             print(f"no metadata in '{comic.name}'")
@@ -201,7 +202,7 @@ def main():
     if opts.delete:
         print("\nRemoving metadata:\n-----------------")
         for comic in file_list:
-            comic_archive = ComicArchive(comic)
+            comic_archive = ComicArchive(str(comic))
             if comic_archive.has_metadata():
                 comic_archive.remove_metadata()
                 print(f"removed metadata from '{comic.name}'")
@@ -215,7 +216,7 @@ def main():
 
         filename = file_list[0]
         talker = create_metron_talker()
-        success = get_issue_metadata(filename, opts.id, talker)
+        success = get_issue_metadata(str(filename), opts.id, talker)
         if success:
             print(f"match found for '{filename.name}'")
 
@@ -231,14 +232,14 @@ def main():
         # Let's look online to see if we can find any matches on Metron.
         for filename in file_list:
             if opts.ignore_existing:
-                comic_archive = ComicArchive(filename)
+                comic_archive = ComicArchive(str(filename))
                 if comic_archive.has_metadata():
                     print(f"{filename.name} has metadata. Skipping...")
                     continue
 
             issue_id, multiple_match = process_file(filename, match_results, talker)
             if issue_id:
-                success = get_issue_metadata(filename, issue_id, talker)
+                success = get_issue_metadata(str(filename), issue_id, talker)
                 if success:
                     print(f"match found for '{filename.name}'")
                 else:
@@ -258,7 +259,7 @@ def main():
         new_file_names = []
         original_files_changed = []
         for comic in file_list:
-            comic_archive = ComicArchive(comic)
+            comic_archive = ComicArchive(str(comic))
             if not comic_archive.has_metadata():
                 print(f"skipping '{comic.name}'. no metadata available.")
                 continue
