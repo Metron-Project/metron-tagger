@@ -74,7 +74,7 @@ class MockFetchIssueResponse:
         meta_data.issue = "1"
         meta_data.year = "1993"
         meta_data.day = "15"
-        meta_data.add_credit("Peter David", "Writer", primary=True)
+        meta_data.add_credit("Peter David", "Writer")
         meta_data.add_credit("Martin Egeland", "Penciller")
         return meta_data
 

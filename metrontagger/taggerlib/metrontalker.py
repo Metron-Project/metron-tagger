@@ -70,7 +70,7 @@ class MetronTalker:
         url = f"{self.api_base_url}/issue/{issue_id}/?format=json"
         resp = self.fetch_response(url)
         meta_data = self.map_metron_data_to_metadata(resp)
-        meta_data.isEmpty = False
+        meta_data.is_empty = False
 
         return meta_data
 
@@ -123,7 +123,7 @@ class MetronTalker:
                 if "role" in person:
                     roles = person["role"]
                     for role in roles:
-                        metadata.add_credit(person["creator"], role["name"], False)
+                        metadata.add_credit(person["creator"], role["name"])
 
         character_credits = issue_results["characters"]
         if character_credits:
