@@ -8,7 +8,7 @@ class MetronTaggerSettings:
     """Class to handle project settings"""
 
     @staticmethod
-    def get_settings_folder():
+    def get_settings_folder() -> Path:
         """Method to determine where the users settings should be saved"""
         # TODO: Removed the old windows directory code. Someone that has a windows
         #       machine should probably write the code since I don't have one
