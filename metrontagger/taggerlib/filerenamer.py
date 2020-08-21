@@ -5,42 +5,42 @@
 import datetime
 import re
 from pathlib import Path
+from typing import Optional
 
+from darkseid.genericmetadata import GenericMetadata
 from darkseid.issuestring import IssueString
+
+from metrontagger.taggerlib.utils import cleanup_string
 
 
 class FileRenamer:
     """Class to rename a comic archive based on it's metadata tag"""
 
-    def __init__(self, metadata):
+    def __init__(self, metadata: GenericMetadata) -> None:
         self.set_metadata(metadata)
         self.set_template("%series% v%volume% #%issue% (of %issuecount%) (%year%)")
         self.smart_cleanup = True
         self.issue_zero_padding = 3
 
-    def set_metadata(self, metadata):
+    def set_metadata(self, metadata: GenericMetadata) -> None:
         """Method to set the metadata"""
         self.metdata = metadata
 
-    def set_issue_zero_padding(self, count):
+    def set_issue_zero_padding(self, count: int) -> None:
         """Method to set the padding for the issue's number"""
         self.issue_zero_padding = count
 
-    def set_smart_cleanup(self, enabled):
-        """Method to use smart clean up. Currently not used"""
-        self.smart_cleanup = enabled
-
-    def set_template(self, template):
+    def set_template(self, template: str) -> None:
         """
         Method to use a user's custom file naming template.
         Currently this hasn't been implemented
         """
         self.template = template
 
-    def replace_token(self, text, value, token):
+    def replace_token(self, text: str, value: Optional[str], token: str) -> str:
         """Method to replace a value with another value"""
         # helper func
-        def is_token(word):
+        def is_token(word: str) -> bool:
             return word[0] == "%" and word[-1:] == "%"
 
         if value is not None:
@@ -64,7 +64,29 @@ class FileRenamer:
             else:
                 return text.replace(token, "")
 
-    def determine_name(self, filename, ext=None):
+    def smart_cleanup_string(self, new_name: str) -> str:
+        # remove empty braces,brackets, parentheses
+        new_name = re.sub(r"\(\s*[-:]*\s*\)", "", new_name)
+        new_name = re.sub(r"\[\s*[-:]*\s*\]", "", new_name)
+        new_name = re.sub(r"\{\s*[-:]*\s*\}", "", new_name)
+
+        # remove duplicate spaces
+        new_name = " ".join(new_name.split())
+
+        # remove remove duplicate -, _,
+        new_name = re.sub(r"[-_]{2,}\s+", "-- ", new_name)
+        new_name = re.sub(r"(\s--)+", " --", new_name)
+        new_name = re.sub(r"(\s-)+", " -", new_name)
+
+        # remove dash or double dash at end of line
+        new_name = re.sub(r"[-]{1,2}\s*$", "", new_name)
+
+        # remove duplicate spaces (again!)
+        new_name = " ".join(new_name.split())
+
+        return new_name
+
+    def determine_name(self, filename: str, ext: Optional[str] = None) -> Optional[str]:
         """Method to create the new filename based on the files metadata"""
         meta_data = self.metdata
         new_name = self.template
@@ -122,25 +144,7 @@ class FileRenamer:
         new_name = self.replace_token(new_name, meta_data.scan_info, "%scaninfo%")
 
         if self.smart_cleanup:
-
-            # remove empty braces,brackets, parentheses
-            new_name = re.sub(r"\(\s*[-:]*\s*\)", "", new_name)
-            new_name = re.sub(r"\[\s*[-:]*\s*\]", "", new_name)
-            new_name = re.sub(r"\{\s*[-:]*\s*\}", "", new_name)
-
-            # remove duplicate spaces
-            new_name = " ".join(new_name.split())
-
-            # remove remove duplicate -, _,
-            new_name = re.sub(r"[-_]{2,}\s+", "-- ", new_name)
-            new_name = re.sub(r"(\s--)+", " --", new_name)
-            new_name = re.sub(r"(\s-)+", " -", new_name)
-
-            # remove dash or double dash at end of line
-            new_name = re.sub(r"[-]{1,2}\s*$", "", new_name)
-
-            # remove duplicate spaces (again!)
-            new_name = " ".join(new_name.split())
+            new_name = self.smart_cleanup_string(new_name)
 
         if ext is None:
             ext = Path(filename).suffix
@@ -148,10 +152,6 @@ class FileRenamer:
         new_name += ext
 
         # some tweaks to keep various filesystems happy
-        new_name = new_name.replace("/", "-")
-        new_name = new_name.replace(" :", " -")
-        new_name = new_name.replace(": ", " - ")
-        new_name = new_name.replace(":", "-")
-        new_name = new_name.replace("?", "")
+        new_name = cleanup_string(new_name)
 
         return new_name
