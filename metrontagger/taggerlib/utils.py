@@ -1,22 +1,26 @@
 """Some miscellaneous functions"""
-from typing import Dict, List
+from pathlib import Path
+from typing import Dict, List, Optional
 from urllib.parse import quote_plus
 
 from darkseid.filenameparser import FileNameParser
 
 
-def cleanup_string(path_name: str) -> str:
+def cleanup_string(path_name: Optional[str]) -> Optional[str]:
     """Function to remove some characters that don't play nicely on Windows machines filesystem"""
-    path_name = path_name.replace("/", "-")
-    path_name = path_name.replace(" :", " -")
-    path_name = path_name.replace(": ", " - ")
-    path_name = path_name.replace(":", "-")
-    path_name = path_name.replace("?", "")
+    if path_name is not None:
+        path_name = path_name.replace("/", "-")
+        path_name = path_name.replace(" :", " -")
+        path_name = path_name.replace(": ", " - ")
+        path_name = path_name.replace(":", "-")
+        path_name = path_name.replace("?", "")
+    else:
+        return None
 
     return path_name
 
 
-def create_issue_query_dict(filename: str) -> Dict[str, str]:
+def create_issue_query_dict(filename: Path) -> Dict[str, str]:
     """Function to create a diction of values based on the provided filename"""
     fnp = FileNameParser()
     fnp.parse_filename(filename)
