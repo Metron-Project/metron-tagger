@@ -1,5 +1,6 @@
 """Main project file"""
 from base64 import standard_b64encode
+from pathlib import Path
 from sys import exit
 from typing import List
 
@@ -52,7 +53,7 @@ def create_pagelist_metadata(comic_archive: ComicArchive) -> GenericMetadata:
     return meta_data
 
 
-def get_issue_metadata(filename: str, issue_id: int, talker: MetronTalker) -> bool:
+def get_issue_metadata(filename: Path, issue_id: int, talker: MetronTalker) -> bool:
     """
     Function to get an issue's metadata from Metron and the write that
     information to a tag in the comic archive
@@ -194,7 +195,7 @@ def main():
     if opts.missing:
         print("\nShowing files without metadata:\n-------------------------------")
         for comic in file_list:
-            comic_archive = ComicArchive(str(comic))
+            comic_archive = ComicArchive(comic)
             if comic_archive.has_metadata():
                 continue
             print(f"no metadata in '{comic.name}'")
@@ -202,7 +203,7 @@ def main():
     if opts.delete:
         print("\nRemoving metadata:\n-----------------")
         for comic in file_list:
-            comic_archive = ComicArchive(str(comic))
+            comic_archive = ComicArchive(comic)
             if comic_archive.has_metadata():
                 comic_archive.remove_metadata()
                 print(f"removed metadata from '{comic.name}'")
@@ -216,7 +217,7 @@ def main():
 
         filename = file_list[0]
         talker = create_metron_talker()
-        success = get_issue_metadata(str(filename), opts.id, talker)
+        success = get_issue_metadata(filename, opts.id, talker)
         if success:
             print(f"match found for '{filename.name}'")
 
@@ -232,14 +233,14 @@ def main():
         # Let's look online to see if we can find any matches on Metron.
         for filename in file_list:
             if opts.ignore_existing:
-                comic_archive = ComicArchive(str(filename))
+                comic_archive = ComicArchive(filename)
                 if comic_archive.has_metadata():
                     print(f"{filename.name} has metadata. Skipping...")
                     continue
 
             issue_id, multiple_match = process_file(filename, match_results, talker)
             if issue_id:
-                success = get_issue_metadata(str(filename), issue_id, talker)
+                success = get_issue_metadata(filename, issue_id, talker)
                 if success:
                     print(f"match found for '{filename.name}'")
                 else:
@@ -259,7 +260,7 @@ def main():
         new_file_names = []
         original_files_changed = []
         for comic in file_list:
-            comic_archive = ComicArchive(str(comic))
+            comic_archive = ComicArchive(comic)
             if not comic_archive.has_metadata():
                 print(f"skipping '{comic.name}'. no metadata available.")
                 continue
