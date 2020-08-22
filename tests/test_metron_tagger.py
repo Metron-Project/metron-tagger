@@ -1,9 +1,20 @@
 """Main metron_tagger tests"""
+import io
+import sys
+from pathlib import Path
+
 import pytest
 from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
 
-from metrontagger.main import SETTINGS, create_metron_talker, get_issue_metadata
+from metrontagger.main import (
+    SETTINGS,
+    create_metron_talker,
+    delete_comics_metadata,
+    get_issue_metadata,
+    list_comics_with_missing_metadata,
+    sort_list_of_comics,
+)
 from metrontagger.taggerlib.metrontalker import MetronTalker
 
 
@@ -48,3 +59,127 @@ def test_create_metron_talker():
     SETTINGS.metron_pass = "test_password"
     talker = create_metron_talker()
     assert isinstance(talker, MetronTalker)
+
+
+def test_list_comics_with_missing_metadata(fake_comic):
+    expected_result = (
+        "\nShowing files without metadata:"
+        + "\n-------------------------------"
+        + "\nno metadata in 'Aquaman v1 #001 (of 08) (1994).cbz'"
+        + "\n"
+    )
+    # Make sure fake comic archive doesn't have any metadata
+    if ComicArchive(fake_comic).has_metadata():
+        ComicArchive(fake_comic).remove_metadata()
+
+    fake_list = [fake_comic]
+
+    # Capture the output so we can verify the print output
+    capturedOutput = io.StringIO()
+    sys.stdout = capturedOutput
+
+    list_comics_with_missing_metadata(fake_list)
+    sys.stdout = sys.__stdout__
+
+    assert expected_result == capturedOutput.getvalue()
+
+
+def test_delete_comics_with_metadata(fake_comic, fake_metadata):
+    expected_result = (
+        "\nRemoving metadata:\n-----------------"
+        + "\nremoved metadata from 'Aquaman v1 #001 (of 08) (1994).cbz'"
+        + "\n"
+    )
+
+    # If comic doesn't already have metadata let's add it
+    if not ComicArchive(fake_comic).has_metadata():
+        ComicArchive(fake_comic).write_metadata(fake_metadata)
+
+    fake_list = [fake_comic]
+
+    # Capture the output so we can verify the print output
+    capturedOutput = io.StringIO()
+    sys.stdout = capturedOutput
+
+    delete_comics_metadata(fake_list)
+    sys.stdout = sys.__stdout__
+
+    assert expected_result == capturedOutput.getvalue()
+
+
+def test_delete_comics_without_metadata(fake_comic, fake_metadata):
+    expected_result = (
+        "\nRemoving metadata:\n-----------------"
+        + "\nno metadata in 'Aquaman v1 #001 (of 08) (1994).cbz'"
+        + "\n"
+    )
+
+    # If comic has metadata let's remove it
+    if ComicArchive(fake_comic).has_metadata():
+        ComicArchive(fake_comic).remove_metadata()
+
+    fake_list = [fake_comic]
+
+    # Capture the output so we can verify the print output
+    capturedOutput = io.StringIO()
+    sys.stdout = capturedOutput
+
+    delete_comics_metadata(fake_list)
+    sys.stdout = sys.__stdout__
+
+    assert expected_result == capturedOutput.getvalue()
+
+
+def test_sort_comics_without_sort_dir(fake_comic, tmpdir):
+    expected_result = "\nUnable to sort files. No destination directory was provided.\n"
+
+    # Create fake settings.
+    SETTINGS.sort_dir = ""
+
+    fake_list = [fake_comic]
+
+    # Capture the output so we can verify the print output
+    capturedOutput = io.StringIO()
+    sys.stdout = capturedOutput
+
+    sort_list_of_comics(fake_list)
+    sys.stdout = sys.__stdout__
+
+    assert expected_result == capturedOutput.getvalue()
+
+
+def test_sort_comics_with_dir(fake_comic, fake_metadata, tmpdir):
+    SETTINGS.sort_dir = tmpdir
+
+    expected_result = (
+        "\nStarting sorting of comic archives:\n----------------------------------\n"
+        + f"moved 'Aquaman v1 #001 (of 08) (1994).cbz' to "
+        + f"'{SETTINGS.sort_dir}/{fake_metadata.publisher}/{fake_metadata.series}/v{fake_metadata.volume}'\n"
+    )
+
+    comic = ComicArchive(fake_comic)
+
+    if not comic.has_metadata():
+        comic.write_metadata(fake_metadata)
+
+    fake_list = [fake_comic]
+
+    # Capture the output so we can verify the print output
+    capturedOutput = io.StringIO()
+    sys.stdout = capturedOutput
+
+    sort_list_of_comics(fake_list)
+    sys.stdout = sys.__stdout__
+
+    # Path for moved file
+    moved_comic = (
+        Path(f"{SETTINGS.sort_dir}")
+        / f"{fake_metadata.publisher}"
+        / f"{fake_metadata.series}"
+        / f"v{fake_metadata.volume}"
+        / fake_comic.name
+    )
+
+    assert moved_comic.parent.is_dir()
+    assert moved_comic.is_file()
+    assert expected_result == capturedOutput.getvalue()
