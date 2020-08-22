@@ -50,7 +50,7 @@ class MetronTalker:
 
     @sleep_and_retry
     @limits(calls=20, period=ONE_MINUTE)
-    def fetch_response(self, url: str) -> json:
+    def fetch_response(self, url: str):
         """Function to retrieve a response from Metron's REST API"""
         request = Request(url)
         request.add_header("Authorization", self.auth_str)
@@ -77,7 +77,7 @@ class MetronTalker:
 
         return meta_data
 
-    def search_for_issue(self, query_dict: Dict[str, str]) -> json:
+    def search_for_issue(self, query_dict: Dict[str, str]):
         """
         Method to search for an issue based on a dictionary of
         words, volume number, or year.
