@@ -1,6 +1,7 @@
 """Functions for renaming files based on metadata"""
 
 # Copyright 2012-2014 Anthony Beville
+# Copyright 2020 Brian Pepple
 
 import datetime
 import re
@@ -9,6 +10,7 @@ from typing import Optional
 
 from darkseid.genericmetadata import GenericMetadata
 from darkseid.issuestring import IssueString
+from darkseid.utils import unique_file
 
 from metrontagger.taggerlib.utils import cleanup_string
 
@@ -86,7 +88,9 @@ class FileRenamer:
 
         return new_name
 
-    def determine_name(self, filename: str, ext: Optional[str] = None) -> Optional[str]:
+    def determine_name(
+        self, filename: Path, ext: Optional[str] = None
+    ) -> Optional[str]:
         """Method to create the new filename based on the files metadata"""
         meta_data = self.metdata
         new_name = self.template
@@ -147,7 +151,7 @@ class FileRenamer:
             new_name = self.smart_cleanup_string(new_name)
 
         if ext is None:
-            ext = Path(filename).suffix
+            ext = filename.suffix
 
         new_name += ext
 
@@ -155,3 +159,15 @@ class FileRenamer:
         new_name = cleanup_string(new_name)
 
         return new_name
+
+    def rename_file(self, comic: Path) -> Optional[Path]:
+        new_name = self.determine_name(comic)
+
+        if new_name == comic.name:
+            print("Filename is already good!")
+            return None
+
+        unique_name = unique_file(comic.parent / new_name)
+        comic.rename(unique_name)
+
+        return unique_name
