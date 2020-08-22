@@ -19,6 +19,9 @@ def test_sort_comic_with_missing_metadata(fake_comic, fake_metadata, tmp_path):
 
 def test_sort_comic(fake_comic, fake_metadata, tmp_path):
     test_dir = tmp_path / "sort1"
+
+    test_dir.mkdir()
+
     result_dir = (
         test_dir
         / fake_metadata.publisher
