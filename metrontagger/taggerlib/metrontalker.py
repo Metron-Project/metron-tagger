@@ -4,6 +4,7 @@ import platform
 import ssl
 import time
 from datetime import datetime
+from typing import Dict, Optional, Tuple
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -20,7 +21,7 @@ ONE_MINUTE = 60
 class MetronTalker:
     """Python class to communicate with Metron's REST"""
 
-    def __init__(self, auth):
+    def __init__(self, auth: bytes) -> None:
         self.api_base_url = "https://metron.cloud/api"
         self.auth_str = f"Basic {auth.decode('utf-8')}"
         self.user_agent = (
@@ -29,7 +30,9 @@ class MetronTalker:
         self.ssl = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
 
     @classmethod
-    def parse_date_string(cls, date_str):
+    def parse_date_string(
+        cls, date_str: str
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
         Classmethod that takes a date from Metron's REST API and splits it into it's components
         """
@@ -47,7 +50,7 @@ class MetronTalker:
 
     @sleep_and_retry
     @limits(calls=20, period=ONE_MINUTE)
-    def fetch_response(self, url):
+    def fetch_response(self, url: str):
         """Function to retrieve a response from Metron's REST API"""
         request = Request(url)
         request.add_header("Authorization", self.auth_str)
@@ -65,16 +68,16 @@ class MetronTalker:
 
         return json.loads(content.read().decode("utf-8"))
 
-    def fetch_issue_data_by_issue_id(self, issue_id):
+    def fetch_issue_data_by_issue_id(self, issue_id: int) -> GenericMetadata:
         """Method to get an issue's metadata by supplying the issue id"""
         url = f"{self.api_base_url}/issue/{issue_id}/?format=json"
         resp = self.fetch_response(url)
         meta_data = self.map_metron_data_to_metadata(resp)
-        meta_data.isEmpty = False
+        meta_data.is_empty = False
 
         return meta_data
 
-    def search_for_issue(self, query_dict):
+    def search_for_issue(self, query_dict: Dict[str, str]):
         """
         Method to search for an issue based on a dictionary of
         words, volume number, or year.
@@ -87,7 +90,7 @@ class MetronTalker:
         url += "&format=json"
         return self.fetch_response(url)
 
-    def map_metron_data_to_metadata(self, issue_results):
+    def map_metron_data_to_metadata(self, issue_results) -> GenericMetadata:
         """
         Method to map the issue results from Metron's REST API
         to metadata
@@ -123,7 +126,7 @@ class MetronTalker:
                 if "role" in person:
                     roles = person["role"]
                     for role in roles:
-                        metadata.add_credit(person["creator"], role["name"], False)
+                        metadata.add_credit(person["creator"], role["name"])
 
         character_credits = issue_results["characters"]
         if character_credits:

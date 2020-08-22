@@ -1,20 +1,24 @@
 """Class to sort comic file based on it's metadata tags"""
+import logging
 import pathlib
 from os import fspath
+from pathlib import Path
 from shutil import Error, move
 
 from darkseid.comicarchive import ComicArchive
 
 from .utils import cleanup_string
 
+logger = logging.getLogger(__name__)
+
 
 class FileSorter:
     """Class to move comic files based on it's metadata tags"""
 
-    def __init__(self, directory):
+    def __init__(self, directory: str) -> None:
         self.sort_directory = directory
 
-    def sort_comics(self, comic):
+    def sort_comics(self, comic: Path) -> bool:
         """Method to move the comic file based on it's metadata tag"""
         comic_archive = ComicArchive(comic)
         if comic_archive.has_metadata():
@@ -24,14 +28,24 @@ class FileSorter:
 
         publisher = cleanup_string(meta_data.publisher)
         series = cleanup_string(meta_data.series)
-        volume = "v" + cleanup_string(meta_data.volume)
+        volume = cleanup_string(meta_data.volume)
+        if volume is not None:
+            volume = "v" + volume
+
+        if (publisher and series and volume) is None:
+            logger.warning(
+                "Missing metadata from comic and will be unable to sort."
+                + f"Publisher: {publisher}\nSeries: {series}\nVolume: {volume}"
+            )
+            return False
+
         new_path = pathlib.Path(self.sort_directory) / publisher / series / volume
 
         if not new_path.is_dir():
             try:
                 new_path.mkdir(parents=True)
             except PermissionError:
-                print(
+                logger.exception(
                     f"due to permission error, failed to create directory: {new_path}"
                 )
                 return False
@@ -42,7 +56,8 @@ class FileSorter:
             # objects to strings so shutils.move will work correctly.
             move(fspath(original_path), fspath(new_path))
             print(f"moved '{original_path.name}' to '{new_path}'")
-        except Error:
+        except Error as e:
+            logger.exception(f"Unable to move comic. Error: {e}")
             return False
 
         return True

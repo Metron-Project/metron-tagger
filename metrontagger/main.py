@@ -1,10 +1,12 @@
 """Main project file"""
 from base64 import standard_b64encode
+from pathlib import Path
 from sys import exit
+from typing import List, Optional, Tuple
 
 from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
-from darkseid.utils import get_recursive_filelist, unique_file
+from darkseid.utils import get_recursive_filelist
 
 from .taggerlib.filerenamer import FileRenamer
 from .taggerlib.filesorter import FileSorter
@@ -21,7 +23,7 @@ SETTINGS = MetronTaggerSettings()
 class MultipleMatch:
     """Class to hold information on searches with multiple matches"""
 
-    def __init__(self, filename, match_list):
+    def __init__(self, filename, match_list) -> None:
         self.filename = filename
         self.matches = match_list
 
@@ -30,20 +32,20 @@ class MultipleMatch:
 class OnlineMatchResults:
     """Class to track online match results"""
 
-    def __init__(self):
-        self.good_matches = []
-        self.no_matches = []
-        self.multiple_matches = []
+    def __init__(self) -> None:
+        self.good_matches: List[str] = []
+        self.no_matches: List[str] = []
+        self.multiple_matches: List[str] = []
 
 
-def create_metron_talker():
+def create_metron_talker() -> MetronTalker:
     """Function that creates the metron talker"""
     auth = f"{SETTINGS.metron_user}:{SETTINGS.metron_pass}"
     base64string = standard_b64encode(auth.encode("utf-8"))
     return MetronTalker(base64string)
 
 
-def create_pagelist_metadata(comic_archive):
+def create_pagelist_metadata(comic_archive: ComicArchive) -> GenericMetadata:
     """Function that returns the metadata for the total number of pages"""
     meta_data = GenericMetadata()
     meta_data.set_default_page_list(comic_archive.get_number_of_pages())
@@ -51,7 +53,7 @@ def create_pagelist_metadata(comic_archive):
     return meta_data
 
 
-def get_issue_metadata(filename, issue_id, talker):
+def get_issue_metadata(filename: Path, issue_id: int, talker: MetronTalker) -> bool:
     """
     Function to get an issue's metadata from Metron and the write that
     information to a tag in the comic archive
@@ -63,13 +65,12 @@ def get_issue_metadata(filename, issue_id, talker):
         comic_archive = ComicArchive(filename)
         meta_data = create_pagelist_metadata(comic_archive)
         meta_data.overlay(metron_md)
-        comic_archive.write_metadata(meta_data)
-        success = True
+        success = comic_archive.write_metadata(meta_data)
 
     return success
 
 
-def select_choice_from_multiple_matches(filename, match_set):
+def select_choice_from_multiple_matches(filename: Path, match_set) -> Optional[int]:
     """
     Function to ask user to choice which issue metadata to write,
     when there are multiple choices
@@ -96,7 +97,9 @@ def select_choice_from_multiple_matches(filename, match_set):
     return issue_id
 
 
-def process_file(filename, match_results, talker):
+def process_file(
+    filename: Path, match_results, talker: MetronTalker
+) -> Tuple[Optional[int], Optional[bool]]:
     """
     Main function to attempt query Metron and write a tag
     """
@@ -255,8 +258,8 @@ def main():
         print("\nStarting comic archive renaming:\n-------------------------------")
 
         # Lists to track filename changes
-        new_file_names = []
-        original_files_changed = []
+        new_file_names: List[Path] = []
+        original_files_changed: List[Path] = []
         for comic in file_list:
             comic_archive = ComicArchive(comic)
             if not comic_archive.has_metadata():
@@ -265,14 +268,10 @@ def main():
 
             meta_data = comic_archive.read_metadata()
             renamer = FileRenamer(meta_data)
-            new_name = renamer.determine_name(comic)
-
-            if new_name == comic.name:
-                print("Filename is already good!")
+            unique_name = renamer.rename_file(comic)
+            if unique_name is None:
                 continue
 
-            unique_name = unique_file(comic.parent / new_name)
-            comic.rename(unique_name)
             # track what files are being renamed
             new_file_names.append(unique_name)
             original_files_changed.append(comic)
