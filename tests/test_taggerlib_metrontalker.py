@@ -129,3 +129,9 @@ def test_search_for_issue(talker, mock_fetch):
     response = talker.search_for_issue(query_dict)
     assert response is not None
     assert response == MockFetchIssueResponse().search_for_issue()
+
+
+def test_fetch_response_with_no_host(talker):
+    with pytest.raises(Exception):
+        fake_url = "https://"
+        assert talker.fetch_response(fake_url)
