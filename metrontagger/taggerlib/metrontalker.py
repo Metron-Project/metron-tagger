@@ -5,7 +5,7 @@ import ssl
 import time
 from datetime import datetime
 from typing import Dict, Optional, Tuple
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from darkseid.genericmetadata import GenericMetadata
@@ -64,9 +64,11 @@ class MetronTalker:
                 print("Exceeded api rate limit. Sleeping for 30 seconds...")
                 time.sleep(30)
                 return self.fetch_response(url)
-            raise
-
-        return json.loads(content.read().decode("utf-8"))
+            print(f"HTTP error: {http_error.reason}")
+        except URLError as url_error:
+            print(f"Connection error: {url_error.reason}")
+        else:
+            return json.loads(content.read().decode("utf-8"))
 
     def fetch_issue_data_by_issue_id(self, issue_id: int) -> GenericMetadata:
         """Method to get an issue's metadata by supplying the issue id"""
