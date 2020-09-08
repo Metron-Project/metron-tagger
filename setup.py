@@ -15,7 +15,7 @@ setup(
     license="GPLv3",
     packages=find_packages(exclude=["tests"]),
     python_requires=">=3.6",
-    install_requires=["darkseid >= 0.7.0", "ratelimit"],
+    install_requires=["darkseid >= 1.0.3", "ratelimit"],
     entry_points={"console_scripts": ["metron-tagger=metrontagger.main:main"]},
     classifiers=[
         "Development Status :: 4 - Beta",
