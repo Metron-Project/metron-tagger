@@ -64,8 +64,8 @@ def get_issue_metadata(filename: Path, issue_id: int, talker: MetronTalker) -> b
     if metron_md:
         comic_archive = ComicArchive(filename)
         meta_data = create_pagelist_metadata(comic_archive)
-        meta_data.overlay(metron_md)
-        success = comic_archive.write_metadata(meta_data)
+        metron_md.overlay(meta_data)
+        success = comic_archive.write_metadata(metron_md)
 
     return success
 

@@ -30,6 +30,9 @@ def fake_metadata():
     meta_data.volume = "2"
     meta_data.issue = "1"
     meta_data.year = "2011"
+    meta_data.add_credit("Peter David", "Writer")
+    meta_data.add_credit("Martin Egeland", "Penciller")
+    meta_data.add_credit("Martin Egeland", "Cover")
 
     return meta_data
 

@@ -28,6 +28,7 @@ class MockFetchIssueResponse:
         meta_data.day = "15"
         meta_data.add_credit("Peter David", "Writer")
         meta_data.add_credit("Martin Egeland", "Penciller")
+        meta_data.add_credit("Martin Egeland", "Cover")
         return meta_data
 
 
@@ -47,11 +48,18 @@ def test_get_issue_metadata(talker, fake_comic, mock_fetch):
     comic = ComicArchive(fake_comic)
     file_md = comic.read_metadata()
 
+    credits_result = [
+        {"person": "Peter David", "role": "Writer"},
+        {"person": "Martin Egeland", "role": "Penciller"},
+        {"person": "Martin Egeland", "role": "Cover"},
+    ]
+
     assert res is True
     assert file_md is not None
     assert file_md.series == "Aquaman"
     assert file_md.issue == "1"
     assert file_md.year == "1993"
+    assert file_md.credits == credits_result
 
 
 def test_create_metron_talker():
