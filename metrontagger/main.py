@@ -54,7 +54,7 @@ def create_pagelist_metadata(comic_archive: ComicArchive) -> GenericMetadata:
     return meta_data
 
 
-def get_issue_metadata(filename: Path, issue_id: int, talker: MetronTalker) -> bool:
+def write_issue_metadata(filename: Path, issue_id: int, talker: MetronTalker) -> None:
     """
     Function to get an issue's metadata from Metron and the write that
     information to a tag in the comic archive
@@ -68,7 +68,10 @@ def get_issue_metadata(filename: Path, issue_id: int, talker: MetronTalker) -> b
         metron_md.overlay(meta_data)
         success = comic_archive.write_metadata(metron_md)
 
-    return success
+    if success:
+        print(f"match found for '{filename.name}'")
+    else:
+        print(f"there was a problem writing metadate for '{filename.name}'")
 
 
 def select_choice_from_multiple_matches(filename: Path, match_set) -> Optional[int]:
@@ -159,11 +162,7 @@ def post_process_matches(match_results, talker: MetronTalker) -> None:
                 match_set.filename, match_set.matches
             )
             if issue_id:
-                success = get_issue_metadata(match_set.filename, issue_id, talker)
-                if not success:
-                    print(
-                        f"unable to retrieve metadata for '{match_set.filename.name}'"
-                    )
+                write_issue_metadata(match_set.filename, issue_id, talker)
 
 
 def list_comics_with_missing_metadata(file_list: List[Path]) -> None:
@@ -206,9 +205,7 @@ def retrieve_single_issue_from_id(file_list: List[Path], id: int) -> None:
 
     filename = file_list[0]
     talker = create_metron_talker()
-    success = get_issue_metadata(filename, id, talker)
-    if success:
-        print(f"match found for '{filename.name}'")
+    write_issue_metadata(filename, id, talker)
 
 
 def get_options() -> Namespace:
@@ -247,11 +244,7 @@ def identify_comics(file_list: List[Path], ignore: bool) -> None:
 
         issue_id, multiple_match = process_file(filename, match_results, talker)
         if issue_id:
-            success = get_issue_metadata(filename, issue_id, talker)
-            if success:
-                print(f"match found for '{filename.name}'")
-            else:
-                print(f"there was a problem writing metadate for '{filename.name}'")
+            write_issue_metadata(filename, issue_id, talker)
         else:
             if not multiple_match:
                 print(f"no match for '{filename.name}'")

@@ -11,7 +11,7 @@ from metrontagger.main import (
     SETTINGS,
     create_metron_talker,
     delete_comics_metadata,
-    get_issue_metadata,
+    write_issue_metadata,
     list_comics_with_missing_metadata,
     sort_list_of_comics,
 )
@@ -43,7 +43,7 @@ def mock_fetch(monkeypatch):
 
 
 def test_get_issue_metadata(talker, fake_comic, mock_fetch):
-    res = get_issue_metadata(fake_comic, 1, talker)
+    write_issue_metadata(fake_comic, 1, talker)
 
     # Check to see the zipfile had metadata written
     comic = ComicArchive(fake_comic)
@@ -55,7 +55,6 @@ def test_get_issue_metadata(talker, fake_comic, mock_fetch):
         {"person": MARTY, "role": "Cover"},
     ]
 
-    assert res is True
     assert file_md is not None
     assert file_md.series == "Aquaman"
     assert file_md.issue == "1"
