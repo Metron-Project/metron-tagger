@@ -198,11 +198,7 @@ def sort_list_of_comics(file_list):
             print(f"unable to move {comic.name}.")
 
 
-def main():
-    """
-    Main func
-    """
-
+def get_options():
     parser = make_parser()
     opts = parser.parse_args()
 
@@ -217,6 +213,15 @@ def main():
 
     if opts.set_metron_user or opts.set_sort_dir:
         SETTINGS.save()
+
+    return opts
+
+
+def main():
+    """
+    Main func
+    """
+    opts = get_options()
 
     # Parse paths to get file list
     file_list = []
