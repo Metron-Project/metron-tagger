@@ -198,6 +198,18 @@ def sort_list_of_comics(file_list):
             print(f"unable to move {comic.name}.")
 
 
+def retrieve_single_issue_from_id(file_list, id) -> None:
+    if len(file_list) > 1:
+        print("More than one file was passed for Id processing. Exiting...")
+        exit(0)
+
+    filename = file_list[0]
+    talker = create_metron_talker()
+    success = get_issue_metadata(filename, id, talker)
+    if success:
+        print(f"match found for '{filename.name}'")
+
+
 def get_options():
     parser = make_parser()
     opts = parser.parse_args()
@@ -238,15 +250,7 @@ def main():
         delete_comics_metadata(file_list)
 
     if opts.id:
-        if len(file_list) > 1:
-            print("More than one file was passed for Id processing. Exiting...")
-            exit(0)
-
-        filename = file_list[0]
-        talker = create_metron_talker()
-        success = get_issue_metadata(filename, opts.id, talker)
-        if success:
-            print(f"match found for '{filename.name}'")
+        retrieve_single_issue_from_id(file_list, opts.id)
 
     if opts.online:
         print(
