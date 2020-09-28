@@ -17,6 +17,8 @@ from metrontagger.main import (
 )
 from metrontagger.taggerlib.metrontalker import MetronTalker
 
+MARTY = "Martin Egeland"
+
 
 class MockFetchIssueResponse:
     @staticmethod
@@ -27,8 +29,8 @@ class MockFetchIssueResponse:
         meta_data.year = "1993"
         meta_data.day = "15"
         meta_data.add_credit("Peter David", "Writer")
-        meta_data.add_credit("Martin Egeland", "Penciller")
-        meta_data.add_credit("Martin Egeland", "Cover")
+        meta_data.add_credit(MARTY, "Penciller")
+        meta_data.add_credit(MARTY, "Cover")
         return meta_data
 
 
@@ -41,7 +43,6 @@ def mock_fetch(monkeypatch):
 
 
 def test_get_issue_metadata(talker, fake_comic, mock_fetch):
-    # expected = MockFetchIssueResponse.issue_response()
     res = get_issue_metadata(fake_comic, 1, talker)
 
     # Check to see the zipfile had metadata written
@@ -50,8 +51,8 @@ def test_get_issue_metadata(talker, fake_comic, mock_fetch):
 
     credits_result = [
         {"person": "Peter David", "role": "Writer"},
-        {"person": "Martin Egeland", "role": "Penciller"},
-        {"person": "Martin Egeland", "role": "Cover"},
+        {"person": MARTY, "role": "Penciller"},
+        {"person": MARTY, "role": "Cover"},
     ]
 
     assert res is True
@@ -83,13 +84,13 @@ def test_list_comics_with_missing_metadata(fake_comic):
     fake_list = [fake_comic]
 
     # Capture the output so we can verify the print output
-    capturedOutput = io.StringIO()
-    sys.stdout = capturedOutput
+    captured_output = io.StringIO()
+    sys.stdout = captured_output
 
     list_comics_with_missing_metadata(fake_list)
     sys.stdout = sys.__stdout__
 
-    assert expected_result == capturedOutput.getvalue()
+    assert expected_result == captured_output.getvalue()
 
 
 def test_delete_comics_with_metadata(fake_comic, fake_metadata):
@@ -106,13 +107,13 @@ def test_delete_comics_with_metadata(fake_comic, fake_metadata):
     fake_list = [fake_comic]
 
     # Capture the output so we can verify the print output
-    capturedOutput = io.StringIO()
-    sys.stdout = capturedOutput
+    captured_output = io.StringIO()
+    sys.stdout = captured_output
 
     delete_comics_metadata(fake_list)
     sys.stdout = sys.__stdout__
 
-    assert expected_result == capturedOutput.getvalue()
+    assert expected_result == captured_output.getvalue()
 
 
 def test_delete_comics_without_metadata(fake_comic, fake_metadata):
@@ -129,13 +130,13 @@ def test_delete_comics_without_metadata(fake_comic, fake_metadata):
     fake_list = [fake_comic]
 
     # Capture the output so we can verify the print output
-    capturedOutput = io.StringIO()
-    sys.stdout = capturedOutput
+    captured_output = io.StringIO()
+    sys.stdout = captured_output
 
     delete_comics_metadata(fake_list)
     sys.stdout = sys.__stdout__
 
-    assert expected_result == capturedOutput.getvalue()
+    assert expected_result == captured_output.getvalue()
 
 
 def test_sort_comics_without_sort_dir(fake_comic, tmpdir):
@@ -147,13 +148,13 @@ def test_sort_comics_without_sort_dir(fake_comic, tmpdir):
     fake_list = [fake_comic]
 
     # Capture the output so we can verify the print output
-    capturedOutput = io.StringIO()
-    sys.stdout = capturedOutput
+    captured_output = io.StringIO()
+    sys.stdout = captured_output
 
     sort_list_of_comics(fake_list)
     sys.stdout = sys.__stdout__
 
-    assert expected_result == capturedOutput.getvalue()
+    assert expected_result == captured_output.getvalue()
 
 
 def test_sort_comics_with_dir(fake_comic, fake_metadata, tmpdir):
@@ -173,8 +174,8 @@ def test_sort_comics_with_dir(fake_comic, fake_metadata, tmpdir):
     fake_list = [fake_comic]
 
     # Capture the output so we can verify the print output
-    capturedOutput = io.StringIO()
-    sys.stdout = capturedOutput
+    captured_output = io.StringIO()
+    sys.stdout = captured_output
 
     sort_list_of_comics(fake_list)
     sys.stdout = sys.__stdout__
@@ -190,4 +191,4 @@ def test_sort_comics_with_dir(fake_comic, fake_metadata, tmpdir):
 
     assert moved_comic.parent.is_dir()
     assert moved_comic.is_file()
-    assert expected_result == capturedOutput.getvalue()
+    assert expected_result == captured_output.getvalue()
