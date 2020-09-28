@@ -1,4 +1,5 @@
 """Main project file"""
+from argparse import Namespace
 from base64 import standard_b64encode
 from pathlib import Path
 from sys import exit
@@ -135,7 +136,7 @@ def process_file(
     return issue_id, multiple_match
 
 
-def post_process_matches(match_results, talker):
+def post_process_matches(match_results, talker: MetronTalker) -> None:
     """
     Function to print match results and if there are
     multiple matches, prompt the user
@@ -165,7 +166,7 @@ def post_process_matches(match_results, talker):
                     )
 
 
-def list_comics_with_missing_metadata(file_list):
+def list_comics_with_missing_metadata(file_list: List[Path]) -> None:
     print("\nShowing files without metadata:\n-------------------------------")
     for comic in file_list:
         comic_archive = ComicArchive(comic)
@@ -174,7 +175,7 @@ def list_comics_with_missing_metadata(file_list):
         print(f"no metadata in '{comic.name}'")
 
 
-def delete_comics_metadata(file_list):
+def delete_comics_metadata(file_list: List[Path]) -> None:
     print("\nRemoving metadata:\n-----------------")
     for comic in file_list:
         comic_archive = ComicArchive(comic)
@@ -210,7 +211,7 @@ def retrieve_single_issue_from_id(file_list: List[Path], id: int) -> None:
         print(f"match found for '{filename.name}'")
 
 
-def get_options():
+def get_options() -> Namespace:
     parser = make_parser()
     opts = parser.parse_args()
 
@@ -260,7 +261,7 @@ def identify_comics(file_list: List[Path], ignore: bool) -> None:
     post_process_matches(match_results, talker)
 
 
-def main():
+def main() -> None:
     """
     Main func
     """
