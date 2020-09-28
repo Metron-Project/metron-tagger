@@ -185,7 +185,7 @@ def delete_comics_metadata(file_list):
             print(f"no metadata in '{comic.name}'")
 
 
-def sort_list_of_comics(file_list):
+def sort_list_of_comics(file_list: List[Path]) -> None:
     if not SETTINGS.sort_dir:
         print("\nUnable to sort files. No destination directory was provided.")
         return
@@ -198,7 +198,7 @@ def sort_list_of_comics(file_list):
             print(f"unable to move {comic.name}.")
 
 
-def retrieve_single_issue_from_id(file_list, id) -> None:
+def retrieve_single_issue_from_id(file_list: List[Path], id: int) -> None:
     if len(file_list) > 1:
         print("More than one file was passed for Id processing. Exiting...")
         exit(0)
@@ -229,6 +229,37 @@ def get_options():
     return opts
 
 
+def identify_comics(file_list: List[Path], ignore: bool) -> None:
+    print("\nStarting online search and tagging:\n----------------------------------")
+
+    # Initialize class to handle results for files with multiple matches
+    match_results = OnlineMatchResults()
+    talker = create_metron_talker()
+
+    # Let's look online to see if we can find any matches on Metron.
+    for filename in file_list:
+        if ignore:
+            comic_archive = ComicArchive(filename)
+            if comic_archive.has_metadata():
+                print(f"{filename.name} has metadata. Skipping...")
+                continue
+
+        issue_id, multiple_match = process_file(filename, match_results, talker)
+        if issue_id:
+            success = get_issue_metadata(filename, issue_id, talker)
+            if success:
+                print(f"match found for '{filename.name}'")
+            else:
+                print(f"there was a problem writing metadate for '{filename.name}'")
+        else:
+            if not multiple_match:
+                print(f"no match for '{filename.name}'")
+                continue
+
+    # Print match results & handle files with multiple matches
+    post_process_matches(match_results, talker)
+
+
 def main():
     """
     Main func
@@ -253,36 +284,7 @@ def main():
         retrieve_single_issue_from_id(file_list, opts.id)
 
     if opts.online:
-        print(
-            "\nStarting online search and tagging:\n----------------------------------"
-        )
-
-        # Initialize class to handle results for files with multiple matches
-        match_results = OnlineMatchResults()
-        talker = create_metron_talker()
-
-        # Let's look online to see if we can find any matches on Metron.
-        for filename in file_list:
-            if opts.ignore_existing:
-                comic_archive = ComicArchive(filename)
-                if comic_archive.has_metadata():
-                    print(f"{filename.name} has metadata. Skipping...")
-                    continue
-
-            issue_id, multiple_match = process_file(filename, match_results, talker)
-            if issue_id:
-                success = get_issue_metadata(filename, issue_id, talker)
-                if success:
-                    print(f"match found for '{filename.name}'")
-                else:
-                    print(f"there was a problem writing metadate for '{filename.name}'")
-            else:
-                if not multiple_match:
-                    print(f"no match for '{filename.name}'")
-                    continue
-
-        # Print match results & handle files with multiple matches
-        post_process_matches(match_results, talker)
+        identify_comics(file_list, opts.ignore_existing)
 
     if opts.rename:
         print("\nStarting comic archive renaming:\n-------------------------------")
