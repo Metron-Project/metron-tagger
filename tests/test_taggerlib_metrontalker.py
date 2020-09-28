@@ -3,6 +3,8 @@ from darkseid.genericmetadata import GenericMetadata
 
 from metrontagger.taggerlib.metrontalker import MetronTalker
 
+ISSUE = "Aquaman #10"
+
 
 @pytest.fixture()
 def metron_response():
@@ -85,12 +87,12 @@ class MockFetchIssueResponse:
             "next": None,
             "previous": None,
             "results": [
-                {"id": 3643, "__str__": "Aquaman #10", "cover_date": "1963-08-01"},
-                {"id": 2519, "__str__": "Aquaman #10", "cover_date": "1992-09-01"},
-                {"id": 1786, "__str__": "Aquaman #10", "cover_date": "1995-07-01"},
-                {"id": 2439, "__str__": "Aquaman #10", "cover_date": "2003-11-01"},
-                {"id": 2534, "__str__": "Aquaman #10", "cover_date": "2012-08-01"},
-                {"id": 2908, "__str__": "Aquaman #10", "cover_date": "2017-01-01"},
+                {"id": 3643, "__str__": ISSUE, "cover_date": "1963-08-01"},
+                {"id": 2519, "__str__": ISSUE, "cover_date": "1992-09-01"},
+                {"id": 1786, "__str__": ISSUE, "cover_date": "1995-07-01"},
+                {"id": 2439, "__str__": ISSUE, "cover_date": "2003-11-01"},
+                {"id": 2534, "__str__": ISSUE, "cover_date": "2012-08-01"},
+                {"id": 2908, "__str__": ISSUE, "cover_date": "2017-01-01"},
                 {
                     "id": 3631,
                     "__str__": "Aquaman and the Others #10",
