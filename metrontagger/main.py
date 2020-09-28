@@ -261,6 +261,40 @@ def identify_comics(file_list: List[Path], ignore: bool) -> None:
     post_process_matches(match_results, talker)
 
 
+def rename_comics(file_list: List[Path]) -> List[Path]:
+    print("\nStarting comic archive renaming:\n-------------------------------")
+
+    # Lists to track filename changes
+    new_file_names: List[Path] = []
+    original_files_changed: List[Path] = []
+    for comic in file_list:
+        comic_archive = ComicArchive(comic)
+        if not comic_archive.has_metadata():
+            print(f"skipping '{comic.name}'. no metadata available.")
+            continue
+
+        meta_data = comic_archive.read_metadata()
+        renamer = FileRenamer(meta_data)
+        unique_name = renamer.rename_file(comic)
+        if unique_name is None:
+            continue
+
+        # track what files are being renamed
+        new_file_names.append(unique_name)
+        original_files_changed.append(comic)
+
+        print(f"renamed '{comic.name}' -> '{unique_name.name}'")
+
+    # Update file_list for renamed files
+    for original_file in original_files_changed:
+        file_list.remove(original_file)
+
+    for new_file in new_file_names:
+        file_list.append(new_file)
+
+    return file_list
+
+
 def main() -> None:
     """
     Main func
@@ -288,35 +322,7 @@ def main() -> None:
         identify_comics(file_list, opts.ignore_existing)
 
     if opts.rename:
-        print("\nStarting comic archive renaming:\n-------------------------------")
-
-        # Lists to track filename changes
-        new_file_names: List[Path] = []
-        original_files_changed: List[Path] = []
-        for comic in file_list:
-            comic_archive = ComicArchive(comic)
-            if not comic_archive.has_metadata():
-                print(f"skipping '{comic.name}'. no metadata available.")
-                continue
-
-            meta_data = comic_archive.read_metadata()
-            renamer = FileRenamer(meta_data)
-            unique_name = renamer.rename_file(comic)
-            if unique_name is None:
-                continue
-
-            # track what files are being renamed
-            new_file_names.append(unique_name)
-            original_files_changed.append(comic)
-
-            print(f"renamed '{comic.name}' -> '{unique_name.name}'")
-
-        # Update file_list for renamed files
-        for original_file in original_files_changed:
-            file_list.remove(original_file)
-
-        for new_file in new_file_names:
-            file_list.append(new_file)
+        file_list = rename_comics(file_list)
 
     if opts.sort:
         sort_list_of_comics(file_list)
