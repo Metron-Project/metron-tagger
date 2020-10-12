@@ -36,6 +36,11 @@ jobs:
         run: |
           pipenv run pytest --cov=metrontagger --cov-report=xml tests/
 
+      - name: Codecov
+        uses: codecov/codecov-action@v1
+        with:
+          file: ./coverage.xml
+
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         with:
