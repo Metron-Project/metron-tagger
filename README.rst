@@ -11,9 +11,6 @@ Metron-Tagger
 .. image:: https://sonarcloud.io/api/project_badges/measure?project=bpepple_metron-tagger&metric=alert_status
     :target: https://sonarcloud.io/dashboard?id=bpepple_metron-tagger
 
-.. image:: https://travis-ci.org/bpepple/metron-tagger.svg?branch=master
-    :target: https://travis-ci.org/bpepple/metron-tagger
-
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
 
