@@ -34,7 +34,7 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pipenv run pytest --cov=metrontagger -cov-report=xml tests/
+          pipenv run pytest --cov=metrontagger --cov-report=xml tests/
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
