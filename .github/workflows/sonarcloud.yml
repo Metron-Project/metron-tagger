@@ -41,6 +41,7 @@ jobs:
         with:
           args: >
             -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.sources=metrontagger/
             -Dsonar.tests=tests/
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
