@@ -101,6 +101,10 @@ def select_choice_from_multiple_matches(filename: Path, match_set) -> Optional[i
     return issue_id
 
 
+def workable_comic(comic: ComicArchive) -> bool:
+    return comic.is_writable() and comic.seems_to_be_a_comic_archive()
+
+
 def process_file(
     filename: Path, match_results, talker: MetronTalker
 ) -> Tuple[Optional[int], Optional[bool]]:
@@ -109,12 +113,8 @@ def process_file(
     """
     comic_archive = ComicArchive(filename)
 
-    if not comic_archive.seems_to_be_a_comic_archive():
-        print(f"{filename.name} does not appear to be a comic archive")
-        return None, False
-
-    if not comic_archive.is_writable():
-        print(f"{filename.name} is not writable")
+    if not workable_comic(comic_archive):
+        print(f"{filename.name} may not be a comic or writable")
         return None, False
 
     query_dict = create_issue_query_dict(filename)
