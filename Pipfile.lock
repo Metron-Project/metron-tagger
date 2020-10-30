@@ -18,11 +18,11 @@
     "default": {
         "darkseid": {
             "hashes": [
-                "sha256:76deafe5cffe280840803011c4610c785660e55b3a293ac8a913460ab6c10d18",
-                "sha256:948e5e3c746b56713fd55cd748c8a84a4ae7353b17f1f135098fc28e13c5ad19"
+                "sha256:29fc29e8b98ed41e223a68ae48f040069f39055b2849eddc9dcbb3bca6dbea09",
+                "sha256:6b6fd3d8bdae3e14bfe0daa97ddcb4accc47b3d36e455cfa1b9092cb88447a63"
             ],
             "index": "pypi",
-            "version": "==1.0.4"
+            "version": "==1.0.6"
         },
         "natsort": {
             "hashes": [
