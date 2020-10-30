@@ -1,5 +1,4 @@
 """Class to sort comic file based on it's metadata tags"""
-import logging
 import pathlib
 from os import fspath
 from pathlib import Path
@@ -8,8 +7,6 @@ from shutil import Error, move
 from darkseid.comicarchive import ComicArchive
 
 from .utils import cleanup_string
-
-logger = logging.getLogger(__name__)
 
 
 class FileSorter:
@@ -33,7 +30,7 @@ class FileSorter:
             volume = "v" + volume
 
         if (publisher and series and volume) is None:
-            logger.warning(
+            print(
                 "Missing metadata from comic and will be unable to sort."
                 + f"Publisher: {publisher}\nSeries: {series}\nVolume: {volume}"
             )
@@ -45,7 +42,7 @@ class FileSorter:
             try:
                 new_path.mkdir(parents=True)
             except PermissionError:
-                logger.exception(
+                print(
                     f"due to permission error, failed to create directory: {new_path}"
                 )
                 return False
@@ -57,7 +54,7 @@ class FileSorter:
             move(fspath(original_path), fspath(new_path))
             print(f"moved '{original_path.name}' to '{new_path}'")
         except Error as e:
-            logger.exception(f"Unable to move comic. Error: {e}")
+            print(f"Unable to move comic. Error: {e}")
             return False
 
         return True
