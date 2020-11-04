@@ -248,7 +248,6 @@ def identify_comics(file_list: List[Path], ignore: bool) -> None:
         else:
             if not multiple_match:
                 print(f"no match for '{filename.name}'")
-                continue
 
     # Print match results & handle files with multiple matches
     post_process_matches(match_results, talker)
