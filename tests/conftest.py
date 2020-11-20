@@ -17,7 +17,7 @@ def parser():
 
 @pytest.fixture(scope="session")
 def talker():
-    auth = f"test_user:test_auth"
+    auth = "test_user:test_auth"
     base64string = standard_b64encode(auth.encode("utf-8"))
     return MetronTalker(base64string)
 
