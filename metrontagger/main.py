@@ -94,11 +94,9 @@ def select_choice_from_multiple_matches(filename: Path, match_set) -> Optional[i
 
     if i != "s":
         i = int(i) - 1
-        issue_id = match_set[i]["id"]
+        return match_set[i]["id"]
     else:
-        issue_id = None
-
-    return issue_id
+        return None
 
 
 def workable_comic(comic: ComicArchive) -> bool:
