@@ -161,7 +161,7 @@ def test_sort_comics_with_dir(fake_comic, fake_metadata, tmpdir):
 
     expected_result = (
         "\nStarting sorting of comic archives:\n----------------------------------\n"
-        + f"moved 'Aquaman v1 #001 (of 08) (1994).cbz' to "
+        + "moved 'Aquaman v1 #001 (of 08) (1994).cbz' to "
         + f"'{SETTINGS.sort_dir}/{fake_metadata.publisher}/{fake_metadata.series}/v{fake_metadata.volume}'\n"
     )
 
