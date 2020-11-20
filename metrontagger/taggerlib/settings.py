@@ -13,13 +13,11 @@ class MetronTaggerSettings:
     def get_settings_folder() -> Path:
         """Method to determine where the users settings should be saved"""
 
-        if platform.system() == "Windows":
-            windows_path = PurePath(environ["APPDATA"]).joinpath("MetronTagger")
-            folder = Path(windows_path)
-        else:
-            folder = Path.home() / ".MetronTagger"
+        if platform.system() != "Windows":
+            return Path.home() / ".MetronTagger"
 
-        return folder
+        windows_path = PurePath(environ["APPDATA"]).joinpath("MetronTagger")
+        return Path(windows_path)
 
     def __init__(self, config_dir: Optional[str] = None) -> None:
         # Metron creditials
