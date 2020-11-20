@@ -8,15 +8,14 @@ from darkseid.filenameparser import FileNameParser
 
 def cleanup_string(path_name: Optional[str]) -> Optional[str]:
     """Function to remove some characters that don't play nicely on Windows machines filesystem"""
-    if path_name is not None:
-        path_name = path_name.replace("/", "-")
-        path_name = path_name.replace(" :", " -")
-        path_name = path_name.replace(": ", " - ")
-        path_name = path_name.replace(":", "-")
-        path_name = path_name.replace("?", "")
-    else:
+    if path_name is None:
         return None
 
+    path_name = path_name.replace("/", "-")
+    path_name = path_name.replace(" :", " -")
+    path_name = path_name.replace(": ", " - ")
+    path_name = path_name.replace(":", "-")
+    path_name = path_name.replace("?", "")
     return path_name
 
 
