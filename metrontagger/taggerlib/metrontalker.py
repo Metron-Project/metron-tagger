@@ -104,10 +104,8 @@ class MetronTalker:
 
         metadata.issue = IssueString(issue_results["number"]).as_string()
 
-        titles = issue_results["name"]
-        if titles:
-            title_list = [title for title in titles]
-            metadata.title = list_to_string(title_list)
+        if issue_results["name"]:
+            metadata.title = self.story_titles_to_string(issue_results["name"])
 
         metadata.publisher = issue_results["publisher"]["name"]
         metadata.day, metadata.month, metadata.year = self.parse_date_string(
@@ -115,12 +113,7 @@ class MetronTalker:
         )
 
         metadata.comments = issue_results["desc"]
-
-        now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        metadata.notes = (
-            f"Tagged with MetronTagger-{VERSION} using info from Metron on {now_date}. "
-            + f"[issue_id:{issue_results['id']}]"
-        )
+        metadata.notes = self.create_note(issue_results["id"])
 
         person_credits = issue_results["credits"]
         if person_credits:
@@ -130,19 +123,38 @@ class MetronTalker:
                     for role in roles:
                         metadata.add_credit(person["creator"], role["name"])
 
-        character_credits = issue_results["characters"]
-        if character_credits:
-            character_list = [character["name"] for character in character_credits]
-            metadata.characters = list_to_string(character_list)
+        if issue_results["characters"]:
+            metadata.characters = self.characters_to_string(issue_results["characters"])
 
-        team_credits = issue_results["teams"]
-        if team_credits:
-            team_list = [team["name"] for team in team_credits]
-            metadata.teams = list_to_string(team_list)
+        if issue_results["teams"]:
+            metadata.teams = self.teams_to_string(issue_results["teams"])
 
-        story_arc_credits = issue_results["arcs"]
-        if story_arc_credits:
-            arc_list = [arc["name"] for arc in story_arc_credits]
-            metadata.story_arc = list_to_string(arc_list)
+        if issue_results["arcs"]:
+            metadata.story_arc = self.story_arcs_to_string(issue_results["arcs"])
 
         return metadata
+
+    @classmethod
+    def create_note(cls, issue_id: str) -> str:
+        now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        return f"Tagged with MetronTagger-{VERSION} using info from Metron on {now_date}. [issue_id:{issue_id}]"
+
+    @classmethod
+    def story_titles_to_string(cls, titles):
+        title_list = [title for title in titles]
+        return list_to_string(title_list)
+
+    @classmethod
+    def characters_to_string(cls, character_credits) -> str:
+        character_list = [character["name"] for character in character_credits]
+        return list_to_string(character_list)
+
+    @classmethod
+    def teams_to_string(cls, team_credits) -> str:
+        team_list = [team["name"] for team in team_credits]
+        return list_to_string(team_list)
+
+    @classmethod
+    def story_arcs_to_string(cls, story_arc_credits) -> str:
+        arc_list = [arc["name"] for arc in story_arc_credits]
+        return list_to_string(arc_list)
