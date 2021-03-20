@@ -20,7 +20,6 @@ from .taggerlib.utils import create_issue_query_dict
 SETTINGS = MetronTaggerSettings()
 
 
-# TODO: Consider making this a dict or tuple
 class MultipleMatch:
     """Class to hold information on searches with multiple matches"""
 
@@ -29,7 +28,6 @@ class MultipleMatch:
         self.matches = match_list
 
 
-# TODO: Consider making this a dict or tuple
 class OnlineMatchResults:
     """Class to track online match results"""
 
