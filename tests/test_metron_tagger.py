@@ -9,11 +9,13 @@ from darkseid.genericmetadata import GenericMetadata
 
 from metrontagger.main import (
     SETTINGS,
+    MultipleMatch,
     create_metron_talker,
     delete_comics_metadata,
-    write_issue_metadata,
     list_comics_with_missing_metadata,
+    print_choices_to_user,
     sort_list_of_comics,
+    write_issue_metadata,
 )
 from metrontagger.taggerlib.metrontalker import MetronTalker
 
@@ -191,3 +193,16 @@ def test_sort_comics_with_dir(fake_comic, fake_metadata, tmpdir):
     assert moved_comic.parent.is_dir()
     assert moved_comic.is_file()
     assert expected_result == captured_output.getvalue()
+
+
+def test_print_multi_choices_to_user(capsys):
+    fn = "Superman #1"
+    data = [
+        {"__str__": "Superman #1", "cover_date": "10/1/1939"},
+        {"__str__": "Superman #1", "cover_date": "1/1/1986"},
+    ]
+    test_data = MultipleMatch(fn, data)
+    expected_result = "1. Superman #1 (10/1/1939)\n2. Superman #1 (1/1/1986)\n"
+    print_choices_to_user(test_data.matches)
+    stdout, stderr = capsys.readouterr()
+    assert stdout == expected_result

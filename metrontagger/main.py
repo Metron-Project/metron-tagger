@@ -72,6 +72,11 @@ def write_issue_metadata(filename: Path, issue_id: int, talker: MetronTalker) ->
         print(f"there was a problem writing metadate for '{filename.name}'")
 
 
+def print_choices_to_user(match_set) -> None:
+    for (counter, match) in enumerate(match_set, start=1):
+        print(f"{counter}. {match['__str__']} ({match['cover_date']})")
+
+
 def select_choice_from_multiple_matches(filename: Path, match_set) -> Optional[int]:
     """
     Function to ask user to choice which issue metadata to write,
@@ -81,9 +86,7 @@ def select_choice_from_multiple_matches(filename: Path, match_set) -> Optional[i
 
     # sort match list by cover date
     match_set = sorted(match_set, key=lambda m: m["cover_date"])
-
-    for (counter, match) in enumerate(match_set, start=1):
-        print(f"{counter}. {match['__str__']} ({match['cover_date']})")
+    print_choices_to_user(match_set)
 
     while True:
         i = input("Choose a match #, or 's' to skip: ")
