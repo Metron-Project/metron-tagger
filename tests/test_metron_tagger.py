@@ -14,8 +14,8 @@ from metrontagger.main import (
     delete_comics_metadata,
     list_comics_with_missing_metadata,
     print_choices_to_user,
+    retrieve_single_issue_from_id,
     sort_list_of_comics,
-    write_issue_metadata,
 )
 from metrontagger.taggerlib.metrontalker import MetronTalker
 
@@ -44,8 +44,8 @@ def mock_fetch(monkeypatch):
     monkeypatch.setattr(MetronTalker, "fetch_issue_data_by_issue_id", mock_get_issue)
 
 
-def test_get_issue_metadata(talker, fake_comic, mock_fetch):
-    write_issue_metadata(fake_comic, 1, talker)
+def test_retrieve_single_issue_from_id(fake_comic, mock_fetch):
+    retrieve_single_issue_from_id([fake_comic], 1)
 
     # Check to see the zipfile had metadata written
     comic = ComicArchive(fake_comic)
@@ -62,6 +62,13 @@ def test_get_issue_metadata(talker, fake_comic, mock_fetch):
     assert file_md.issue == "1"
     assert file_md.year == "1993"
     assert file_md.credits == credits_result
+
+
+def test_retrieve_single_issue_from_id_multiple_files():
+    with pytest.raises(SystemExit) as e:
+        retrieve_single_issue_from_id(["blah_blah.cbz", "yeah_yeah.cbz"], 1)
+    assert e.type == SystemExit
+    assert e.value.code == 0
 
 
 def test_create_metron_talker():
