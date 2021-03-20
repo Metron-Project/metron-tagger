@@ -10,9 +10,11 @@ from darkseid.genericmetadata import GenericMetadata
 from metrontagger.main import (
     SETTINGS,
     MultipleMatch,
+    OnlineMatchResults,
     create_metron_talker,
     delete_comics_metadata,
     list_comics_with_missing_metadata,
+    post_process_matches,
     print_choices_to_user,
     retrieve_single_issue_from_id,
     sort_list_of_comics,
@@ -212,4 +214,22 @@ def test_print_multi_choices_to_user(capsys):
     expected_result = "1. Superman #1 (10/1/1939)\n2. Superman #1 (1/1/1986)\n"
     print_choices_to_user(test_data.matches)
     stdout, stderr = capsys.readouterr()
+    assert stdout == expected_result
+
+
+def test_post_process_matches(capsys, talker):
+    results = OnlineMatchResults()
+    results.good_matches.append("Inhumans #1.cbz")
+    results.good_matches.append("Inhumans #2.cbz")
+    results.no_matches.append("Outsiders #1.cbz")
+    results.no_matches.append("Outsiders #2.cbz")
+
+    expected_result = "\nSuccessful matches:\n------------------\nInhumans #1.cbz\nInhumans #2.cbz\n\n"
+    expected_result += (
+        "No matches:\n------------------\nOutsiders #1.cbz\nOutsiders #2.cbz\n"
+    )
+
+    post_process_matches(results, talker)
+    stdout, _ = capsys.readouterr()
+
     assert stdout == expected_result
