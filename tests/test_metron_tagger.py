@@ -213,7 +213,7 @@ def test_print_multi_choices_to_user(capsys):
     test_data = MultipleMatch(fn, data)
     expected_result = "1. Superman #1 (10/1/1939)\n2. Superman #1 (1/1/1986)\n"
     print_choices_to_user(test_data.matches)
-    stdout, stderr = capsys.readouterr()
+    stdout, _ = capsys.readouterr()
     assert stdout == expected_result
 
 
