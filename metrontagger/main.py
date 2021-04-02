@@ -36,6 +36,15 @@ class OnlineMatchResults:
         self.no_matches: List[str] = []
         self.multiple_matches: List[str] = []
 
+    def add_good_match(self, file_name: str) -> None:
+        self.good_matches.append(file_name)
+
+    def add_no_match(self, file_name: str) -> None:
+        self.no_matches.append(file_name)
+
+    def add_multiple_match(self, multi_match: MultipleMatch) -> None:
+        self.multiple_matches.append(multi_match)
+
 
 def create_metron_talker() -> MetronTalker:
     """Function that creates the metron talker"""
@@ -105,7 +114,7 @@ def workable_comic(comic: ComicArchive) -> bool:
 
 
 def process_file(
-    filename: Path, match_results, talker: MetronTalker
+    filename: Path, match_results: OnlineMatchResults, talker: MetronTalker
 ) -> Tuple[Optional[int], Optional[bool]]:
     """
     Main function to attempt query Metron and write a tag
@@ -124,15 +133,15 @@ def process_file(
     multiple_match = False
     if not res_count > 0:
         issue_id = None
-        match_results.no_matches.append(filename)
+        match_results.add_no_match(filename)
         multiple_match = False
     elif res_count > 1:
         issue_id = None
-        match_results.multiple_matches.append(MultipleMatch(filename, res["results"]))
+        match_results.add_multiple_match(MultipleMatch(filename, res["results"]))
         multiple_match = True
     elif res_count == 1:
         issue_id = res["results"][0]["id"]
-        match_results.good_matches.append(filename)
+        match_results.add_good_match(filename)
         multiple_match = False
 
     return issue_id, multiple_match
