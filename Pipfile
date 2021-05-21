@@ -12,6 +12,7 @@ flake8 = "*"
 [packages]
 ratelimit = "*"
 darkseid = "*"
+mokkari = "*"
 
 [requires]
 python_version = "3.8"
