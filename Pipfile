@@ -10,7 +10,6 @@ pytest-cov = "*"
 flake8 = "*"
 
 [packages]
-ratelimit = "*"
 darkseid = "*"
 mokkari = "*"
 
