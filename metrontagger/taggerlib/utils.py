@@ -19,7 +19,7 @@ def cleanup_string(path_name: Optional[str]) -> Optional[str]:
     return path_name
 
 
-def create_issue_query_dict(filename: Path) -> Dict[str, str]:
+def create_query_params(filename: Path) -> Dict[str, str]:
     """Function to create a diction of values based on the provided filename"""
     fnp = FileNameParser()
     fnp.parse_filename(filename)
@@ -28,12 +28,17 @@ def create_issue_query_dict(filename: Path) -> Dict[str, str]:
     fixed_txt: str = fnp.series.replace(" - ", ": ")
     series_word_list: List[str] = fixed_txt.split()
     series_string: str = " ".join(series_word_list).strip()
-    series_string = quote_plus(series_string.encode("utf-8"))
+
     # If there isn't an issue number, let's assume it's "1".
     number: str = quote_plus(fnp.issue.encode("utf-8")) if fnp.issue else "1"
-    return {
-        "series": series_string,
-        "volume": fnp.volume,
+
+    params = {
+        "series_name": series_string,
         "number": number,
-        "year": fnp.year,
     }
+    if fnp.volume:
+        params["series_volume"] = fnp.volume
+    if fnp.year:
+        params["cover_year"] = fnp.year
+
+    return params
