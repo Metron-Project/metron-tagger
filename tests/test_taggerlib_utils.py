@@ -1,4 +1,4 @@
-from metrontagger.taggerlib.utils import cleanup_string, create_issue_query_dict
+from metrontagger.taggerlib.utils import cleanup_string, create_query_params
 
 
 def test_dict(tmp_path):
@@ -9,12 +9,12 @@ def test_dict(tmp_path):
     # Make the tmp file
     comic = tmp_path / f"{series} v{volume} #{number} ({year}).cbz"
 
-    result = create_issue_query_dict(comic)
+    result = create_query_params(comic)
     expected = {
-        "series": f"{series}",
-        "volume": f"{volume}",
+        "series_name": f"{series}",
+        "series_volume": f"{volume}",
         "number": f"{number}",
-        "year": f"{year}",
+        "cover_year": f"{year}",
     }
     assert result == expected
 
@@ -26,12 +26,12 @@ def test_query_dict_without_issue_number(tmp_path):
     # Make the tmp file
     comic = tmp_path / f"{series} v{volume} ({year}).cbz"
 
-    result = create_issue_query_dict(comic)
+    result = create_query_params(comic)
     expected = {
-        "series": f"{series}",
-        "volume": f"{volume}",
+        "series_name": f"{series}",
+        "series_volume": f"{volume}",
         "number": "1",
-        "year": f"{year}",
+        "cover_year": f"{year}",
     }
     assert result == expected
 

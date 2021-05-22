@@ -1,11 +1,10 @@
 import zipfile
-from base64 import standard_b64encode
 
 import pytest
 from darkseid.genericmetadata import GenericMetadata
 
-from metrontagger.taggerlib.metrontalker import MetronTalker
 from metrontagger.taggerlib.options import make_parser
+from metrontagger.taggerlib.talker import Talker
 
 CONTENT = "blah blah blah"
 
@@ -17,9 +16,9 @@ def parser():
 
 @pytest.fixture(scope="session")
 def talker():
-    auth = "test_user:test_auth"
-    base64string = standard_b64encode(auth.encode("utf-8"))
-    return MetronTalker(base64string)
+    username = "Foo"
+    password = "Bar"
+    return Talker(username, password)
 
 
 @pytest.fixture(scope="function")
