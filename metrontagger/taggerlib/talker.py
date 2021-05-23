@@ -59,7 +59,6 @@ class Talker:
 
         # sort match list by cover date
         match_set = sorted(match_set, key=lambda m: m.cover_date)
-        print(match_set)
         self._print_choices_to_user(match_set)
 
         while True:
