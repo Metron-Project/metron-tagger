@@ -72,7 +72,7 @@ def metron_response():
 def test_map_resp_to_metadata(talker, metron_response):
     md = talker._map_resp_to_metadata(metron_response)
     assert md is not None
-    assert md.title == metron_response.name[0]
+    assert md.title == list_to_string([title for title in metron_response.name])
     assert md.series == metron_response.series.name
     assert md.volume == metron_response.volume
     assert md.publisher == metron_response.publisher.name
