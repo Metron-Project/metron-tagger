@@ -1,58 +1,85 @@
-# import pytest
-# from darkseid.genericmetadata import GenericMetadata
-
-# from metrontagger.taggerlib.metrontalker import MetronTalker
-
-# ISSUE = "Aquaman #10"
+import pytest
+from darkseid.utils import list_to_string
+from mokkari.issue import IssueSchema
 
 
-# @pytest.fixture()
-# def metron_response():
-#     return {
-#         "id": 1778,
-#         "publisher": {"id": 2, "name": "DC Comics"},
-#         "series": {"id": 204, "name": "Aquaman"},
-#         "volume": 4,
-#         "number": "0",
-#         "name": ["A Crash of Symbols"],
-#         "cover_date": "1994-10-01",
-#         "store_date": None,
-#         "desc": "A ZERO HOUR tie-in!",
-#         "image": "http://127.0.0.1:8000/media/issue/2019/04/01/aquaman-0.jpg",
-#         "arcs": [{"id": 69, "name": "Zero Hour"}],
-#         "credits": [
-#             {
-#                 "id": 1576,
-#                 "creator": "Brad Vancata",
-#                 "role": [{"id": 4, "name": "Inker"}],
-#             },
-#             {
-#                 "id": 1575,
-#                 "creator": "Dan Nakrosis",
-#                 "role": [{"id": 6, "name": "Letterer"}],
-#             },
-#         ],
-#         "characters": [
-#             {"id": 86, "name": "Aquaman"},
-#             {"id": 1499, "name": "Dolphin"},
-#             {"id": 416, "name": "Garth"},
-#             {"id": 1500, "name": "Vulko"},
-#         ],
-#         "teams": [{"id": 1, "name": "Justice League"}],
-#     }
+@pytest.fixture()
+def metron_response():
+    i = {
+        "id": 1,
+        "publisher": {"id": 1, "name": "Marvel"},
+        "series": {"id": 1, "name": "Death of the Inhumans"},
+        "volume": 1,
+        "number": "1",
+        "name": ["Chapter One: Vox"],
+        "cover_date": "2018-09-01",
+        "store_date": "2018-07-04",
+        "desc": "THE TITLE SAYS IT ALL - HERE LIE THE INHUMANS.\r\n\r\nThe Kree have gone murdering, leaving behind a message: Join or die. Thousands of Inhumans have already made their choice - the evidence floats bleeding in space. Black Bolt and his family are next. Rising star Donny Cates and PUNISHER: WAR JOURNAL artist Ariel Olivetti bring their brutal talents to the Inhumans!",
+        "image": "https://static.metron.cloud/media/issue/2018/11/11/6497376-01.jpg",
+        "arcs": [],
+        "credits": [
+            {
+                "id": 6,
+                "creator": "Ariel Olivetti",
+                "role": [{"id": 2, "name": "Artist"}, {"id": 7, "name": "Cover"}],
+            },
+            {
+                "id": 5,
+                "creator": "Clayton Cowles",
+                "role": [{"id": 6, "name": "Letterer"}],
+            },
+            {"id": 1, "creator": "Donny Cates", "role": [{"id": 1, "name": "Writer"}]},
+            {
+                "id": 9,
+                "creator": "Greg Hildebrandt",
+                "role": [{"id": 7, "name": "Cover"}],
+            },
+            {
+                "id": 11,
+                "creator": "Javier Garrón",
+                "role": [{"id": 7, "name": "Cover"}],
+            },
+            {"id": 7, "creator": "Kaare Andrews", "role": [{"id": 7, "name": "Cover"}]},
+            {
+                "id": 10,
+                "creator": "Matthew Wilson",
+                "role": [{"id": 7, "name": "Cover"}],
+            },
+            {
+                "id": 2,
+                "creator": "Russell Dauterman",
+                "role": [{"id": 7, "name": "Cover"}],
+            },
+            {"id": 8, "creator": "Wil Moss", "role": [{"id": 8, "name": "Editor"}]},
+        ],
+        "characters": [
+            {"id": 1, "name": "Black Bolt"},
+            {"id": 5, "name": "Crystal"},
+            {"id": 3, "name": "Gorgon"},
+            {"id": 4, "name": "Karnak"},
+            {"id": 8, "name": "Lockjaw"},
+            {"id": 6, "name": "Maximus"},
+            {"id": 2, "name": "Medusa"},
+            {"id": 7, "name": "Triton"},
+            {"id": 9, "name": "Vox"},
+        ],
+        "teams": [{"id": 1, "name": "Inhumans"}],
+    }
+
+    return IssueSchema().load(i)
 
 
-# def test_map_resp_to_metadata(talker, metron_response):
-#     meta_data = talker.map_metron_data_to_metadata(metron_response)
-#     assert meta_data is not None
-#     assert meta_data.title == metron_response["name"][0]
-#     assert meta_data.story_arc == metron_response["arcs"][0]["name"]
-#     assert meta_data.series == metron_response["series"]["name"]
-#     assert meta_data.volume == metron_response["volume"]
-#     assert meta_data.publisher == metron_response["publisher"]["name"]
-#     assert meta_data.issue == metron_response["number"]
-#     assert meta_data.teams == metron_response["teams"][0]["name"]
-#     assert meta_data.year == "1994"
+def test_map_resp_to_metadata(talker, metron_response):
+    md = talker._map_resp_to_metadata(metron_response)
+    assert md is not None
+    assert md.title == metron_response.name[0]
+    assert md.series == metron_response.series.name
+    assert md.volume == metron_response.volume
+    assert md.publisher == metron_response.publisher.name
+    assert md.issue == metron_response.number
+    assert md.teams == list_to_string([t.name for t in metron_response.teams])
+    assert md.year == metron_response.cover_date.year
+    assert md.characters == list_to_string([c.name for c in metron_response.characters])
 
 
 # def test_map_resp_to_metadata_with_no_story_name(talker, metron_response):
