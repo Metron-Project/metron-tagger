@@ -6,66 +6,26 @@ from mokkari.issue import IssueSchema
 @pytest.fixture()
 def metron_response():
     i = {
-        "id": 1,
+        "id": 31047,
         "publisher": {"id": 1, "name": "Marvel"},
-        "series": {"id": 1, "name": "Death of the Inhumans"},
+        "series": {"id": 2222, "name": "The Spectacular Spider-Man"},
         "volume": 1,
-        "number": "1",
-        "name": ["Chapter One: Vox"],
-        "cover_date": "2018-09-01",
-        "store_date": "2018-07-04",
-        "desc": "THE TITLE SAYS IT ALL - HERE LIE THE INHUMANS.\r\n\r\nThe Kree have gone murdering, leaving behind a message: Join or die. Thousands of Inhumans have already made their choice - the evidence floats bleeding in space. Black Bolt and his family are next. Rising star Donny Cates and PUNISHER: WAR JOURNAL artist Ariel Olivetti bring their brutal talents to the Inhumans!",
-        "image": "https://static.metron.cloud/media/issue/2018/11/11/6497376-01.jpg",
+        "number": "47",
+        "name": ["A Night on the Prowl!"],
+        "cover_date": "1980-10-01",
+        "store_date": None,
+        "desc": "Spider-Man goes on a wild goose chase to find out who is behind the Prowler impersonation.",
+        "image": "https://static.metron.cloud/media/issue/2021/05/22/the-spectacular-spider-man-47.jpg",
         "arcs": [],
         "credits": [
-            {
-                "id": 6,
-                "creator": "Ariel Olivetti",
-                "role": [{"id": 2, "name": "Artist"}, {"id": 7, "name": "Cover"}],
-            },
-            {
-                "id": 5,
-                "creator": "Clayton Cowles",
-                "role": [{"id": 6, "name": "Letterer"}],
-            },
-            {"id": 1, "creator": "Donny Cates", "role": [{"id": 1, "name": "Writer"}]},
-            {
-                "id": 9,
-                "creator": "Greg Hildebrandt",
-                "role": [{"id": 7, "name": "Cover"}],
-            },
-            {
-                "id": 11,
-                "creator": "Javier Garrón",
-                "role": [{"id": 7, "name": "Cover"}],
-            },
-            {"id": 7, "creator": "Kaare Andrews", "role": [{"id": 7, "name": "Cover"}]},
-            {
-                "id": 10,
-                "creator": "Matthew Wilson",
-                "role": [{"id": 7, "name": "Cover"}],
-            },
-            {
-                "id": 2,
-                "creator": "Russell Dauterman",
-                "role": [{"id": 7, "name": "Cover"}],
-            },
-            {"id": 8, "creator": "Wil Moss", "role": [{"id": 8, "name": "Editor"}]},
+            {"id": 233, "creator": "Al Milgrom", "role": [{"id": 7, "name": "Cover"}]},
         ],
         "characters": [
-            {"id": 1, "name": "Black Bolt"},
-            {"id": 5, "name": "Crystal"},
-            {"id": 3, "name": "Gorgon"},
-            {"id": 4, "name": "Karnak"},
-            {"id": 8, "name": "Lockjaw"},
-            {"id": 6, "name": "Maximus"},
-            {"id": 2, "name": "Medusa"},
-            {"id": 7, "name": "Triton"},
-            {"id": 9, "name": "Vox"},
+            {"id": 6784, "name": "Debra Whitman"},
+            {"id": 3067, "name": "Hobgoblin (Kingsley)"},
         ],
-        "teams": [{"id": 1, "name": "Inhumans"}],
+        "teams": [],
     }
-
     return IssueSchema().load(i)
 
 
@@ -77,9 +37,10 @@ def test_map_resp_to_metadata(talker, metron_response):
     assert md.volume == metron_response.volume
     assert md.publisher == metron_response.publisher.name
     assert md.issue == metron_response.number
-    assert md.teams == list_to_string([t.name for t in metron_response.teams])
+    assert md.teams is None
     assert md.year == metron_response.cover_date.year
     assert md.characters == list_to_string([c.name for c in metron_response.characters])
+    assert md.credits is not None
 
 
 # def test_map_resp_to_metadata_with_no_story_name(talker, metron_response):
