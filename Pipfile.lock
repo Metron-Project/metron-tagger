@@ -57,10 +57,10 @@
         },
         "mokkari": {
             "hashes": [
-                "sha256:f435374c753966ded2d15e1db0f22fa9a7d20a7c25cf4229a37d36a6aafeda1e"
+                "sha256:fe6fab1551f62903ce1b83ec267b603ee3429c5baf399691becea745034ea22d"
             ],
             "index": "pypi",
-            "version": "==0.0.4"
+            "version": "==0.1.0"
         },
         "natsort": {
             "hashes": [
