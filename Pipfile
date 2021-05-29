@@ -8,6 +8,7 @@ coverage = "*"
 pytest = "*"
 pytest-cov = "*"
 flake8 = "*"
+pytest-mock = "*"
 
 [packages]
 darkseid = "*"
