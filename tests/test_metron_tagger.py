@@ -12,7 +12,7 @@ from metrontagger.main import (
     list_comics_with_missing_metadata,
     sort_list_of_comics,
 )
-from metrontagger.taggerlib.talker import OnlineMatchResults, Talker
+from metrontagger.taggerlib.talker import Talker
 
 MARTY = "Martin Egeland"
 
@@ -210,18 +210,18 @@ def test_sort_comics_with_dir(fake_comic, fake_metadata, tmpdir):
 #     assert stdout == expected_result
 
 
-# def test_post_process_matches(capsys, talker):
-#     talker.match_results.add_good_match("Inhumans #1.cbz")
-#     talker.match_results.good_matches.append("Inhumans #2.cbz")
-#     talker.match_results.no_matches.append("Outsiders #1.cbz")
-#     talker.match_results.no_matches.append("Outsiders #2.cbz")
+def test_post_process_matches(capsys, talker):
+    talker.match_results.add_good_match("Inhumans #1.cbz")
+    talker.match_results.good_matches.append("Inhumans #2.cbz")
+    talker.match_results.no_matches.append("Outsiders #1.cbz")
+    talker.match_results.no_matches.append("Outsiders #2.cbz")
 
-#     expected_result = "\nSuccessful matches:\n------------------\nInhumans #1.cbz\nInhumans #2.cbz\n\n"
-#     expected_result += (
-#         "No matches:\n------------------\nOutsiders #1.cbz\nOutsiders #2.cbz\n"
-#     )
+    expected_result = "\nSuccessful matches:\n------------------\nInhumans #1.cbz\nInhumans #2.cbz\n\n"
+    expected_result += (
+        "No matches:\n------------------\nOutsiders #1.cbz\nOutsiders #2.cbz\n"
+    )
 
-#     talker._post_process_matches()
-#     stdout, _ = capsys.readouterr()
+    talker._post_process_matches()
+    stdout, _ = capsys.readouterr()
 
-#     assert stdout == expected_result
+    assert stdout == expected_result
