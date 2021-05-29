@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import mokkari
 from darkseid.comicarchive import ComicArchive
@@ -16,7 +16,7 @@ from metrontagger.taggerlib.utils import create_query_params
 class MultipleMatch:
     """Class to hold information on searches with multiple matches"""
 
-    def __init__(self, filename, match_list) -> None:
+    def __init__(self, filename: str, match_list: List[Dict[str, str]]) -> None:
         self.filename = filename
         self.matches = match_list
 
@@ -46,7 +46,7 @@ class Talker:
 
     def _print_choices_to_user(self, match_set) -> None:
         for (counter, match) in enumerate(match_set, start=1):
-            print(f"{counter}. {match.__str__} ({match.cover_date})")
+            print(f"{counter}. {match['__str__']} ({match['cover_date']})")
 
     def _select_choice_from_multiple_matches(
         self, fn: Path, match_set
