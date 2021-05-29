@@ -43,17 +43,17 @@ def test_map_resp_to_metadata(talker, metron_response):
     assert md.credits is not None
 
 
-# def test_map_resp_to_metadata_with_no_story_name(talker, metron_response):
-#     test_data = metron_response
-#     test_data["name"] = None
-#     meta_data = talker.map_metron_data_to_metadata(test_data)
-#     assert meta_data is not None
-#     assert meta_data.title is None
-#     assert meta_data.series == metron_response["series"]["name"]
-#     assert meta_data.volume == metron_response["volume"]
-#     assert meta_data.publisher == metron_response["publisher"]["name"]
-#     assert meta_data.issue == metron_response["number"]
-#     assert meta_data.year == "1994"
+def test_map_resp_to_metadata_with_no_story_name(talker, metron_response):
+    test_data = metron_response
+    test_data.name = None
+    meta_data = talker._map_resp_to_metadata(test_data)
+    assert meta_data is not None
+    assert meta_data.title is None
+    assert meta_data.series == metron_response.series.name
+    assert meta_data.volume == metron_response.volume
+    assert meta_data.publisher == metron_response.publisher.name
+    assert meta_data.issue == metron_response.number
+    assert meta_data.year == metron_response.cover_date.year
 
 
 # class MockFetchIssueResponse:
