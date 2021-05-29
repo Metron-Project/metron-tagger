@@ -13,57 +13,6 @@ from metrontagger.main import (
 )
 from metrontagger.taggerlib.talker import MultipleMatch, Talker
 
-# MARTY = "Martin Egeland"
-
-
-# class MockFetchIssueResponse:
-#     @staticmethod
-#     def fetch_issue_data_by_issue_id():
-#         meta_data = GenericMetadata()
-#         meta_data.series = "Aquaman"
-#         meta_data.issue = "1"
-#         meta_data.year = "1993"
-#         meta_data.day = "15"
-#         meta_data.add_credit("Peter David", "Writer")
-#         meta_data.add_credit(MARTY, "Penciller")
-#         meta_data.add_credit(MARTY, "Cover")
-#         return meta_data
-
-
-# @pytest.fixture()
-# def mock_fetch(monkeypatch):
-#     def mock_get_issue(*args, **kwargs):
-#         return MockFetchIssueResponse().fetch_issue_data_by_issue_id()
-
-#     monkeypatch.setattr(MetronTalker, "fetch_issue_data_by_issue_id", mock_get_issue)
-
-
-# def test_retrieve_single_issue_from_id(fake_comic, mock_fetch):
-#     retrieve_single_issue_from_id([fake_comic], 1)
-
-#     # Check to see the zipfile had metadata written
-#     comic = ComicArchive(fake_comic)
-#     file_md = comic.read_metadata()
-
-#     credits_result = [
-#         {"person": "Peter David", "role": "Writer"},
-#         {"person": MARTY, "role": "Penciller"},
-#         {"person": MARTY, "role": "Cover"},
-#     ]
-
-#     assert file_md is not None
-#     assert file_md.series == "Aquaman"
-#     assert file_md.issue == "1"
-#     assert file_md.year == "1993"
-#     assert file_md.credits == credits_result
-
-
-# def test_retrieve_single_issue_from_id_multiple_files():
-#     with pytest.raises(SystemExit) as e:
-#         retrieve_single_issue_from_id(["blah_blah.cbz", "yeah_yeah.cbz"], 1)
-#     assert e.type == SystemExit
-#     assert e.value.code == 0
-
 
 def test_create_metron_talker():
     SETTINGS.metron_user = "test"
