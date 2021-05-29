@@ -124,12 +124,12 @@ class Talker:
     def _write_issue_md(self, filename: Path, issue_id: int) -> None:
         success = False
 
-        issue = self.api.issue(issue_id)
-        if issue:
+        resp = self.api.issue(issue_id)
+        if resp:
             ca = ComicArchive(filename)
             meta_data = GenericMetadata()
             meta_data.set_default_page_list(ca.get_number_of_pages())
-            md = self._map_resp_to_metadata(issue)
+            md = self._map_resp_to_metadata(resp)
             md.overlay(meta_data)
             success = ca.write_metadata(md)
 
