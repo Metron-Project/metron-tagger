@@ -2,6 +2,7 @@ import pytest
 from darkseid.comicarchive import ComicArchive
 from darkseid.utils import list_to_string
 from mokkari.issue import IssueSchema
+from mokkari.issues_list import IssuesList
 from mokkari.sesssion import Session
 
 
@@ -59,6 +60,48 @@ def test_map_resp_to_metadata_with_no_story_name(talker, metron_response):
     assert meta_data.publisher == metron_response.publisher.name
     assert meta_data.issue == metron_response.number
     assert meta_data.year == metron_response.cover_date.year
+
+
+@pytest.fixture()
+def issue_list_response():
+    i = {
+        "count": 8,
+        "next": None,
+        "previous": None,
+        "results": [
+            {"id": 3634, "__str__": "Aquaman #1", "cover_date": "1962-02-01"},
+            {"id": 2471, "__str__": "Aquaman #1", "cover_date": "1986-02-01"},
+            {"id": 2541, "__str__": "Aquaman #1", "cover_date": "1989-06-01"},
+            {"id": 2510, "__str__": "Aquaman #1", "cover_date": "1991-12-01"},
+            {"id": 1776, "__str__": "Aquaman #1", "cover_date": "1994-08-01"},
+            {"id": 2429, "__str__": "Aquaman #1", "cover_date": "2003-02-01"},
+            {"id": 2523, "__str__": "Aquaman #1", "cover_date": "2011-11-01"},
+            {"id": 2896, "__str__": "Aquaman #1", "cover_date": "2016-08-01"},
+        ],
+    }
+    return IssuesList(i)
+
+
+def test_process_file(talker, fake_comic, issue_list_response, mocker):
+    # Remove any existing metadata from comic fixture
+    ComicArchive(fake_comic).remove_metadata()
+    assert not ComicArchive(fake_comic).has_metadata()
+
+    # Mock the call to Metron
+    mocker.patch.object(Session, "issues_list", return_value=issue_list_response)
+    talker._process_file(fake_comic)
+
+    id, multiple = talker._process_file(fake_comic)
+    assert id is None
+    assert multiple
+    assert fake_comic in [c.filename for c in talker.match_results.multiple_matches]
+
+    id_list = []
+    for c in talker.match_results.multiple_matches:
+        for i in c.matches:
+            id_list.append(i.id)
+
+    assert 2471 in id_list
 
 
 def test_write_issue_md(talker, fake_comic, metron_response, mocker):
