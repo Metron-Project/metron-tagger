@@ -84,8 +84,9 @@ def issue_list_response():
 
 def test_process_file(talker, fake_comic, issue_list_response, mocker):
     # Remove any existing metadata from comic fixture
-    ComicArchive(fake_comic).remove_metadata()
-    assert not ComicArchive(fake_comic).has_metadata()
+    ca = ComicArchive(fake_comic)
+    if ca.has_metadata():
+        ca.remove_metadata()
 
     # Mock the call to Metron
     mocker.patch.object(Session, "issues_list", return_value=issue_list_response)
@@ -106,8 +107,9 @@ def test_process_file(talker, fake_comic, issue_list_response, mocker):
 
 def test_write_issue_md(talker, fake_comic, metron_response, mocker):
     # Remove any existing metadata from comic fixture
-    ComicArchive(fake_comic).remove_metadata()
-    assert not ComicArchive(fake_comic).has_metadata()
+    ca = ComicArchive(fake_comic)
+    if ca.has_metadata():
+        ca.remove_metadata()
 
     # Mock the call to Metron
     mocker.patch.object(Session, "issue", return_value=metron_response)
@@ -136,8 +138,9 @@ def test_write_issue_md(talker, fake_comic, metron_response, mocker):
 
 def test_retrieve_single_issue(talker, fake_comic, metron_response, mocker):
     # Remove any existing metadata from comic fixture
-    ComicArchive(fake_comic).remove_metadata()
-    assert not ComicArchive(fake_comic).has_metadata()
+    ca = ComicArchive(fake_comic)
+    if ca.has_metadata():
+        ca.remove_metadata()
 
     # Mock the call to Metron
     mocker.patch.object(Session, "issue", return_value=metron_response)
