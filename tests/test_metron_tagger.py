@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 
 from darkseid.comicarchive import ComicArchive
-from darkseid.genericmetadata import GenericMetadata
 
 from metrontagger.main import (
     SETTINGS,
@@ -12,23 +11,23 @@ from metrontagger.main import (
     list_comics_with_missing_metadata,
     sort_list_of_comics,
 )
-from metrontagger.taggerlib.talker import Talker
+from metrontagger.taggerlib.talker import MultipleMatch, Talker
 
-MARTY = "Martin Egeland"
+# MARTY = "Martin Egeland"
 
 
-class MockFetchIssueResponse:
-    @staticmethod
-    def fetch_issue_data_by_issue_id():
-        meta_data = GenericMetadata()
-        meta_data.series = "Aquaman"
-        meta_data.issue = "1"
-        meta_data.year = "1993"
-        meta_data.day = "15"
-        meta_data.add_credit("Peter David", "Writer")
-        meta_data.add_credit(MARTY, "Penciller")
-        meta_data.add_credit(MARTY, "Cover")
-        return meta_data
+# class MockFetchIssueResponse:
+#     @staticmethod
+#     def fetch_issue_data_by_issue_id():
+#         meta_data = GenericMetadata()
+#         meta_data.series = "Aquaman"
+#         meta_data.issue = "1"
+#         meta_data.year = "1993"
+#         meta_data.day = "15"
+#         meta_data.add_credit("Peter David", "Writer")
+#         meta_data.add_credit(MARTY, "Penciller")
+#         meta_data.add_credit(MARTY, "Cover")
+#         return meta_data
 
 
 # @pytest.fixture()
@@ -197,17 +196,17 @@ def test_sort_comics_with_dir(fake_comic, fake_metadata, tmpdir):
     assert expected_result == captured_output.getvalue()
 
 
-# def test_print_multi_choices_to_user(talker, capsys):
-#     fn = "Superman #1"
-#     data = [
-#         {"__str__": "Superman #1", "cover_date": "10/1/1939"},
-#         {"__str__": "Superman #1", "cover_date": "1/1/1986"},
-#     ]
-#     test_data = MultipleMatch(fn, data)
-#     expected_result = "1. Superman #1 (10/1/1939)\n2. Superman #1 (1/1/1986)\n"
-#     talker._print_choices_to_user(test_data.matches)
-#     stdout, _ = capsys.readouterr()
-#     assert stdout == expected_result
+def test_print_multi_choices_to_user(talker, capsys):
+    fn = "Superman #1"
+    data = [
+        {"__str__": "Superman #1", "cover_date": "10/1/1939"},
+        {"__str__": "Superman #1", "cover_date": "1/1/1986"},
+    ]
+    test_data = MultipleMatch(fn, data)
+    expected_result = "1. Superman #1 (10/1/1939)\n2. Superman #1 (1/1/1986)\n"
+    talker._print_choices_to_user(test_data.matches)
+    stdout, _ = capsys.readouterr()
+    assert stdout == expected_result
 
 
 def test_post_process_matches(capsys, talker):
