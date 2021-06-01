@@ -3,7 +3,7 @@ from darkseid.comicarchive import ComicArchive
 from darkseid.utils import list_to_string
 from mokkari.issue import IssueSchema
 from mokkari.issues_list import IssuesList
-from mokkari.sesssion import Session
+from mokkari.session import Session
 
 
 @pytest.fixture()
