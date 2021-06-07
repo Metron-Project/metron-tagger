@@ -1,13 +1,13 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import mokkari
 from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
 from darkseid.issuestring import IssueString
 from darkseid.utils import list_to_string
-from mokkari.issue import Issue
+from mokkari.issues_list import IssuesList
 
 from metrontagger import VERSION
 from metrontagger.taggerlib.utils import create_query_params
@@ -16,7 +16,7 @@ from metrontagger.taggerlib.utils import create_query_params
 class MultipleMatch:
     """Class to hold information on searches with multiple matches"""
 
-    def __init__(self, filename: str, match_list: List[Dict[str, str]]) -> None:
+    def __init__(self, filename: Path, match_list: IssuesList) -> None:
         self.filename = filename
         self.matches = match_list
 
@@ -25,14 +25,14 @@ class OnlineMatchResults:
     """Class to track online match results"""
 
     def __init__(self) -> None:
-        self.good_matches: List[str] = []
-        self.no_matches: List[str] = []
-        self.multiple_matches: List[str] = []
+        self.good_matches: List[Path] = []
+        self.no_matches: List[Path] = []
+        self.multiple_matches: List[MultipleMatch] = []
 
-    def add_good_match(self, file_name: str) -> None:
+    def add_good_match(self, file_name: Path) -> None:
         self.good_matches.append(file_name)
 
-    def add_no_match(self, file_name: str) -> None:
+    def add_no_match(self, file_name: Path) -> None:
         self.no_matches.append(file_name)
 
     def add_multiple_match(self, multi_match: MultipleMatch) -> None:
@@ -40,7 +40,7 @@ class OnlineMatchResults:
 
 
 class Talker:
-    def __init__(self, username, password) -> None:
+    def __init__(self, username: str, password: str) -> None:
         self.api = mokkari.api(username, password)
         self.match_results = OnlineMatchResults()
 
@@ -80,8 +80,8 @@ class Talker:
             return None, False
 
         params = create_query_params(fn)
-        issues = self.api.issues_list(params=params)
-        result_count = len(issues)
+        i_list = self.api.issues_list(params=params)
+        result_count = len(i_list)
 
         issue_id = None
         multiple_match = False
@@ -91,10 +91,10 @@ class Talker:
             multiple_match = False
         elif result_count > 1:
             issue_id = None
-            self.match_results.add_multiple_match(MultipleMatch(fn, issues))
+            self.match_results.add_multiple_match(MultipleMatch(fn, i_list))
             multiple_match = True
         elif result_count == 1:
-            issue_id = issues[0].id
+            issue_id = i_list[0].id
             self.match_results.add_good_match(fn)
             multiple_match = False
 
@@ -188,7 +188,7 @@ class Talker:
         title_list = [title for title in titles]
         return list_to_string(title_list)
 
-    def _map_resp_to_metadata(self, resp: Issue) -> GenericMetadata:
+    def _map_resp_to_metadata(self, resp) -> GenericMetadata:
         md = GenericMetadata()
 
         md.series = resp.series.name
