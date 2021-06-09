@@ -81,7 +81,6 @@ class Talker:
 
         params = create_query_params(fn)
         i_list = self.api.issues_list(params=params)
-        print(i_list)
         result_count = len(i_list)
 
         issue_id = None
