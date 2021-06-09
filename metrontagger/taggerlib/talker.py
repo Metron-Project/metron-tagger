@@ -46,7 +46,7 @@ class Talker:
 
     def _print_choices_to_user(self, match_set) -> None:
         for (counter, match) in enumerate(match_set, start=1):
-            print(f"{counter}. {match['__str__']} ({match['cover_date']})")
+            print(f"{counter}. {match.__str__} ({match.cover_date})")
 
     def _select_choice_from_multiple_matches(
         self, fn: Path, match_set
@@ -81,6 +81,7 @@ class Talker:
 
         params = create_query_params(fn)
         i_list = self.api.issues_list(params=params)
+        print(i_list)
         result_count = len(i_list)
 
         issue_id = None
