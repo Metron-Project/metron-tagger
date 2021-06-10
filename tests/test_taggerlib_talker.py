@@ -40,8 +40,8 @@ def test_map_resp_to_metadata(talker, metron_response):
     assert md.volume == metron_response.volume
     assert md.publisher == metron_response.publisher.name
     assert md.issue == metron_response.number
-    assert md.story_arc == list_to_string(a.name for a in metron_response.arcs)
-    assert md.teams == list_to_string(t.name for t in metron_response.teams)
+    assert md.story_arc == list_to_string([a.name for a in metron_response.arcs])
+    assert md.teams == list_to_string([t.name for t in metron_response.teams])
     assert md.year == metron_response.cover_date.year
     assert md.characters == list_to_string([c.name for c in metron_response.characters])
     assert md.credits is not None
@@ -125,8 +125,8 @@ def test_write_issue_md(talker, fake_comic, metron_response, mocker):
     assert ca_md.volume == str(metron_response.volume)
     assert ca_md.publisher == metron_response.publisher.name
     assert ca_md.issue == metron_response.number
-    assert ca_md.story_arc == list_to_string(a.name for a in metron_response.arcs)
-    assert ca_md.teams == list_to_string(t.name for t in metron_response.teams)
+    assert ca_md.story_arc == list_to_string([a.name for a in metron_response.arcs])
+    assert ca_md.teams == list_to_string([t.name for t in metron_response.teams])
     assert ca_md.year == str(metron_response.cover_date.year)
     assert ca_md.characters == list_to_string(
         [c.name for c in metron_response.characters]
@@ -155,8 +155,8 @@ def test_retrieve_single_issue(talker, fake_comic, metron_response, mocker):
     assert ca_md.volume == str(metron_response.volume)
     assert ca_md.publisher == metron_response.publisher.name
     assert ca_md.issue == metron_response.number
-    assert ca_md.story_arc == list_to_string(a.name for a in metron_response.arcs)
-    assert ca_md.teams == list_to_string(t.name for t in metron_response.teams)
+    assert ca_md.story_arc == list_to_string([a.name for a in metron_response.arcs])
+    assert ca_md.teams == list_to_string([t.name for t in metron_response.teams])
     assert ca_md.year == str(metron_response.cover_date.year)
     assert ca_md.characters == list_to_string(
         [c.name for c in metron_response.characters]
