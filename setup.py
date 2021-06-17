@@ -15,7 +15,7 @@ setup(
     license="GPLv3",
     packages=find_packages(exclude=["tests"]),
     python_requires=">=3.8",
-    install_requires=["darkseid >= 1.0.6", "mokkari >= 0.1.4"],
+    install_requires=["darkseid >= 1.0.6", "mokkari >= 0.1.6"],
     entry_points={"console_scripts": ["metron-tagger=metrontagger.main:main"]},
     classifiers=[
         "Development Status :: 4 - Beta",
