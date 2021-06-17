@@ -46,7 +46,7 @@ class Talker:
 
     def _print_choices_to_user(self, match_set) -> None:
         for (counter, match) in enumerate(match_set, start=1):
-            print(f"{counter}. {match.__str__} ({match.cover_date})")
+            print(f"{counter}. {match.issue_name} ({match.cover_date})")
 
     def _select_choice_from_multiple_matches(
         self, fn: Path, match_set
@@ -196,8 +196,8 @@ class Talker:
 
         md.issue = IssueString(resp.number).as_string()
 
-        if resp.name:
-            md.title = self.story_titles_to_string(resp.name)
+        if resp.story_titles:
+            md.title = self.story_titles_to_string(resp.story_titles)
 
         md.publisher = resp.publisher.name
         md.day = resp.cover_date.day

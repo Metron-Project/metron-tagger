@@ -154,8 +154,8 @@ def multi_choice_fixture():
         "next": None,
         "previous": None,
         "results": [
-            {"__str__": "Superman #1", "cover_date": "1939-10-01"},
-            {"__str__": "Superman #1", "cover_date": "1986-01-01"},
+            {"issue_name": "Superman #1", "cover_date": "1939-10-01"},
+            {"issue_name": "Superman #1", "cover_date": "1986-01-01"},
         ],
     }
     return IssuesList(i)
