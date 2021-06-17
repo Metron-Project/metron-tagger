@@ -57,10 +57,10 @@
         },
         "mokkari": {
             "hashes": [
-                "sha256:234c7b63c7fea925b8930be2c926beba44003dabc6b5ddceef9e4ac5a49c26fe"
+                "sha256:eecbf0991e3525f3c21783d1a5a102f439aa1d05455813700d474756fe83c7aa"
             ],
             "index": "pypi",
-            "version": "==0.1.4"
+            "version": "==0.1.6"
         },
         "natsort": {
             "hashes": [
@@ -143,7 +143,6 @@
             "version": "==21.2.0"
         },
         "coverage": {
-            "extras": [],
             "hashes": [
                 "sha256:004d1880bed2d97151facef49f08e255a20ceb6f9432df75f4eef018fdd5a78c",
                 "sha256:01d84219b5cdbfc8122223b39a954820929497a1cb1422824bb86b07b74594b6",
