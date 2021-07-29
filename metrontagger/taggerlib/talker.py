@@ -85,7 +85,7 @@ class Talker:
 
         issue_id = None
         multiple_match = False
-        if not result_count > 0:
+        if result_count <= 0:
             issue_id = None
             self.match_results.add_no_match(fn)
             multiple_match = False
