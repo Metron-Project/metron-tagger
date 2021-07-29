@@ -153,9 +153,8 @@ class Talker:
             issue_id, multiple_match = self._process_file(fn)
             if issue_id:
                 self._write_issue_md(fn, issue_id)
-            else:
-                if not multiple_match:
-                    print(f"No Match for '{fn.name}'.")
+            elif not multiple_match:
+                print(f"No Match for '{fn.name}'.")
 
         # Print match results
         self._post_process_matches()
