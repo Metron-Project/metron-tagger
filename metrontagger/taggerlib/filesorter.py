@@ -29,14 +29,14 @@ class FileSorter:
         if volume is not None:
             volume = "v" + volume
 
-        if (publisher and series and volume) is None:
+        if publisher and series and volume:
+            new_path = pathlib.Path(self.sort_directory) / publisher / series / volume
+        else:
             print(
                 "Missing metadata from comic and will be unable to sort."
                 + f"Publisher: {publisher}\nSeries: {series}\nVolume: {volume}"
             )
             return False
-
-        new_path = pathlib.Path(self.sort_directory) / publisher / series / volume
 
         if not new_path.is_dir():
             try:
