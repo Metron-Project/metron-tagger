@@ -36,7 +36,7 @@ def fake_metadata():
     return meta_data
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 def fake_comic(tmp_path_factory):
     test_dir = tmp_path_factory.mktemp("data")
     img_1 = test_dir / "image-1.jpg"
