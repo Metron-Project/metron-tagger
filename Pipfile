@@ -9,6 +9,8 @@ pytest = "*"
 pytest-cov = "*"
 flake8 = "*"
 pytest-mock = "*"
+pre-commit = "*"
+black = "*"
 
 [packages]
 darkseid = "*"
