@@ -42,9 +42,7 @@ class FileSorter:
             try:
                 new_path.mkdir(parents=True)
             except PermissionError:
-                print(
-                    f"due to permission error, failed to create directory: {new_path}"
-                )
+                print(f"due to permission error, failed to create directory: {new_path}")
                 return False
 
         original_path = pathlib.Path(comic)

@@ -25,9 +25,7 @@ def make_parser():
         action="store_true",
         default=False,
     )
-    parser.add_argument(
-        "--id", help="Identify file for tagging with the Metron Issue Id."
-    )
+    parser.add_argument("--id", help="Identify file for tagging with the Metron Issue Id.")
     parser.add_argument(
         "-d",
         "--delete",

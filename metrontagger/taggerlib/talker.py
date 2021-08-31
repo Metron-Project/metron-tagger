@@ -48,9 +48,7 @@ class Talker:
         for (counter, match) in enumerate(match_set, start=1):
             print(f"{counter}. {match.issue_name} ({match.cover_date})")
 
-    def _select_choice_from_multiple_matches(
-        self, fn: Path, match_set
-    ) -> Optional[int]:
+    def _select_choice_from_multiple_matches(self, fn: Path, match_set) -> Optional[int]:
         """
         Function to ask user to choice which issue metadata to write,
         when there are multiple choices
@@ -139,9 +137,7 @@ class Talker:
             print(f"There was a problem writing metadata for '{filename.name}'.")
 
     def identify_comics(self, file_list: List[Path], ignore: bool):
-        print(
-            "\nStarting online search and tagging:\n----------------------------------"
-        )
+        print("\nStarting online search and tagging:\n----------------------------------")
 
         for fn in file_list:
             if ignore:
