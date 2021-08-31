@@ -176,10 +176,10 @@ def test_post_process_matches(capsys, talker):
     talker.match_results.no_matches.append("Outsiders #1.cbz")
     talker.match_results.no_matches.append("Outsiders #2.cbz")
 
-    expected_result = "\nSuccessful matches:\n------------------\nInhumans #1.cbz\nInhumans #2.cbz\n\n"
-    expected_result += (
-        "No matches:\n------------------\nOutsiders #1.cbz\nOutsiders #2.cbz\n"
+    expected_result = (
+        "\nSuccessful matches:\n------------------\nInhumans #1.cbz\nInhumans #2.cbz\n\n"
     )
+    expected_result += "No matches:\n------------------\nOutsiders #1.cbz\nOutsiders #2.cbz\n"
 
     talker._post_process_matches()
     stdout, _ = capsys.readouterr()

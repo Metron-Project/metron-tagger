@@ -88,9 +88,7 @@ class FileRenamer:
 
         return new_name
 
-    def determine_name(
-        self, filename: Path, ext: Optional[str] = None
-    ) -> Optional[str]:
+    def determine_name(self, filename: Path, ext: Optional[str] = None) -> Optional[str]:
         """Method to create the new filename based on the files metadata"""
         meta_data = self.metdata
         new_name = self.template
@@ -126,23 +124,17 @@ class FileRenamer:
 
         new_name = self.replace_token(new_name, meta_data.genre, "%genre%")
         new_name = self.replace_token(new_name, meta_data.language, "%language_code%")
-        new_name = self.replace_token(
-            new_name, meta_data.critical_rating, "%criticalrating%"
-        )
+        new_name = self.replace_token(new_name, meta_data.critical_rating, "%criticalrating%")
         new_name = self.replace_token(
             new_name, meta_data.alternate_series, "%alternateseries%"
         )
         new_name = self.replace_token(
             new_name, meta_data.alternate_number, "%alternatenumber%"
         )
-        new_name = self.replace_token(
-            new_name, meta_data.alternate_count, "%alternatecount%"
-        )
+        new_name = self.replace_token(new_name, meta_data.alternate_count, "%alternatecount%")
         new_name = self.replace_token(new_name, meta_data.imprint, "%imprint%")
         new_name = self.replace_token(new_name, meta_data.format, "%format%")
-        new_name = self.replace_token(
-            new_name, meta_data.maturity_rating, "%maturityrating%"
-        )
+        new_name = self.replace_token(new_name, meta_data.maturity_rating, "%maturityrating%")
         new_name = self.replace_token(new_name, meta_data.story_arc, "%storyarc%")
         new_name = self.replace_token(new_name, meta_data.series_group, "%seriesgroup%")
         new_name = self.replace_token(new_name, meta_data.scan_info, "%scaninfo%")

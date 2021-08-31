@@ -1,4 +1,5 @@
 from darkseid.genericmetadata import GenericMetadata
+
 from metrontagger.taggerlib.filerenamer import FileRenamer
 
 
