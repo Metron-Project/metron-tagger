@@ -41,6 +41,9 @@ pytest-mock = "^3.6.1"
 pre-commit = "^2.14.1"
 black = "^21.8b0"
 
+[tool.poetry.scripts]
+metron-tagger = "metrontagger.main:main"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
@@ -56,6 +59,10 @@ line_length = 88
 default_section = "THIRDPARTY"
 known_first_party = []
 known_third_party = ["darkseid", "mokkari", "pytest"]
+
+[tool.poetry.urls]
+"Homepage" = "https://github.com/bpepple/metron-tagger"
+"Bug Tracker" = "https://github.com/bpepple/metron-tagger/issues"
 
 [tool.coverage.run]
 source = ["metrontagger"]
