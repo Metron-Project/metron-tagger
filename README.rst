@@ -8,22 +8,8 @@ Metron-Tagger
 .. image:: https://img.shields.io/pypi/pyversions/metron-tagger.svg
     :target: https://pypi.org/project/metron-tagger/
 
-
-.. image:: https://codecov.io/gh/bpepple/metron-tagger/branch/master/graph/badge.svg?token=d8TyzWM2Uz
-    :target: https://codecov.io/gh/bpepple/metron-tagger
-  
-
-.. image:: https://sonarcloud.io/api/project_badges/measure?project=bpepple_metron-tagger&metric=alert_status
-    :target: https://sonarcloud.io/dashboard?id=bpepple_metron-tagger
-
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
-
-.. image:: https://img.shields.io/pypi/wheel/metron-tagger.svg
-    :target: https://pypi.org/project/metron-tagger/
-
-.. image:: https://img.shields.io/pypi/dm/metron-tagger.svg
-    :target: https://pypi.org/project/metron-tagger/
 
 Quick Description
 -----------------
