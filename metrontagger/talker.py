@@ -9,7 +9,7 @@ from darkseid.issuestring import IssueString
 from darkseid.utils import list_to_string
 from mokkari.issues_list import IssuesList
 
-from metrontagger import VERSION
+from metrontagger import __version__
 from metrontagger.utils import create_query_params
 
 
@@ -161,7 +161,7 @@ class Talker:
     @classmethod
     def _create_note(cls, issue_id: int) -> str:
         now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return f"Tagged with MetronTagger-{VERSION} using info from Metron on {now_date}. [issue_id:{issue_id}]"
+        return f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}. [issue_id:{issue_id}]"
 
     @classmethod
     def characters_to_string(cls, characters) -> str:

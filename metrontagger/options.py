@@ -1,7 +1,7 @@
 """Utility to create an argument parser"""
 import argparse
 
-from . import VERSION
+from metrontagger import __version__
 
 
 def make_parser():
@@ -70,7 +70,7 @@ def make_parser():
     parser.add_argument(
         "--version",
         action="version",
-        version="%(prog)s {}".format(VERSION),
+        version=f"%(prog)s {__version__}",
         help="Show the version number and exit",
     )
 
