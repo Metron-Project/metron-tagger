@@ -66,19 +66,27 @@ class FileRenamer:
             else:
                 return text.replace(token, "")
 
+    def _remove_empty_separators(self, value: str) -> str:
+        value = re.sub(r"\(\s*[-:]*\s*\)", "", value)
+        value = re.sub(r"\[\s*[-:]*\s*\]", "", value)
+        value = re.sub(r"\{\s*[-:]*\s*\}", "", value)
+        return value
+
+    def _remove_duplicate_hyphen_underscore(self, value: str) -> str:
+        value = re.sub(r"[-_]{2,}\s+", "-- ", value)
+        value = re.sub(r"(\s--)+", " --", value)
+        value = re.sub(r"(\s-)+", " -", value)
+        return value
+
     def smart_cleanup_string(self, new_name: str) -> str:
         # remove empty braces,brackets, parentheses
-        new_name = re.sub(r"\(\s*[-:]*\s*\)", "", new_name)
-        new_name = re.sub(r"\[\s*[-:]*\s*\]", "", new_name)
-        new_name = re.sub(r"\{\s*[-:]*\s*\}", "", new_name)
+        new_name = self._remove_empty_separators(new_name)
 
         # remove duplicate spaces
         new_name = " ".join(new_name.split())
 
         # remove remove duplicate -, _,
-        new_name = re.sub(r"[-_]{2,}\s+", "-- ", new_name)
-        new_name = re.sub(r"(\s--)+", " --", new_name)
-        new_name = re.sub(r"(\s-)+", " -", new_name)
+        new_name = self._remove_duplicate_hyphen_underscore(new_name)
 
         # remove dash or double dash at end of line
         new_name = re.sub(r"[-]{1,2}\s*$", "", new_name)
@@ -154,6 +162,8 @@ class FileRenamer:
 
     def rename_file(self, comic: Path) -> Optional[Path]:
         new_name = self.determine_name(comic)
+        if not new_name:
+            return None
 
         if new_name == comic.name:
             print("Filename is already good!")

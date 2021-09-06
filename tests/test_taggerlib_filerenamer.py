@@ -23,6 +23,15 @@ def test_rename_file(fake_comic):
 
     renamer = FileRenamer(md)
     renamed_file = renamer.rename_file(fake_comic)
+    assert renamed_file is not None
 
     expected_result = f"{md.series} v{md.volume} #{md.issue} ({md.year}).cbz"
     assert expected_result == renamed_file.name
+
+
+def test_empty_parenthesis(fake_metadata):
+    test_str = "Aquaman #1()"
+
+    rn = FileRenamer(fake_metadata)
+    res = rn._remove_empty_separators(test_str)
+    assert res == "Aquaman #1"
