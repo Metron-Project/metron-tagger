@@ -28,11 +28,11 @@ class MetronTaggerSettings:
         self.config = configparser.ConfigParser()
 
         if not config_dir:
-            self.folder = MetronTaggerSettings.get_settings_folder()
+            folder = MetronTaggerSettings.get_settings_folder()
         else:
-            self.folder = Path(config_dir)
+            folder = Path(config_dir)
 
-        self.settings_file = self.folder / "settings.ini"
+        self.settings_file = folder / "settings.ini"
 
         if not self.settings_file.parent.exists():
             self.settings_file.parent.mkdir()
