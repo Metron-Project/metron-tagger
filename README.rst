@@ -8,6 +8,9 @@ Metron-Tagger
 .. image:: https://img.shields.io/pypi/pyversions/metron-tagger.svg
     :target: https://pypi.org/project/metron-tagger/
 
+.. image:: https://img.shields.io/github/license/bpepple/metron-tagger
+    :target: https://opensource.org/licenses/GPL-3.0  
+
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
 
