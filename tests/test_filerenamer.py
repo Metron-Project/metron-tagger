@@ -1,6 +1,6 @@
 from darkseid.genericmetadata import GenericMetadata
 
-from metrontagger.taggerlib.filerenamer import FileRenamer
+from metrontagger.filerenamer import FileRenamer
 
 
 def test_determine_name(fake_comic, fake_metadata):

@@ -7,12 +7,11 @@ from typing import List
 from darkseid.comicarchive import ComicArchive
 from darkseid.utils import get_recursive_filelist
 
-from metrontagger.taggerlib.talker import Talker
-
-from .taggerlib.filerenamer import FileRenamer
-from .taggerlib.filesorter import FileSorter
-from .taggerlib.options import make_parser
-from .taggerlib.settings import MetronTaggerSettings
+from .filerenamer import FileRenamer
+from .filesorter import FileSorter
+from .options import make_parser
+from .settings import MetronTaggerSettings
+from .talker import Talker
 
 # Load the settings
 SETTINGS = MetronTaggerSettings()

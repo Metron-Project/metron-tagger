@@ -12,7 +12,7 @@ from darkseid.genericmetadata import GenericMetadata
 from darkseid.issuestring import IssueString
 from darkseid.utils import unique_file
 
-from metrontagger.taggerlib.utils import cleanup_string
+from metrontagger.utils import cleanup_string
 
 
 class FileRenamer:

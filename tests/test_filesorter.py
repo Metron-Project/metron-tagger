@@ -1,6 +1,6 @@
 from darkseid.comicarchive import ComicArchive
 
-from metrontagger.taggerlib.filesorter import FileSorter
+from metrontagger.filesorter import FileSorter
 
 
 def test_sort_comic_with_missing_metadata(fake_comic, fake_metadata, tmp_path):

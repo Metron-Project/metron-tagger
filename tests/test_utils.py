@@ -1,4 +1,4 @@
-from metrontagger.taggerlib.utils import cleanup_string, create_query_params
+from metrontagger.utils import cleanup_string, create_query_params
 
 
 def test_dict(tmp_path):

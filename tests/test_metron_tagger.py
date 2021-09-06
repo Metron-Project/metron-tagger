@@ -13,7 +13,7 @@ from metrontagger.main import (
     list_comics_with_missing_metadata,
     sort_list_of_comics,
 )
-from metrontagger.taggerlib.talker import MultipleMatch, Talker
+from metrontagger.talker import MultipleMatch, Talker
 
 
 def test_create_metron_talker():

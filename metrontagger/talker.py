@@ -10,7 +10,7 @@ from darkseid.utils import list_to_string
 from mokkari.issues_list import IssuesList
 
 from metrontagger import VERSION
-from metrontagger.taggerlib.utils import create_query_params
+from metrontagger.utils import create_query_params
 
 
 class MultipleMatch:

@@ -3,8 +3,8 @@ import zipfile
 import pytest
 from darkseid.genericmetadata import GenericMetadata
 
-from metrontagger.taggerlib.options import make_parser
-from metrontagger.taggerlib.talker import Talker
+from metrontagger.options import make_parser
+from metrontagger.talker import Talker
 
 CONTENT = "blah blah blah"
 

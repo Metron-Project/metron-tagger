@@ -1,4 +1,4 @@
-from metrontagger.taggerlib.settings import MetronTaggerSettings
+from metrontagger.settings import MetronTaggerSettings
 
 
 def test_settings(tmpdir):

@@ -1,7 +1,7 @@
 """Utility to create an argument parser"""
 import argparse
 
-from .. import VERSION
+from . import VERSION
 
 
 def make_parser():
