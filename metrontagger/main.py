@@ -83,6 +83,10 @@ def rename_comics(file_list: List[Path]) -> List[Path]:
 
         meta_data = comic_archive.read_metadata()
         renamer = FileRenamer(meta_data)
+        renamer.set_template(SETTINGS.rename_template)
+        renamer.set_issue_zero_padding(SETTINGS.rename_issue_number_padding)
+        renamer.set_smart_cleanup(SETTINGS.rename_use_smart_string_cleanup)
+
         unique_name = renamer.rename_file(comic)
         if unique_name is None:
             continue

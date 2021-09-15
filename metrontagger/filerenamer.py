@@ -24,6 +24,9 @@ class FileRenamer:
         self.smart_cleanup = True
         self.issue_zero_padding = 3
 
+    def set_smart_cleanup(self, on: bool) -> None:
+        self.smart_cleanup = on
+
     def set_metadata(self, metadata: GenericMetadata) -> None:
         """Method to set the metadata"""
         self.metdata = metadata
@@ -96,7 +99,7 @@ class FileRenamer:
 
         return new_name
 
-    def determine_name(self, filename: Path, ext: Optional[str] = None) -> Optional[str]:
+    def determine_name(self, filename: Path) -> Optional[str]:
         """Method to create the new filename based on the files metadata"""
         meta_data = self.metdata
         new_name = self.template
@@ -150,9 +153,7 @@ class FileRenamer:
         if self.smart_cleanup:
             new_name = self.smart_cleanup_string(new_name)
 
-        if ext is None:
-            ext = filename.suffix
-
+        ext = filename.suffix
         new_name += ext
 
         # some tweaks to keep various filesystems happy
