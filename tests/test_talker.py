@@ -90,9 +90,9 @@ def test_process_file(talker, fake_comic, issue_list_response, mocker):
 
     # Mock the call to Metron
     mocker.patch.object(Session, "issues_list", return_value=issue_list_response)
-    talker._process_file(fake_comic)
+    talker._process_file(fake_comic, False)
 
-    id, multiple = talker._process_file(fake_comic)
+    id, multiple = talker._process_file(fake_comic, False)
     assert id is None
     assert multiple
     assert fake_comic in [c.filename for c in talker.match_results.multiple_matches]

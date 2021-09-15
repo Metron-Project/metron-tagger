@@ -48,12 +48,12 @@ class Talker:
         for (counter, match) in enumerate(match_set, start=1):
             print(f"{counter}. {match.issue_name} ({match.cover_date})")
 
-    def _select_choice_from_multiple_matches(self, fn: Path, match_set) -> Optional[int]:
+    def _select_choice_from_matches(self, fn: Path, match_set) -> Optional[int]:
         """
         Function to ask user to choice which issue metadata to write,
         when there are multiple choices
         """
-        print(f"\n{fn.name} - Multiple results found:")
+        print(f"\n{fn.name} - Results found:")
 
         # sort match list by cover date
         match_set = sorted(match_set, key=lambda m: m.cover_date)
@@ -70,7 +70,9 @@ class Talker:
         else:
             return None
 
-    def _process_file(self, fn: Path) -> Tuple[Optional[int], Optional[bool]]:
+    def _process_file(
+        self, fn: Path, interactive: bool
+    ) -> Tuple[Optional[int], Optional[bool]]:
         ca = ComicArchive(fn)
 
         if not ca.is_writable() and not ca.seems_to_be_a_comic_archive():
@@ -92,8 +94,13 @@ class Talker:
             self.match_results.add_multiple_match(MultipleMatch(fn, i_list))
             multiple_match = True
         elif result_count == 1:
-            issue_id = i_list[0].id
-            self.match_results.add_good_match(fn)
+            if not interactive:
+                issue_id = i_list[0].id
+                self.match_results.add_good_match(fn)
+            else:
+                issue_id = self._select_choice_from_matches(fn, i_list)
+                if issue_id:
+                    self.match_results.add_good_match(fn)
             multiple_match = False
 
         return issue_id, multiple_match
@@ -113,7 +120,7 @@ class Talker:
         # Handle files with multiple matches
         if self.match_results.multiple_matches:
             for match_set in self.match_results.multiple_matches:
-                issue_id = self._select_choice_from_multiple_matches(
+                issue_id = self._select_choice_from_matches(
                     match_set.filename, match_set.matches
                 )
                 if issue_id:
@@ -136,7 +143,7 @@ class Talker:
         else:
             print(f"There was a problem writing metadata for '{filename.name}'.")
 
-    def identify_comics(self, file_list: List[Path], ignore: bool):
+    def identify_comics(self, file_list: List[Path], interactive: bool, ignore: bool):
         print("\nStarting online search and tagging:\n----------------------------------")
 
         for fn in file_list:
@@ -146,7 +153,7 @@ class Talker:
                     print(f"{fn.name} has metadata. Skipping...")
                     continue
 
-            issue_id, multiple_match = self._process_file(fn)
+            issue_id, multiple_match = self._process_file(fn, interactive)
             if issue_id:
                 self._write_issue_md(fn, issue_id)
             elif not multiple_match:

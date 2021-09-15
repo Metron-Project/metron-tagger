@@ -137,7 +137,7 @@ def main() -> None:
 
     if opts.online:
         t = Talker(SETTINGS.metron_user, SETTINGS.metron_pass)
-        t.identify_comics(file_list, opts.ignore_existing)
+        t.identify_comics(file_list, opts.interactive, opts.ignore_existing)
 
     if opts.rename:
         file_list = rename_comics(file_list)

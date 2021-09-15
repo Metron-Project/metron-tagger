@@ -40,6 +40,13 @@ def make_parser():
         default=False,
     )
     parser.add_argument(
+        "-i",
+        "--interactive",
+        help="Interactively query the user when there are matches for an online search.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--missing",
         help="List files without metadata.",
         action="store_true",
