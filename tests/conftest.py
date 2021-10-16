@@ -4,6 +4,7 @@ import pytest
 from darkseid.genericmetadata import GenericMetadata
 
 from metrontagger.options import make_parser
+from metrontagger.settings import MetronTaggerSettings
 from metrontagger.talker import Talker
 
 CONTENT = "blah blah blah"
@@ -12,6 +13,11 @@ CONTENT = "blah blah blah"
 @pytest.fixture(scope="session")
 def parser():
     return make_parser()
+
+
+@pytest.fixture(scope="function")
+def get_settings(tmp_path):
+    return MetronTaggerSettings(config_dir=tmp_path)
 
 
 @pytest.fixture(scope="session")
