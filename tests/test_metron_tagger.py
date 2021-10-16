@@ -116,10 +116,19 @@ def test_sort_comics_with_dir(fake_comic, fake_metadata, tmp_path):
     s = MetronTaggerSettings(tmp_path)
     s.sort_dir = tmp_path
 
+    res_path = (
+        Path(f"{s.sort_dir}")
+        / f"{fake_metadata.publisher}"
+        / f"{fake_metadata.series}"
+        / f"v{fake_metadata.volume}"
+    )
+
     expected_result = (
         "\nStarting sorting of comic archives:\n----------------------------------\n"
         + "moved 'Aquaman v1 #001 (of 08) (1994).cbz' to "
-        + f"'{s.sort_dir}/{fake_metadata.publisher}/{fake_metadata.series}/v{fake_metadata.volume}'\n"
+        + "'"
+        + str(res_path)
+        + "'\n"
     )
 
     comic = ComicArchive(fake_comic)
