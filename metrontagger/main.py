@@ -13,9 +13,6 @@ from .options import make_parser
 from .settings import MetronTaggerSettings
 from .talker import Talker
 
-# Load the settings
-SETTINGS = MetronTaggerSettings()
-
 
 def list_comics_with_missing_metadata(file_list: List[Path]) -> None:
     print("\nShowing files without metadata:\n-------------------------------")
@@ -37,13 +34,13 @@ def delete_comics_metadata(file_list: List[Path]) -> None:
             print(f"no metadata in '{comic.name}'")
 
 
-def sort_list_of_comics(file_list: List[Path]) -> None:
-    if not SETTINGS.sort_dir:
+def sort_list_of_comics(sort_dir: str, file_list: List[Path]) -> None:
+    if not sort_dir:
         print("\nUnable to sort files. No destination directory was provided.")
         return
 
     print("\nStarting sorting of comic archives:\n----------------------------------")
-    file_sorter = FileSorter(SETTINGS.sort_dir)
+    file_sorter = FileSorter(sort_dir)
     for comic in file_list:
         result = file_sorter.sort_comics(comic)
         if not result:
@@ -52,24 +49,24 @@ def sort_list_of_comics(file_list: List[Path]) -> None:
 
 def get_options() -> Namespace:
     parser = make_parser()
-    opts = parser.parse_args()
+    return parser.parse_args()
 
+
+def update_settings(settings: MetronTaggerSettings, opts: Namespace) -> None:
     if opts.user:
-        SETTINGS.metron_user = opts.user
+        settings.metron_user = opts.user
 
     if opts.password:
-        SETTINGS.metron_pass = opts.password
+        settings.metron_pass = opts.password
 
     if opts.sort_dir:
-        SETTINGS.sort_dir = opts.sort_dir
+        settings.sort_dir = opts.sort_dir
 
     if opts.set_metron_user or opts.set_sort_dir:
-        SETTINGS.save()
-
-    return opts
+        settings.save()
 
 
-def rename_comics(file_list: List[Path]) -> List[Path]:
+def rename_comics(file_list: List[Path], settings: MetronTaggerSettings) -> List[Path]:
     print("\nStarting comic archive renaming:\n-------------------------------")
 
     # Lists to track filename changes
@@ -83,9 +80,9 @@ def rename_comics(file_list: List[Path]) -> List[Path]:
 
         meta_data = comic_archive.read_metadata()
         renamer = FileRenamer(meta_data)
-        renamer.set_template(SETTINGS.rename_template)
-        renamer.set_issue_zero_padding(SETTINGS.rename_issue_number_padding)
-        renamer.set_smart_cleanup(SETTINGS.rename_use_smart_string_cleanup)
+        renamer.set_template(settings.rename_template)
+        renamer.set_issue_zero_padding(settings.rename_issue_number_padding)
+        renamer.set_smart_cleanup(settings.rename_use_smart_string_cleanup)
 
         unique_name = renamer.rename_file(comic)
         if unique_name is None:
@@ -112,6 +109,8 @@ def main() -> None:
     Main func
     """
     opts = get_options()
+    settings = MetronTaggerSettings()
+    update_settings(settings, opts)
 
     # Parse paths to get file list
     file_list = []
@@ -128,7 +127,7 @@ def main() -> None:
         delete_comics_metadata(file_list)
 
     if opts.id:
-        t = Talker(SETTINGS.metron_user, SETTINGS.metron_pass)
+        t = Talker(settings.metron_user, settings.metron_pass)
         if len(file_list) == 1:
             t.retrieve_single_issue(file_list[0], opts.id)
         else:
@@ -136,14 +135,14 @@ def main() -> None:
             exit(0)
 
     if opts.online:
-        t = Talker(SETTINGS.metron_user, SETTINGS.metron_pass)
+        t = Talker(settings.metron_user, settings.metron_pass)
         t.identify_comics(file_list, opts.interactive, opts.ignore_existing)
 
     if opts.rename:
-        file_list = rename_comics(file_list)
+        file_list = rename_comics(file_list, settings)
 
     if opts.sort:
-        sort_list_of_comics(file_list)
+        sort_list_of_comics(settings.sort_dir, file_list)
 
 
 if __name__ == "__main__":

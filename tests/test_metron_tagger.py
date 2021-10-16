@@ -7,22 +7,24 @@ import pytest
 from darkseid.comicarchive import ComicArchive
 from mokkari.issues_list import IssuesList
 
-from metrontagger.main import (  # sort_list_of_comics,
+from metrontagger.main import (
     delete_comics_metadata,
     list_comics_with_missing_metadata,
+    sort_list_of_comics,
 )
+from metrontagger.settings import MetronTaggerSettings
 from metrontagger.talker import MultipleMatch, Talker
 
 
-def test_create_metron_talker(get_settings):
-    s = get_settings
+def test_create_metron_talker(tmp_path):
+    s = MetronTaggerSettings(tmp_path)
     s.metron_user = "test"
     s.metron_pass = "test_password"
     talker = Talker(s.metron_user, s.metron_pass)
     assert isinstance(talker, Talker)
 
 
-def test_list_comics_with_missing_metadata(fake_comic):
+def test_list_comics_with_missing_metadata(fake_comic, tmp_path):
     expected_result = (
         "\nShowing files without metadata:"
         + "\n-------------------------------"
@@ -91,61 +93,61 @@ def test_delete_comics_without_metadata(fake_comic):
     assert expected_result == captured_output.getvalue()
 
 
-# def test_sort_comics_without_sort_dir(fake_comic, get_settings):
-#     expected_result = "\nUnable to sort files. No destination directory was provided.\n"
+def test_sort_comics_without_sort_dir(fake_comic, tmp_path):
+    expected_result = "\nUnable to sort files. No destination directory was provided.\n"
 
-#     # Create fake settings.
-#     s = get_settings
-#     s.sort_dir = ""
+    # Create fake settings.
+    s = MetronTaggerSettings(tmp_path)
+    s.sort_dir = ""
 
-#     fake_list = [fake_comic]
+    fake_list = [fake_comic]
 
-#     # Capture the output so we can verify the print output
-#     captured_output = io.StringIO()
-#     sys.stdout = captured_output
+    # Capture the output so we can verify the print output
+    captured_output = io.StringIO()
+    sys.stdout = captured_output
 
-#     sort_list_of_comics(fake_list)
-#     sys.stdout = sys.__stdout__
+    sort_list_of_comics(s.sort_dir, fake_list)
+    sys.stdout = sys.__stdout__
 
-#     assert expected_result == captured_output.getvalue()
+    assert expected_result == captured_output.getvalue()
 
 
-# def test_sort_comics_with_dir(fake_comic, fake_metadata, tmpdir, get_settings):
-#     s = get_settings
-#     s.sort_dir = tmpdir
+def test_sort_comics_with_dir(fake_comic, fake_metadata, tmp_path):
+    s = MetronTaggerSettings(tmp_path)
+    s.sort_dir = tmp_path
 
-#     expected_result = (
-#         "\nStarting sorting of comic archives:\n----------------------------------\n"
-#         + "moved 'Aquaman v1 #001 (of 08) (1994).cbz' to "
-#         + f"'{s.sort_dir}/{fake_metadata.publisher}/{fake_metadata.series}/v{fake_metadata.volume}'\n"
-#     )
+    expected_result = (
+        "\nStarting sorting of comic archives:\n----------------------------------\n"
+        + "moved 'Aquaman v1 #001 (of 08) (1994).cbz' to "
+        + f"'{s.sort_dir}/{fake_metadata.publisher}/{fake_metadata.series}/v{fake_metadata.volume}'\n"
+    )
 
-#     comic = ComicArchive(fake_comic)
+    comic = ComicArchive(fake_comic)
 
-#     if not comic.has_metadata():
-#         comic.write_metadata(fake_metadata)
+    if not comic.has_metadata():
+        comic.write_metadata(fake_metadata)
 
-#     fake_list = [fake_comic]
+    fake_list = [fake_comic]
 
-#     # Capture the output so we can verify the print output
-#     captured_output = io.StringIO()
-#     sys.stdout = captured_output
+    # Capture the output so we can verify the print output
+    captured_output = io.StringIO()
+    sys.stdout = captured_output
 
-#     sort_list_of_comics(fake_list)
-#     sys.stdout = sys.__stdout__
+    sort_list_of_comics(s.sort_dir, fake_list)
+    sys.stdout = sys.__stdout__
 
-#     # Path for moved file
-#     moved_comic = (
-#         Path(f"{s.sort_dir}")
-#         / f"{fake_metadata.publisher}"
-#         / f"{fake_metadata.series}"
-#         / f"v{fake_metadata.volume}"
-#         / fake_comic.name
-#     )
+    # Path for moved file
+    moved_comic = (
+        Path(f"{s.sort_dir}")
+        / f"{fake_metadata.publisher}"
+        / f"{fake_metadata.series}"
+        / f"v{fake_metadata.volume}"
+        / fake_comic.name
+    )
 
-#     assert moved_comic.parent.is_dir()
-#     assert moved_comic.is_file()
-#     assert expected_result == captured_output.getvalue()
+    assert moved_comic.parent.is_dir()
+    assert moved_comic.is_file()
+    assert expected_result == captured_output.getvalue()
 
 
 @pytest.fixture()
