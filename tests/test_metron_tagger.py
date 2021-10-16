@@ -8,22 +8,23 @@ from darkseid.comicarchive import ComicArchive
 from mokkari.issues_list import IssuesList
 
 from metrontagger.main import (
-    SETTINGS,
     delete_comics_metadata,
     list_comics_with_missing_metadata,
     sort_list_of_comics,
 )
+from metrontagger.settings import MetronTaggerSettings
 from metrontagger.talker import MultipleMatch, Talker
 
 
-def test_create_metron_talker():
-    SETTINGS.metron_user = "test"
-    SETTINGS.metron_pass = "test_password"
-    talker = Talker(SETTINGS.metron_user, SETTINGS.metron_pass)
+def test_create_metron_talker(tmp_path):
+    s = MetronTaggerSettings(tmp_path)
+    s.metron_user = "test"
+    s.metron_pass = "test_password"
+    talker = Talker(s.metron_user, s.metron_pass)
     assert isinstance(talker, Talker)
 
 
-def test_list_comics_with_missing_metadata(fake_comic):
+def test_list_comics_with_missing_metadata(fake_comic, tmp_path):
     expected_result = (
         "\nShowing files without metadata:"
         + "\n-------------------------------"
@@ -69,7 +70,7 @@ def test_delete_comics_with_metadata(fake_comic, fake_metadata):
     assert expected_result == captured_output.getvalue()
 
 
-def test_delete_comics_without_metadata(fake_comic, fake_metadata):
+def test_delete_comics_without_metadata(fake_comic):
     expected_result = (
         "\nRemoving metadata:\n-----------------"
         + "\nno metadata in 'Aquaman v1 #001 (of 08) (1994).cbz'"
@@ -92,11 +93,12 @@ def test_delete_comics_without_metadata(fake_comic, fake_metadata):
     assert expected_result == captured_output.getvalue()
 
 
-def test_sort_comics_without_sort_dir(fake_comic, tmpdir):
+def test_sort_comics_without_sort_dir(fake_comic, tmp_path):
     expected_result = "\nUnable to sort files. No destination directory was provided.\n"
 
     # Create fake settings.
-    SETTINGS.sort_dir = ""
+    s = MetronTaggerSettings(tmp_path)
+    s.sort_dir = ""
 
     fake_list = [fake_comic]
 
@@ -104,19 +106,29 @@ def test_sort_comics_without_sort_dir(fake_comic, tmpdir):
     captured_output = io.StringIO()
     sys.stdout = captured_output
 
-    sort_list_of_comics(fake_list)
+    sort_list_of_comics(s.sort_dir, fake_list)
     sys.stdout = sys.__stdout__
 
     assert expected_result == captured_output.getvalue()
 
 
-def test_sort_comics_with_dir(fake_comic, fake_metadata, tmpdir):
-    SETTINGS.sort_dir = tmpdir
+def test_sort_comics_with_dir(fake_comic, fake_metadata, tmp_path):
+    s = MetronTaggerSettings(tmp_path)
+    s.sort_dir = tmp_path
+
+    res_path = (
+        Path(f"{s.sort_dir}")
+        / f"{fake_metadata.publisher}"
+        / f"{fake_metadata.series}"
+        / f"v{fake_metadata.volume}"
+    )
 
     expected_result = (
         "\nStarting sorting of comic archives:\n----------------------------------\n"
         + "moved 'Aquaman v1 #001 (of 08) (1994).cbz' to "
-        + f"'{SETTINGS.sort_dir}/{fake_metadata.publisher}/{fake_metadata.series}/v{fake_metadata.volume}'\n"
+        + "'"
+        + str(res_path)
+        + "'\n"
     )
 
     comic = ComicArchive(fake_comic)
@@ -130,12 +142,12 @@ def test_sort_comics_with_dir(fake_comic, fake_metadata, tmpdir):
     captured_output = io.StringIO()
     sys.stdout = captured_output
 
-    sort_list_of_comics(fake_list)
+    sort_list_of_comics(s.sort_dir, fake_list)
     sys.stdout = sys.__stdout__
 
     # Path for moved file
     moved_comic = (
-        Path(f"{SETTINGS.sort_dir}")
+        Path(f"{s.sort_dir}")
         / f"{fake_metadata.publisher}"
         / f"{fake_metadata.series}"
         / f"v{fake_metadata.volume}"
