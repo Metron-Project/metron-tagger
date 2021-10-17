@@ -1,7 +1,8 @@
 """Main project file"""
+import signal
+import sys
 from argparse import Namespace
 from pathlib import Path
-from sys import exit
 from typing import List
 
 from darkseid.comicarchive import ComicArchive
@@ -12,6 +13,14 @@ from .filesorter import FileSorter
 from .options import make_parser
 from .settings import MetronTaggerSettings
 from .talker import Talker
+
+
+def sigint_handler(signal, frame):
+    print("KeyboardInterrupt. Exiting...")
+    sys.exit(0)
+
+
+signal.signal(signal.SIGINT, sigint_handler)
 
 
 def list_comics_with_missing_metadata(file_list: List[Path]) -> None:
@@ -146,4 +155,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    exit(main())
+    main()
