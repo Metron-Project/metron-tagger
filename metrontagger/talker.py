@@ -165,63 +165,43 @@ class Talker:
     def retrieve_single_issue(self, fn: Path, id: int) -> None:
         self._write_issue_md(fn, id)
 
-    @classmethod
-    def _create_note(cls, issue_id: int) -> str:
+    def _create_note(self, issue_id: int) -> str:
         now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}. [issue_id:{issue_id}]"
 
-    @classmethod
-    def characters_to_string(cls, characters) -> str:
-        char_list = [c.name for c in characters]
-        return list_to_string(char_list)
-
-    @classmethod
-    def teams_to_string(cls, teams) -> str:
-        team_list = [t.name for t in teams]
-        return list_to_string(team_list)
-
-    @classmethod
-    def story_arcs_to_string(cls, arcs) -> str:
-        arc_list = [a.name for a in arcs]
-        return list_to_string(arc_list)
-
-    @classmethod
-    def story_titles_to_string(cls, titles):
-        title_list = [title for title in titles]
-        return list_to_string(title_list)
+    def _add_credits_to_metadata(self, md: GenericMetadata, credits_resp) -> GenericMetadata:
+        for creator in credits_resp:
+            if creator.role:
+                for r in creator.role:
+                    md.add_credit(creator.creator, r.name)
+        return md
 
     def _map_resp_to_metadata(self, resp) -> GenericMetadata:
         md = GenericMetadata()
 
+        if resp.credits:
+            md = self._add_credits_to_metadata(md, resp.credits)
+
         md.series = resp.series.name
         md.volume = resp.volume
-
         md.issue = IssueString(resp.number).as_string()
-
-        if resp.story_titles:
-            md.title = self.story_titles_to_string(resp.story_titles)
-
         md.publisher = resp.publisher.name
         md.day = resp.cover_date.day
         md.month = resp.cover_date.month
         md.year = resp.cover_date.year
-
         md.comments = resp.desc
         md.notes = self._create_note(resp.id)
 
-        if resp.credits:
-            for creator in resp.credits:
-                if creator.role:
-                    for r in creator.role:
-                        md.add_credit(creator.creator, r.name)
+        if resp.story_titles:
+            md.title = list_to_string([s for s in resp.story_titles])
 
         if resp.characters:
-            md.characters = self.characters_to_string(resp.characters)
+            md.characters = list_to_string([c.name for c in resp.characters])
 
         if resp.teams:
-            md.teams = self.teams_to_string(resp.teams)
+            md.teams = list_to_string([t.name for t in resp.teams])
 
         if resp.arcs:
-            md.story_arc = self.story_arcs_to_string(resp.arcs)
+            md.story_arc = list_to_string([a.name for a in resp.arcs])
 
         return md
