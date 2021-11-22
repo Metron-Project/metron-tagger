@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 from darkseid.comicarchive import ComicArchive
-from mokkari.issues_list import IssuesList
+from mokkari.issue import IssuesList
 
 from metrontagger.main import (
     delete_comics_metadata,
@@ -166,8 +166,8 @@ def multi_choice_fixture():
         "next": None,
         "previous": None,
         "results": [
-            {"issue_name": "Superman #1", "cover_date": "1939-10-01"},
-            {"issue_name": "Superman #1", "cover_date": "1986-01-01"},
+            {"__str__": "Superman #1", "cover_date": "1939-10-01"},
+            {"__str__": "Superman #1", "cover_date": "1986-01-01"},
         ],
     }
     return IssuesList(i)

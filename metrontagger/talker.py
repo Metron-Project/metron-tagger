@@ -7,7 +7,7 @@ from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
 from darkseid.issuestring import IssueString
 from darkseid.utils import list_to_string
-from mokkari.issues_list import IssuesList
+from mokkari.issue import IssuesList
 
 from metrontagger import __version__
 from metrontagger.utils import create_query_params
