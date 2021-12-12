@@ -34,7 +34,7 @@ keywords=["comics", "comic", "metadata", "tagging", "tagger"]
 [tool.poetry.dependencies]
 python = "^3.8"
 darkseid = "^1.0.6"
-mokkari = "^1.0.0"
+mokkari = "^2.0.0"
 
 [tool.poetry.dev-dependencies]
 pytest-cov = "^2.12.1"
