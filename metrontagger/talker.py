@@ -120,17 +120,15 @@ class Talker:
         # Handle files with multiple matches
         if self.match_results.multiple_matches:
             for match_set in self.match_results.multiple_matches:
-                issue_id = self._select_choice_from_matches(
+                if issue_id := self._select_choice_from_matches(
                     match_set.filename, match_set.matches
-                )
-                if issue_id:
+                ):
                     self._write_issue_md(match_set.filename, issue_id)
 
     def _write_issue_md(self, filename: Path, issue_id: int) -> None:
         success = False
 
-        resp = self.api.issue(issue_id)
-        if resp:
+        if resp := self.api.issue(issue_id):
             ca = ComicArchive(filename)
             meta_data = GenericMetadata()
             meta_data.set_default_page_list(ca.get_number_of_pages())
