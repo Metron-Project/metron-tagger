@@ -191,7 +191,7 @@ class Talker:
         md.notes = self._create_note(resp.id)
 
         if resp.story_titles:
-            md.title = list_to_string([s for s in resp.story_titles])
+            md.title = list_to_string(list(resp.story_titles))
 
         if resp.characters:
             md.characters = list_to_string([c.name for c in resp.characters])
