@@ -34,7 +34,7 @@ def metron_response():
 def test_map_resp_to_metadata(talker, metron_response):
     md = talker._map_resp_to_metadata(metron_response)
     assert md is not None
-    assert md.title == list_to_string([title for title in metron_response.story_titles])
+    assert md.title == list_to_string(list(metron_response.story_titles))
     assert md.series == metron_response.series.name
     assert md.volume == metron_response.volume
     assert md.publisher == metron_response.publisher.name
@@ -119,7 +119,7 @@ def test_write_issue_md(talker, fake_comic, metron_response, mocker):
     ca = ComicArchive(fake_comic)
     assert ca.has_metadata()
     ca_md = ca.read_metadata()
-    assert ca_md.title == list_to_string([title for title in metron_response.story_titles])
+    assert ca_md.title == list_to_string(list(metron_response.story_titles))
     assert ca_md.series == metron_response.series.name
     assert ca_md.volume == str(metron_response.volume)
     assert ca_md.publisher == metron_response.publisher.name
@@ -147,7 +147,7 @@ def test_retrieve_single_issue(talker, fake_comic, metron_response, mocker):
     ca = ComicArchive(fake_comic)
     assert ca.has_metadata()
     ca_md = ca.read_metadata()
-    assert ca_md.title == list_to_string([title for title in metron_response.story_titles])
+    assert ca_md.title == list_to_string(list(metron_response.story_titles))
     assert ca_md.series == metron_response.series.name
     assert ca_md.volume == str(metron_response.volume)
     assert ca_md.publisher == metron_response.publisher.name
