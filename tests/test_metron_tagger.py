@@ -190,8 +190,8 @@ def test_post_process_matches(capsys, talker):
 
     expected_result = (
         "\nSuccessful matches:\n------------------\nInhumans #1.cbz\nInhumans #2.cbz\n\n"
+        + "No matches:\n------------------\nOutsiders #1.cbz\nOutsiders #2.cbz\n"
     )
-    expected_result += "No matches:\n------------------\nOutsiders #1.cbz\nOutsiders #2.cbz\n"
 
     talker._post_process_matches()
     stdout, _ = capsys.readouterr()
