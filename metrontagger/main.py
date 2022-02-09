@@ -107,6 +107,7 @@ def rename_comics(file_list: List[Path], settings: MetronTaggerSettings) -> List
     for original_file in original_files_changed:
         file_list.remove(original_file)
 
+    # Add new file names to file list.
     file_list.extend(iter(new_file_names))
     return file_list
 
