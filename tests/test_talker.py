@@ -98,9 +98,7 @@ def test_process_file(talker, fake_comic, issue_list_response, mocker):
 
     id_list = []
     for c in talker.match_results.multiple_matches:
-        for i in c.matches:
-            id_list.append(i.id)
-
+        id_list.extend(i.id for i in c.matches)
     assert 2471 in id_list
 
 
