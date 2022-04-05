@@ -56,6 +56,20 @@ def sort_list_of_comics(sort_dir: str, file_list: List[Path]) -> None:
             print(f"unable to move {comic.name}.")
 
 
+def export_to_cb7(file_list: List[Path]) -> None:
+    print("\nExporting to cb7:\n-----------------")
+    for comic in file_list:
+        ca = ComicArchive(comic)
+        if ca.is_zip():
+            new_fn = Path(comic).with_suffix(".cb7")
+            if ca.export_as_cb7(new_fn):
+                print(f"Exported '{comic.name}' to a cb7 archive.")
+            else:
+                print(f"Failed to export '{comic.name}'")
+        else:
+            print(f"'{comic.name}' is not a cbz archive. skipping...")
+
+
 def get_options() -> Namespace:
     parser = make_parser()
     return parser.parse_args()
@@ -151,6 +165,9 @@ def main() -> None:
 
     if opts.sort:
         sort_list_of_comics(settings.sort_dir, file_list)
+
+    if opts.export_to_cb7:
+        export_to_cb7(file_list)
 
 
 if __name__ == "__main__":

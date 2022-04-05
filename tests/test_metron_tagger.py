@@ -9,6 +9,7 @@ from mokkari.issue import IssuesList
 
 from metrontagger.main import (
     delete_comics_metadata,
+    export_to_cb7,
     list_comics_with_missing_metadata,
     sort_list_of_comics,
 )
@@ -22,6 +23,15 @@ def test_create_metron_talker(tmp_path):
     s.metron_pass = "test_password"
     talker = Talker(s.metron_user, s.metron_pass)
     assert isinstance(talker, Talker)
+
+
+def test_export_to_cb7(fake_comic):
+    # This function will create a new archive with a cb7 extension.
+    export_to_cb7([fake_comic])
+    new_name = Path(fake_comic).with_suffix(".cb7")
+    ca = ComicArchive(new_name)
+    assert ca.is_sevenzip() is True
+    assert ca.get_number_of_pages() == 3
 
 
 def test_list_comics_with_missing_metadata(fake_comic, tmp_path):
