@@ -75,6 +75,13 @@ def make_parser():
         action="store_true",
     )
     parser.add_argument(
+        "-e",
+        "--export-to-cb7",
+        help="Export a CBZ (zip) archive to a CB7 (7zip) archive.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",
