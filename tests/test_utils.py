@@ -1,7 +1,11 @@
+from pathlib import Path
+
+import pytest
+
 from metrontagger.utils import cleanup_string, create_query_params
 
 
-def test_dict(tmp_path):
+def test_dict(tmp_path: Path) -> None:
     series = "Aquaman"
     number = "9"
     volume = "1"
@@ -19,7 +23,7 @@ def test_dict(tmp_path):
     assert result == expected
 
 
-def test_query_dict_without_issue_number(tmp_path):
+def test_query_dict_without_issue_number(tmp_path: Path) -> None:
     series = "Batman"
     year = "1990"
     volume = "2"
@@ -36,31 +40,15 @@ def test_query_dict_without_issue_number(tmp_path):
     assert result == expected
 
 
-def test_cleanup_colon_space():
-    test_str = "Hashtag: Danger (2019)"
-    res = cleanup_string(test_str)
-    assert res == "Hashtag - Danger (2019)"
+test_strings = [
+    pytest.param("Hashtag: Danger (2019)", "Cleanup colon space", "Hashtag - Danger (2019)"),
+    pytest.param("Hashtag :Danger (2019)", "Cleanup space colon", "Hashtag -Danger (2019)"),
+    pytest.param("Hashtag:Danger (2019)", "Cleanup colon", "Hashtag-Danger (2019)"),
+    pytest.param("Hack/Slash (2019)", "Cleanup backslash", "Hack-Slash (2019)"),
+    pytest.param("What If? (2019)", "Cleanup question mark", "What If (2019)"),
+]
 
 
-def test_cleanup_space_colon():
-    test_str = "Hashtag :Danger (2019)"
-    res = cleanup_string(test_str)
-    assert res == "Hashtag -Danger (2019)"
-
-
-def test_cleanup_colon():
-    test_str = "Hashtag:Danger (2019)"
-    res = cleanup_string(test_str)
-    assert res == "Hashtag-Danger (2019)"
-
-
-def test_cleanup_backslash():
-    test_str = "Hack/Slash (2019)"
-    res = cleanup_string(test_str)
-    assert res == "Hack-Slash (2019)"
-
-
-def test_cleanup_questionmark():
-    test_str = "What If? (2019)"
-    res = cleanup_string(test_str)
-    assert res == "What If (2019)"
+@pytest.mark.parametrize("string,reason,expected", test_strings)
+def test_string_cleanup(string: str, reason: str, expected: str) -> None:
+    assert cleanup_string(string) == expected
