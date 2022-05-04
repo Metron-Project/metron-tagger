@@ -1,9 +1,15 @@
+from pathlib import Path
+from zipfile import ZipFile
+
 from darkseid.comicarchive import ComicArchive
+from darkseid.genericmetadata import GenericMetadata
 
 from metrontagger.filesorter import FileSorter
 
 
-def test_sort_comic_with_missing_metadata(fake_comic, fake_metadata, tmp_path):
+def test_sort_comic_with_missing_metadata(
+    fake_comic: ZipFile, fake_metadata: GenericMetadata, tmp_path: Path
+) -> None:
     test_dir = tmp_path / "sort10"
 
     fake_metadata.volume = None
@@ -17,7 +23,9 @@ def test_sort_comic_with_missing_metadata(fake_comic, fake_metadata, tmp_path):
     assert res is False
 
 
-def test_sort_comic(fake_comic, fake_metadata, tmp_path):
+def test_sort_comic(
+    fake_comic: ZipFile, fake_metadata: GenericMetadata, tmp_path: Path
+) -> None:
     test_dir = tmp_path / "sort1"
 
     test_dir.mkdir()
@@ -38,7 +46,7 @@ def test_sort_comic(fake_comic, fake_metadata, tmp_path):
     assert res is True
 
 
-def test_sort_files_without_metadata(fake_comic, tmp_path):
+def test_sort_files_without_metadata(fake_comic: ZipFile, tmp_path: Path) -> None:
     test_dir = tmp_path / "sort2"
     # If we add more tests we should probably create another tmpfile
     # since we are removing the metadata from the tmpfile

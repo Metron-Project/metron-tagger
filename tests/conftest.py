@@ -1,4 +1,6 @@
 import zipfile
+from argparse import ArgumentParser
+from pathlib import Path
 
 import pytest
 from darkseid.genericmetadata import GenericMetadata
@@ -10,19 +12,19 @@ CONTENT = "blah blah blah"
 
 
 @pytest.fixture(scope="session")
-def parser():
+def parser() -> ArgumentParser:
     return make_parser()
 
 
 @pytest.fixture(scope="session")
-def talker():
+def talker() -> Talker:
     username = "Foo"
     password = "Bar"
     return Talker(username, password)
 
 
 @pytest.fixture(scope="function")
-def fake_metadata():
+def fake_metadata() -> GenericMetadata:
     meta_data = GenericMetadata()
     meta_data.publisher = "DC Comics"
     meta_data.series = "Aquaman"
@@ -37,7 +39,7 @@ def fake_metadata():
 
 
 @pytest.fixture(scope="function")
-def fake_comic(tmp_path_factory):
+def fake_comic(tmp_path_factory: Path) -> zipfile.ZipFile:
     test_dir = tmp_path_factory.mktemp("data")
     img_1 = test_dir / "image-1.jpg"
     img_1.write_text(CONTENT)

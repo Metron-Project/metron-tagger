@@ -1,8 +1,12 @@
+from zipfile import ZipFile
+
 import pytest
 from darkseid.comicarchive import ComicArchive
 from darkseid.utils import list_to_string
 from mokkari.issue import IssueSchema, IssuesList
 from mokkari.session import Session
+
+from metrontagger.talker import Talker
 
 
 @pytest.fixture()
@@ -31,7 +35,7 @@ def metron_response():
     return IssueSchema().load(i)
 
 
-def test_map_resp_to_metadata(talker, metron_response):
+def test_map_resp_to_metadata(talker: Talker, metron_response) -> None:
     md = talker._map_resp_to_metadata(metron_response)
     assert md is not None
     assert md.title == list_to_string(list(metron_response.story_titles))
@@ -48,7 +52,7 @@ def test_map_resp_to_metadata(talker, metron_response):
     assert md.credits[0]["role"] == "Cover"
 
 
-def test_map_resp_to_metadata_with_no_story_name(talker, metron_response):
+def test_map_resp_to_metadata_with_no_story_name(talker: Talker, metron_response) -> None:
     test_data = metron_response
     test_data.story_titles = None
     meta_data = talker._map_resp_to_metadata(test_data)
@@ -62,7 +66,7 @@ def test_map_resp_to_metadata_with_no_story_name(talker, metron_response):
 
 
 @pytest.fixture()
-def issue_list_response():
+def issue_list_response() -> IssuesList:
     i = {
         "count": 8,
         "next": None,
@@ -81,7 +85,9 @@ def issue_list_response():
     return IssuesList(i)
 
 
-def test_process_file(talker, fake_comic, issue_list_response, mocker):
+def test_process_file(
+    talker: Talker, fake_comic: ZipFile, issue_list_response: IssuesList, mocker
+) -> None:
     # Remove any existing metadata from comic fixture
     ca = ComicArchive(fake_comic)
     if ca.has_metadata():
@@ -102,7 +108,7 @@ def test_process_file(talker, fake_comic, issue_list_response, mocker):
     assert 2471 in id_list
 
 
-def test_write_issue_md(talker, fake_comic, metron_response, mocker):
+def test_write_issue_md(talker: Talker, fake_comic: ZipFile, metron_response, mocker) -> None:
     # Remove any existing metadata from comic fixture
     ca = ComicArchive(fake_comic)
     if ca.has_metadata():
@@ -131,7 +137,9 @@ def test_write_issue_md(talker, fake_comic, metron_response, mocker):
     assert ca_md.credits[0]["role"] == "Cover"
 
 
-def test_retrieve_single_issue(talker, fake_comic, metron_response, mocker):
+def test_retrieve_single_issue(
+    talker: Talker, fake_comic: ZipFile, metron_response, mocker
+) -> None:
     # Remove any existing metadata from comic fixture
     ca = ComicArchive(fake_comic)
     if ca.has_metadata():

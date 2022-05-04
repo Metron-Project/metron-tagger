@@ -1,9 +1,11 @@
+from zipfile import ZipFile
+
 from darkseid.genericmetadata import GenericMetadata
 
 from metrontagger.filerenamer import FileRenamer
 
 
-def test_determine_name(fake_comic, fake_metadata):
+def test_determine_name(fake_comic: ZipFile, fake_metadata: GenericMetadata) -> None:
     expected_result = "Aquaman v2 #001 (2011).cbz"
 
     renamer = FileRenamer(fake_metadata)
@@ -11,7 +13,7 @@ def test_determine_name(fake_comic, fake_metadata):
     assert new_file_name == expected_result
 
 
-def test_rename_file(fake_comic):
+def test_rename_file(fake_comic: ZipFile) -> None:
     md = GenericMetadata()
     md.series = "Batman"
     md.volume = "2"
@@ -29,7 +31,7 @@ def test_rename_file(fake_comic):
     assert expected_result == renamed_file.name
 
 
-def test_empty_parenthesis(fake_metadata):
+def test_empty_parenthesis(fake_metadata: GenericMetadata) -> None:
     test_str = "Aquaman #1()"
 
     rn = FileRenamer(fake_metadata)

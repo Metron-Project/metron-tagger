@@ -2,9 +2,11 @@
 import io
 import sys
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 from darkseid.comicarchive import ComicArchive
+from darkseid.genericmetadata import GenericMetadata
 from mokkari.issue import IssuesList
 
 from metrontagger.main import (
@@ -17,7 +19,7 @@ from metrontagger.settings import MetronTaggerSettings
 from metrontagger.talker import MultipleMatch, Talker
 
 
-def test_create_metron_talker(tmp_path):
+def test_create_metron_talker(tmp_path: Path) -> None:
     s = MetronTaggerSettings(tmp_path)
     s.metron_user = "test"
     s.metron_pass = "test_password"
@@ -25,7 +27,7 @@ def test_create_metron_talker(tmp_path):
     assert isinstance(talker, Talker)
 
 
-def test_export_to_cb7(fake_comic):
+def test_export_to_cb7(fake_comic: ZipFile) -> None:
     # This function will create a new archive with a cb7 extension.
     export_to_cb7([fake_comic])
     new_name = Path(fake_comic).with_suffix(".cb7")
@@ -34,7 +36,7 @@ def test_export_to_cb7(fake_comic):
     assert ca.get_number_of_pages() == 3
 
 
-def test_list_comics_with_missing_metadata(fake_comic, tmp_path):
+def test_list_comics_with_missing_metadata(fake_comic: ZipFile) -> None:
     expected_result = (
         "\nShowing files without metadata:"
         + "\n-------------------------------"
@@ -57,7 +59,9 @@ def test_list_comics_with_missing_metadata(fake_comic, tmp_path):
     assert expected_result == captured_output.getvalue()
 
 
-def test_delete_comics_with_metadata(fake_comic, fake_metadata):
+def test_delete_comics_with_metadata(
+    fake_comic: ZipFile, fake_metadata: GenericMetadata
+) -> None:
     expected_result = (
         "\nRemoving metadata:\n-----------------"
         + "\nremoved metadata from 'Aquaman v1 #001 (of 08) (1994).cbz'"
@@ -80,7 +84,7 @@ def test_delete_comics_with_metadata(fake_comic, fake_metadata):
     assert expected_result == captured_output.getvalue()
 
 
-def test_delete_comics_without_metadata(fake_comic):
+def test_delete_comics_without_metadata(fake_comic: ZipFile) -> None:
     expected_result = (
         "\nRemoving metadata:\n-----------------"
         + "\nno metadata in 'Aquaman v1 #001 (of 08) (1994).cbz'"
@@ -103,7 +107,7 @@ def test_delete_comics_without_metadata(fake_comic):
     assert expected_result == captured_output.getvalue()
 
 
-def test_sort_comics_without_sort_dir(fake_comic, tmp_path):
+def test_sort_comics_without_sort_dir(fake_comic: ZipFile, tmp_path: Path) -> None:
     expected_result = "\nUnable to sort files. No destination directory was provided.\n"
 
     # Create fake settings.
@@ -122,7 +126,9 @@ def test_sort_comics_without_sort_dir(fake_comic, tmp_path):
     assert expected_result == captured_output.getvalue()
 
 
-def test_sort_comics_with_dir(fake_comic, fake_metadata, tmp_path):
+def test_sort_comics_with_dir(
+    fake_comic: ZipFile, fake_metadata: GenericMetadata, tmp_path: Path
+) -> None:
     s = MetronTaggerSettings(tmp_path)
     s.sort_dir = tmp_path
 
@@ -170,7 +176,7 @@ def test_sort_comics_with_dir(fake_comic, fake_metadata, tmp_path):
 
 
 @pytest.fixture()
-def multi_choice_fixture():
+def multi_choice_fixture() -> IssuesList:
     i = {
         "count": 2,
         "next": None,
@@ -183,7 +189,9 @@ def multi_choice_fixture():
     return IssuesList(i)
 
 
-def test_print_multi_choices_to_user(talker, multi_choice_fixture, capsys):
+def test_print_multi_choices_to_user(
+    talker: Talker, multi_choice_fixture: IssuesList, capsys
+) -> None:
     fn = Path("/tmp/Superman #1")
     test_data = MultipleMatch(fn, multi_choice_fixture)
     expected_result = "1. Superman #1 (1939-10-01)\n2. Superman #1 (1986-01-01)\n"
@@ -192,7 +200,7 @@ def test_print_multi_choices_to_user(talker, multi_choice_fixture, capsys):
     assert stdout == expected_result
 
 
-def test_post_process_matches(capsys, talker):
+def test_post_process_matches(capsys, talker: Talker) -> None:
     talker.match_results.add_good_match("Inhumans #1.cbz")
     talker.match_results.good_matches.append("Inhumans #2.cbz")
     talker.match_results.no_matches.append("Outsiders #1.cbz")
