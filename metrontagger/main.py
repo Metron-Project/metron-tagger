@@ -134,11 +134,7 @@ def main() -> None:
     settings = MetronTaggerSettings()
     update_settings(settings, opts)
 
-    # Parse paths to get file list
-    file_list = []
-    file_list = get_recursive_filelist(opts.path)
-
-    if not file_list:
+    if not (file_list := get_recursive_filelist(opts.path)):
         print("No files to process. Exiting.")
         exit(0)
 
