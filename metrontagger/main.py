@@ -145,8 +145,8 @@ def main() -> None:
         delete_comics_metadata(file_list)
 
     if opts.id:
-        t = Talker(settings.metron_user, settings.metron_pass)
         if len(file_list) == 1:
+            t = Talker(settings.metron_user, settings.metron_pass)
             t.retrieve_single_issue(file_list[0], opts.id)
         else:
             print("More than one file was passed for Id processing. Exiting...")
