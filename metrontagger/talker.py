@@ -173,11 +173,13 @@ class Talker:
     def retrieve_single_issue(self, fn: Path, id: int) -> None:
         self._write_issue_md(fn, id)
 
-    def _create_note(self, issue_id: int) -> str:
+    @staticmethod
+    def _create_note(issue_id: int) -> str:
         now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}. [issue_id:{issue_id}]"
 
-    def _add_credits_to_metadata(self, md: GenericMetadata, credits_resp) -> GenericMetadata:
+    @staticmethod
+    def _add_credits_to_metadata(md: GenericMetadata, credits_resp) -> GenericMetadata:
         for creator in credits_resp:
             if creator.role:
                 for r in creator.role:
