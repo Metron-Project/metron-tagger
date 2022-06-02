@@ -12,6 +12,7 @@ from mokkari.issue import IssuesList
 
 from metrontagger import __version__
 from metrontagger.settings import MetronTaggerSettings
+from metrontagger.styles import Styles
 from metrontagger.utils import create_query_params
 
 
@@ -61,7 +62,7 @@ class Talker:
         Function to ask user to choice which issue metadata to write,
         when there are multiple choices
         """
-        questionary.print(f"\n{fn.name} - Results found:", style="bold fg:ansiblue")
+        questionary.print(f"\n{fn.name} - Results found:", style=Styles.TITLE)
 
         # sort match list by cover date
         match_set = sorted(match_set, key=lambda m: m.cover_date)
@@ -76,7 +77,7 @@ class Talker:
 
         if not ca.is_writable() and not ca.seems_to_be_a_comic_archive():
             questionary.print(
-                f"{fn.name} appears not to be a comic or writable.", style="fg:ansired"
+                f"{fn.name} appears not to be a comic or writable.", style=Styles.ERROR
             )
             return None, False
 
@@ -109,16 +110,14 @@ class Talker:
     def _post_process_matches(self) -> None:
         # Print file matching results.
         if self.match_results.good_matches:
-            questionary.print(
-                "\nSuccessful matches:\n------------------", style="bold fg:ansiblue"
-            )
+            questionary.print("\nSuccessful matches:\n------------------", style=Styles.TITLE)
             for comic in self.match_results.good_matches:
-                questionary.print(f"{comic}", style="fg:ansigreen")
+                questionary.print(f"{comic}", style=Styles.SUCCESS)
 
         if self.match_results.no_matches:
-            questionary.print("\nNo matches:\n------------------", style="bold fg:ansiblue")
+            questionary.print("\nNo matches:\n------------------", style=Styles.TITLE)
             for comic in self.match_results.no_matches:
-                questionary.print(f"{comic}", style="fg:ansiyellow")
+                questionary.print(f"{comic}", style=Styles.WARNING)
 
         # Handle files with multiple matches
         if self.match_results.multiple_matches:
@@ -140,17 +139,17 @@ class Talker:
             success = ca.write_metadata(md)
 
         if success:
-            questionary.print(f"Match found for '{filename.name}'.", style="fg:ansigreen")
+            questionary.print(f"Match found for '{filename.name}'.", style=Styles.SUCCESS)
         else:
             questionary.print(
                 f"There was a problem writing metadata for '{filename.name}'.",
-                style="fg:ansired",
+                style=Styles.ERROR,
             )
 
     def identify_comics(self, file_list: List[Path], config: MetronTaggerSettings):
         questionary.print(
             "\nStarting online search and tagging:\n----------------------------------",
-            style="bold fg:ansiblue",
+            style=Styles.TITLE,
         )
 
         for fn in file_list:
@@ -158,7 +157,7 @@ class Talker:
                 comic_archive = ComicArchive(fn)
                 if comic_archive.has_metadata():
                     questionary.print(
-                        f"{fn.name} has metadata. Skipping...", style="fg:ansiyellow"
+                        f"{fn.name} has metadata. Skipping...", style=Styles.WARNING
                     )
                     continue
 
@@ -166,7 +165,7 @@ class Talker:
             if issue_id:
                 self._write_issue_md(fn, issue_id)
             elif not multiple_match:
-                questionary.print(f"No Match for '{fn.name}'.", style="fg:ansired")
+                questionary.print(f"No Match for '{fn.name}'.", style=Styles.ERROR)
 
         # Print match results
         self._post_process_matches()

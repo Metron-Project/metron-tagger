@@ -9,7 +9,8 @@ import questionary
 from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
 
-from .utils import cleanup_string
+from metrontagger.styles import Styles
+from metrontagger.utils import cleanup_string
 
 
 class FileSorter:
@@ -34,10 +35,10 @@ class FileSorter:
             # Until python 3.9 is released, we need to force the Path
             # objects to strings so shutils.move will work correctly.
             move(fspath(orig), fspath(new))
-            questionary.print(f"moved '{orig.name}' to '{new}'", style="fg:ansigreen")
+            questionary.print(f"moved '{orig.name}' to '{new}'", style=Styles.SUCCESS)
             return True
         except Error as e:
-            questionary.print(f"Unable to move comic. Error: {e}", style="fg:ansired")
+            questionary.print(f"Unable to move comic. Error: {e}", style=Styles.ERROR)
             return False
 
     def sort_comics(self, comic: Path) -> bool:
@@ -56,7 +57,7 @@ class FileSorter:
             questionary.print(
                 "Missing metadata from comic and will be unable to sort."
                 + f"Publisher: {publisher}\nSeries: {series}\nVolume: {volume}",
-                style="fg:ansiyellow",
+                style=Styles.WARNING,
             )
             return False
 
@@ -66,7 +67,7 @@ class FileSorter:
             except PermissionError:
                 questionary.print(
                     f"due to permission error, failed to create directory: {new_path}",
-                    style="fg:ansired",
+                    style=Styles.ERROR,
                 )
                 return False
 

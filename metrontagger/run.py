@@ -8,6 +8,7 @@ from darkseid.utils import get_recursive_filelist
 from metrontagger.filerenamer import FileRenamer
 from metrontagger.filesorter import FileSorter
 from metrontagger.settings import MetronTaggerSettings
+from metrontagger.styles import Styles
 from metrontagger.talker import Talker
 
 
@@ -20,7 +21,7 @@ class Runner:
     def rename_comics(self, file_list: List[Path]) -> List[Path]:
         questionary.print(
             "\nStarting comic archive renaming:\n-------------------------------",
-            style="bold fg:ansiblue",
+            style=Styles.TITLE,
         )
 
         # Lists to track filename changes
@@ -30,7 +31,7 @@ class Runner:
             comic_archive = ComicArchive(comic)
             if not comic_archive.has_metadata():
                 questionary.print(
-                    f"skipping '{comic.name}'. no metadata available.", style="fg:ansiyellow"
+                    f"skipping '{comic.name}'. no metadata available.", style=Styles.WARNING
                 )
                 continue
 
@@ -49,7 +50,7 @@ class Runner:
             original_files_changed.append(comic)
 
             questionary.print(
-                f"renamed '{comic.name}' -> '{unique_name.name}'", style="fg:ansigreen"
+                f"renamed '{comic.name}' -> '{unique_name.name}'", style=Styles.SUCCESS
             )
 
         # Update file_list for renamed files
@@ -62,64 +63,64 @@ class Runner:
 
     @staticmethod
     def _export_to_cb7(file_list: List[Path]) -> None:
-        questionary.print("\nExporting to cb7:\n-----------------", style="bold fg:ansiblue")
+        questionary.print("\nExporting to cb7:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
             ca = ComicArchive(comic)
             if ca.is_zip():
                 new_fn = Path(comic).with_suffix(".cb7")
                 if ca.export_as_cb7(new_fn):
                     questionary.print(
-                        f"Exported '{comic.name}' to a cb7 archive.", style="fg:ansigreen"
+                        f"Exported '{comic.name}' to a cb7 archive.", style=Styles.SUCCESS
                     )
                 else:
-                    questionary.print(f"Failed to export '{comic.name}'", style="fg:ansired")
+                    questionary.print(f"Failed to export '{comic.name}'", style=Styles.ERROR)
             else:
                 questionary.print(
-                    f"'{comic.name}' is not a cbz archive. skipping...", style="fg:ansiyellow"
+                    f"'{comic.name}' is not a cbz archive. skipping...", style=Styles.WARNING
                 )
 
     def _sort_list_of_comics(self, file_list: List[Path]) -> None:
         if not self.config.sort_dir:
             questionary.print(
                 "\nUnable to sort files. No destination directory was provided.",
-                style="fg:ansired",
+                style=Styles.ERROR,
             )
             return
 
         questionary.print(
             "\nStarting sorting of comic archives:\n----------------------------------",
-            style="bold fg:ansiblue",
+            style=Styles.TITLE,
         )
         file_sorter = FileSorter(self.config.sort_dir)
         for comic in file_list:
             result = file_sorter.sort_comics(comic)
             if not result:
-                questionary.print(f"unable to move {comic.name}.", style="fg:ansired")
+                questionary.print(f"unable to move {comic.name}.", style=Styles.ERROR)
 
     @staticmethod
     def _list_comics_with_missing_metadata(file_list: List[Path]) -> None:
         questionary.print(
             "\nShowing files without metadata:\n-------------------------------",
-            style="bold fg:ansiblue",
+            style=Styles.TITLE,
         )
         for comic in file_list:
             comic_archive = ComicArchive(comic)
             if comic_archive.has_metadata():
                 continue
-            questionary.print(f"no metadata in '{comic.name}'", style="fg:ansigreen")
+            questionary.print(f"no metadata in '{comic.name}'", style=Styles.SUCCESS)
 
     @staticmethod
     def _delete_comics_metadata(file_list: List[Path]) -> None:
-        questionary.print("\nRemoving metadata:\n-----------------", style="bold fg:ansiblue")
+        questionary.print("\nRemoving metadata:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
             comic_archive = ComicArchive(comic)
             if comic_archive.has_metadata():
                 comic_archive.remove_metadata()
                 questionary.print(
-                    f"removed metadata from '{comic.name}'", style="fg:ansigreen"
+                    f"removed metadata from '{comic.name}'", style=Styles.SUCCESS
                 )
             else:
-                questionary.print(f"no metadata in '{comic.name}'", style="fg:ansiyellow")
+                questionary.print(f"no metadata in '{comic.name}'", style=Styles.WARNING)
 
     def run(self) -> None:
 
@@ -140,7 +141,7 @@ class Runner:
             else:
                 questionary.print(
                     "More than one file was passed for Id processing. Exiting...",
-                    style="fg:ansiyellow",
+                    style=Styles.WARNING,
                 )
                 exit(0)
 

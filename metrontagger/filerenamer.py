@@ -13,6 +13,7 @@ from darkseid.genericmetadata import GenericMetadata
 from darkseid.issuestring import IssueString
 from darkseid.utils import unique_file
 
+from metrontagger.styles import Styles
 from metrontagger.utils import cleanup_string
 
 
@@ -171,7 +172,7 @@ class FileRenamer:
 
         if new_name == comic.name:
             questionary.print(
-                f"Filename for '{comic.name}' is already good!", style="fg:ansigreen"
+                f"Filename for '{comic.name}' is already good!", style=Styles.SUCCESS
             )
             return None
 
