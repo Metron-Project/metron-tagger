@@ -18,8 +18,9 @@ class FileSorter:
     def __init__(self, directory: str) -> None:
         self.sort_directory = directory
 
+    @staticmethod
     def _cleanup_metadata(
-        self, meta_data: GenericMetadata
+        meta_data: GenericMetadata,
     ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """Clean the metadata string."""
         publisher = cleanup_string(meta_data.publisher)
@@ -27,7 +28,8 @@ class FileSorter:
         volume = cleanup_string(meta_data.volume)
         return publisher, series, volume
 
-    def _move_files(self, orig: Path, new: Path) -> bool:
+    @staticmethod
+    def _move_files(orig: Path, new: Path) -> bool:
         try:
             # Until python 3.9 is released, we need to force the Path
             # objects to strings so shutils.move will work correctly.
