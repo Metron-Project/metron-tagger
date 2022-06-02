@@ -45,11 +45,15 @@ class Talker:
         self.api = mokkari.api(username, password)
         self.match_results = OnlineMatchResults()
 
-    def _print_choices_to_user(self, match_set) -> None:
-        for (counter, match) in enumerate(match_set, start=1):
-            questionary.print(
-                f"{counter}. {match.issue_name} ({match.cover_date})", style="bold fg:ansiblue"
-            )
+    @staticmethod
+    def _create_choice_list(match_set) -> List[questionary.Choice]:
+        issue_lst = []
+        for i in match_set:
+            c = questionary.Choice(title=f"{i.issue_name} ({i.cover_date})", value=i.id)
+            issue_lst.append(c)
+
+        issue_lst.append(questionary.Choice(title="Skip", value=""))
+        return issue_lst
 
     def _select_choice_from_matches(self, fn: Path, match_set) -> Optional[int]:
         """
@@ -60,18 +64,9 @@ class Talker:
 
         # sort match list by cover date
         match_set = sorted(match_set, key=lambda m: m.cover_date)
-        self._print_choices_to_user(match_set)
+        choices = self._create_choice_list(match_set)
 
-        while True:
-            i = input("Choose a match #, or 's' to skip: ")
-            if (i.isdigit() and int(i) in range(1, len(match_set) + 1)) or i == "s":
-                break
-
-        if i != "s":
-            i = int(i) - 1
-            return match_set[i].id
-        else:
-            return None
+        return questionary.select("Select an issue to match", choices=choices).ask()
 
     def _process_file(
         self, fn: Path, interactive: bool
