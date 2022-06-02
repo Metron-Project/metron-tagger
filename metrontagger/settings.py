@@ -23,7 +23,17 @@ class MetronTaggerSettings:
         # Metron creditials
         self.metron_user: str = ""
         self.metron_pass: str = ""
+        self.path: str = ""
         self.sort_dir: str = ""
+        self.id: bool = False
+        self.online: bool = False
+        self.missing: bool = False
+        self.delete: bool = False
+        self.rename: bool = False
+        self.sort: bool = False
+        self.interactive: bool = False
+        self.ignore_existing: bool = False
+        self.export_to_cb7: bool = False
 
         # Rename settings
         self.rename_template = "%series% v%volume% #%issue% (%year%)"

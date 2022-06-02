@@ -11,6 +11,7 @@ from darkseid.utils import list_to_string
 from mokkari.issue import IssuesList
 
 from metrontagger import __version__
+from metrontagger.settings import MetronTaggerSettings
 from metrontagger.utils import create_query_params
 
 
@@ -146,14 +147,14 @@ class Talker:
                 style="fg:ansired",
             )
 
-    def identify_comics(self, file_list: List[Path], interactive: bool, ignore: bool):
+    def identify_comics(self, file_list: List[Path], config: MetronTaggerSettings):
         questionary.print(
             "\nStarting online search and tagging:\n----------------------------------",
             style="bold fg:ansiblue",
         )
 
         for fn in file_list:
-            if ignore:
+            if config.ignore_existing:
                 comic_archive = ComicArchive(fn)
                 if comic_archive.has_metadata():
                     questionary.print(
@@ -161,7 +162,7 @@ class Talker:
                     )
                     continue
 
-            issue_id, multiple_match = self._process_file(fn, interactive)
+            issue_id, multiple_match = self._process_file(fn, config.interactive)
             if issue_id:
                 self._write_issue_md(fn, issue_id)
             elif not multiple_match:
