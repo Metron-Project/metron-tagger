@@ -5,11 +5,11 @@ from pathlib import Path
 from shutil import Error, move
 from typing import Optional, Tuple
 
+import questionary
 from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
 
 from .utils import cleanup_string
-import questionary
 
 
 class FileSorter:
@@ -53,7 +53,8 @@ class FileSorter:
         else:
             questionary.print(
                 "Missing metadata from comic and will be unable to sort."
-                + f"Publisher: {publisher}\nSeries: {series}\nVolume: {volume}", style="fg:ansiyellow"
+                + f"Publisher: {publisher}\nSeries: {series}\nVolume: {volume}",
+                style="fg:ansiyellow",
             )
             return False
 
@@ -61,7 +62,10 @@ class FileSorter:
             try:
                 new_path.mkdir(parents=True)
             except PermissionError:
-                questionary.print(f"due to permission error, failed to create directory: {new_path}", style="fg:ansired")
+                questionary.print(
+                    f"due to permission error, failed to create directory: {new_path}",
+                    style="fg:ansired",
+                )
                 return False
 
         return self._move_files(pathlib.Path(comic), new_path)

@@ -5,6 +5,7 @@ from argparse import Namespace
 from pathlib import Path
 from typing import List
 
+import questionary
 from darkseid.comicarchive import ComicArchive
 from darkseid.utils import get_recursive_filelist
 
@@ -13,7 +14,6 @@ from .filesorter import FileSorter
 from .options import make_parser
 from .settings import MetronTaggerSettings
 from .talker import Talker
-import questionary
 
 
 def sigint_handler(signal, frame):
@@ -25,7 +25,10 @@ signal.signal(signal.SIGINT, sigint_handler)
 
 
 def list_comics_with_missing_metadata(file_list: List[Path]) -> None:
-    questionary.print("\nShowing files without metadata:\n-------------------------------", style="bold fg:ansiblue")
+    questionary.print(
+        "\nShowing files without metadata:\n-------------------------------",
+        style="bold fg:ansiblue",
+    )
     for comic in file_list:
         comic_archive = ComicArchive(comic)
         if comic_archive.has_metadata():
@@ -46,10 +49,16 @@ def delete_comics_metadata(file_list: List[Path]) -> None:
 
 def sort_list_of_comics(sort_dir: str, file_list: List[Path]) -> None:
     if not sort_dir:
-        questionary.print("\nUnable to sort files. No destination directory was provided.", style="fg:ansired")
+        questionary.print(
+            "\nUnable to sort files. No destination directory was provided.",
+            style="fg:ansired",
+        )
         return
 
-    questionary.print("\nStarting sorting of comic archives:\n----------------------------------", style="bold fg:ansiblue")
+    questionary.print(
+        "\nStarting sorting of comic archives:\n----------------------------------",
+        style="bold fg:ansiblue",
+    )
     file_sorter = FileSorter(sort_dir)
     for comic in file_list:
         result = file_sorter.sort_comics(comic)
@@ -64,11 +73,15 @@ def export_to_cb7(file_list: List[Path]) -> None:
         if ca.is_zip():
             new_fn = Path(comic).with_suffix(".cb7")
             if ca.export_as_cb7(new_fn):
-                questionary.print(f"Exported '{comic.name}' to a cb7 archive.", style="fg:ansigreen")
+                questionary.print(
+                    f"Exported '{comic.name}' to a cb7 archive.", style="fg:ansigreen"
+                )
             else:
                 questionary.print(f"Failed to export '{comic.name}'", style="fg:ansired")
         else:
-            questionary.print(f"'{comic.name}' is not a cbz archive. skipping...", style="fg:ansiyellow")
+            questionary.print(
+                f"'{comic.name}' is not a cbz archive. skipping...", style="fg:ansiyellow"
+            )
 
 
 def get_options() -> Namespace:
@@ -91,7 +104,10 @@ def update_settings(settings: MetronTaggerSettings, opts: Namespace) -> None:
 
 
 def rename_comics(file_list: List[Path], settings: MetronTaggerSettings) -> List[Path]:
-    questionary.print("\nStarting comic archive renaming:\n-------------------------------", style="bold fg:ansiblue")
+    questionary.print(
+        "\nStarting comic archive renaming:\n-------------------------------",
+        style="bold fg:ansiblue",
+    )
 
     # Lists to track filename changes
     new_file_names: List[Path] = []
@@ -99,7 +115,9 @@ def rename_comics(file_list: List[Path], settings: MetronTaggerSettings) -> List
     for comic in file_list:
         comic_archive = ComicArchive(comic)
         if not comic_archive.has_metadata():
-            questionary.print(f"skipping '{comic.name}'. no metadata available.", style="fg:ansiyellow")
+            questionary.print(
+                f"skipping '{comic.name}'. no metadata available.", style="fg:ansiyellow"
+            )
             continue
 
         meta_data = comic_archive.read_metadata()
@@ -116,7 +134,9 @@ def rename_comics(file_list: List[Path], settings: MetronTaggerSettings) -> List
         new_file_names.append(unique_name)
         original_files_changed.append(comic)
 
-        questionary.print(f"renamed '{comic.name}' -> '{unique_name.name}'", style="fg:ansigreen")
+        questionary.print(
+            f"renamed '{comic.name}' -> '{unique_name.name}'", style="fg:ansigreen"
+        )
 
     # Update file_list for renamed files
     for original_file in original_files_changed:
@@ -150,7 +170,10 @@ def main() -> None:
             t = Talker(settings.metron_user, settings.metron_pass)
             t.retrieve_single_issue(file_list[0], opts.id)
         else:
-            questionary.print("More than one file was passed for Id processing. Exiting...", style="fg:ansiyellow")
+            questionary.print(
+                "More than one file was passed for Id processing. Exiting...",
+                style="fg:ansiyellow",
+            )
             exit(0)
 
     if opts.online:
