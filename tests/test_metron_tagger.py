@@ -10,9 +10,7 @@ from darkseid.comicarchive import ComicArchive
 # from darkseid.genericmetadata import GenericMetadata
 from mokkari.issue import IssuesList
 
-from metrontagger.main import (  # delete_comics_metadata,; list_comics_with_missing_metadata,; sort_list_of_comics,
-    export_to_cb7,
-)
+from metrontagger.run import Runner
 from metrontagger.settings import MetronTaggerSettings
 from metrontagger.talker import Talker
 
@@ -25,9 +23,10 @@ def test_create_metron_talker(tmp_path: Path) -> None:
     assert isinstance(talker, Talker)
 
 
-def test_export_to_cb7(fake_comic: ZipFile) -> None:
+def test_export_to_cb7(fake_comic: ZipFile, tmpdir) -> None:
     # This function will create a new archive with a cb7 extension.
-    export_to_cb7([fake_comic])
+    r = Runner(MetronTaggerSettings(tmpdir))
+    r._export_to_cb7([fake_comic])
     new_name = Path(fake_comic).with_suffix(".cb7")
     ca = ComicArchive(new_name)
     assert ca.is_sevenzip() is True

@@ -70,13 +70,15 @@ class FileRenamer:
             else:
                 return text.replace(token, "")
 
-    def _remove_empty_separators(self, value: str) -> str:
+    @staticmethod
+    def _remove_empty_separators(value: str) -> str:
         value = re.sub(r"\(\s*[-:]*\s*\)", "", value)
         value = re.sub(r"\[\s*[-:]*\s*\]", "", value)
         value = re.sub(r"\{\s*[-:]*\s*\}", "", value)
         return value
 
-    def _remove_duplicate_hyphen_underscore(self, value: str) -> str:
+    @staticmethod
+    def _remove_duplicate_hyphen_underscore(value: str) -> str:
         value = re.sub(r"[-_]{2,}\s+", "-- ", value)
         value = re.sub(r"(\s--)+", " --", value)
         value = re.sub(r"(\s-)+", " -", value)

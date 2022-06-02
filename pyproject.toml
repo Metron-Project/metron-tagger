@@ -48,7 +48,7 @@ flake8-builtins = "^1.5.3"
 flake8-blind-except = "^0.2.0"
 
 [tool.poetry.scripts]
-metron-tagger = "metrontagger.main:main"
+metron-tagger = "metrontagger.cli:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
