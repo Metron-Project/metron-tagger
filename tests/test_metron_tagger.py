@@ -1,6 +1,7 @@
 """Main metron_tagger tests"""
 # import io
 # import sys
+import sys
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -23,6 +24,7 @@ def test_create_metron_talker(tmp_path: Path) -> None:
     assert isinstance(talker, Talker)
 
 
+@pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
 def test_export_to_cb7(fake_comic: ZipFile, tmpdir) -> None:
     # This function will create a new archive with a cb7 extension.
     r = Runner(MetronTaggerSettings(tmpdir))

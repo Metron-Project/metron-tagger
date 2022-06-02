@@ -1,3 +1,4 @@
+import sys
 from zipfile import ZipFile
 
 import pytest
@@ -108,6 +109,7 @@ def test_process_file(
     assert 2471 in id_list
 
 
+@pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
 def test_write_issue_md(talker: Talker, fake_comic: ZipFile, metron_response, mocker) -> None:
     # Remove any existing metadata from comic fixture
     ca = ComicArchive(fake_comic)
@@ -137,6 +139,7 @@ def test_write_issue_md(talker: Talker, fake_comic: ZipFile, metron_response, mo
     assert ca_md.credits[0]["role"] == "Cover"
 
 
+@pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
 def test_retrieve_single_issue(
     talker: Talker, fake_comic: ZipFile, metron_response, mocker
 ) -> None:
