@@ -13,6 +13,7 @@ from .filesorter import FileSorter
 from .options import make_parser
 from .settings import MetronTaggerSettings
 from .talker import Talker
+import questionary
 
 
 def sigint_handler(signal, frame):
@@ -24,50 +25,50 @@ signal.signal(signal.SIGINT, sigint_handler)
 
 
 def list_comics_with_missing_metadata(file_list: List[Path]) -> None:
-    print("\nShowing files without metadata:\n-------------------------------")
+    questionary.print("\nShowing files without metadata:\n-------------------------------", style="bold fg:ansiblue")
     for comic in file_list:
         comic_archive = ComicArchive(comic)
         if comic_archive.has_metadata():
             continue
-        print(f"no metadata in '{comic.name}'")
+        questionary.print(f"no metadata in '{comic.name}'", style="fg:ansigreen")
 
 
 def delete_comics_metadata(file_list: List[Path]) -> None:
-    print("\nRemoving metadata:\n-----------------")
+    questionary.print("\nRemoving metadata:\n-----------------", style="bold fg:ansiblue")
     for comic in file_list:
         comic_archive = ComicArchive(comic)
         if comic_archive.has_metadata():
             comic_archive.remove_metadata()
-            print(f"removed metadata from '{comic.name}'")
+            questionary.print(f"removed metadata from '{comic.name}'", style="fg:ansigreen")
         else:
-            print(f"no metadata in '{comic.name}'")
+            questionary.print(f"no metadata in '{comic.name}'", style="fg:ansiyellow")
 
 
 def sort_list_of_comics(sort_dir: str, file_list: List[Path]) -> None:
     if not sort_dir:
-        print("\nUnable to sort files. No destination directory was provided.")
+        questionary.print("\nUnable to sort files. No destination directory was provided.", style="fg:ansired")
         return
 
-    print("\nStarting sorting of comic archives:\n----------------------------------")
+    questionary.print("\nStarting sorting of comic archives:\n----------------------------------", style="bold fg:ansiblue")
     file_sorter = FileSorter(sort_dir)
     for comic in file_list:
         result = file_sorter.sort_comics(comic)
         if not result:
-            print(f"unable to move {comic.name}.")
+            questionary.print(f"unable to move {comic.name}.", style="fg:ansired")
 
 
 def export_to_cb7(file_list: List[Path]) -> None:
-    print("\nExporting to cb7:\n-----------------")
+    questionary.print("\nExporting to cb7:\n-----------------", style="bold fg:ansiblue")
     for comic in file_list:
         ca = ComicArchive(comic)
         if ca.is_zip():
             new_fn = Path(comic).with_suffix(".cb7")
             if ca.export_as_cb7(new_fn):
-                print(f"Exported '{comic.name}' to a cb7 archive.")
+                questionary.print(f"Exported '{comic.name}' to a cb7 archive.", style="fg:ansigreen")
             else:
-                print(f"Failed to export '{comic.name}'")
+                questionary.print(f"Failed to export '{comic.name}'", style="fg:ansired")
         else:
-            print(f"'{comic.name}' is not a cbz archive. skipping...")
+            questionary.print(f"'{comic.name}' is not a cbz archive. skipping...", style="fg:ansiyellow")
 
 
 def get_options() -> Namespace:
@@ -90,7 +91,7 @@ def update_settings(settings: MetronTaggerSettings, opts: Namespace) -> None:
 
 
 def rename_comics(file_list: List[Path], settings: MetronTaggerSettings) -> List[Path]:
-    print("\nStarting comic archive renaming:\n-------------------------------")
+    questionary.print("\nStarting comic archive renaming:\n-------------------------------", style="bold fg:ansiblue")
 
     # Lists to track filename changes
     new_file_names: List[Path] = []
@@ -98,7 +99,7 @@ def rename_comics(file_list: List[Path], settings: MetronTaggerSettings) -> List
     for comic in file_list:
         comic_archive = ComicArchive(comic)
         if not comic_archive.has_metadata():
-            print(f"skipping '{comic.name}'. no metadata available.")
+            questionary.print(f"skipping '{comic.name}'. no metadata available.", style="fg:ansiyellow")
             continue
 
         meta_data = comic_archive.read_metadata()
@@ -115,7 +116,7 @@ def rename_comics(file_list: List[Path], settings: MetronTaggerSettings) -> List
         new_file_names.append(unique_name)
         original_files_changed.append(comic)
 
-        print(f"renamed '{comic.name}' -> '{unique_name.name}'")
+        questionary.print(f"renamed '{comic.name}' -> '{unique_name.name}'", style="fg:ansigreen")
 
     # Update file_list for renamed files
     for original_file in original_files_changed:
@@ -149,7 +150,7 @@ def main() -> None:
             t = Talker(settings.metron_user, settings.metron_pass)
             t.retrieve_single_issue(file_list[0], opts.id)
         else:
-            print("More than one file was passed for Id processing. Exiting...")
+            questionary.print("More than one file was passed for Id processing. Exiting...", style="fg:ansiyellow")
             exit(0)
 
     if opts.online:

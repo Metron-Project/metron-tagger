@@ -13,7 +13,7 @@ from darkseid.issuestring import IssueString
 from darkseid.utils import unique_file
 
 from metrontagger.utils import cleanup_string
-
+import questionary
 
 class FileRenamer:
     """Class to rename a comic archive based on it's metadata tag"""
@@ -167,7 +167,7 @@ class FileRenamer:
             return None
 
         if new_name == comic.name:
-            print("Filename is already good!")
+            questionary.print(f"Filename for '{comic.name}' is already good!", style="fg:ansigreen")
             return None
 
         unique_name = unique_file(comic.parent / new_name)
