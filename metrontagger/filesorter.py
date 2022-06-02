@@ -5,6 +5,7 @@ from pathlib import Path
 from shutil import Error, move
 from typing import Optional, Tuple
 
+import questionary
 from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
 
@@ -31,10 +32,10 @@ class FileSorter:
             # Until python 3.9 is released, we need to force the Path
             # objects to strings so shutils.move will work correctly.
             move(fspath(orig), fspath(new))
-            print(f"moved '{orig.name}' to '{new}'")
+            questionary.print(f"moved '{orig.name}' to '{new}'", style="fg:ansigreen")
             return True
         except Error as e:
-            print(f"Unable to move comic. Error: {e}")
+            questionary.print(f"Unable to move comic. Error: {e}", style="fg:ansired")
             return False
 
     def sort_comics(self, comic: Path) -> bool:
@@ -50,9 +51,10 @@ class FileSorter:
         if publisher and series and volume:
             new_path = pathlib.Path(self.sort_directory) / publisher / series / f"v{volume}"
         else:
-            print(
+            questionary.print(
                 "Missing metadata from comic and will be unable to sort."
-                + f"Publisher: {publisher}\nSeries: {series}\nVolume: {volume}"
+                + f"Publisher: {publisher}\nSeries: {series}\nVolume: {volume}",
+                style="fg:ansiyellow",
             )
             return False
 
@@ -60,7 +62,10 @@ class FileSorter:
             try:
                 new_path.mkdir(parents=True)
             except PermissionError:
-                print(f"due to permission error, failed to create directory: {new_path}")
+                questionary.print(
+                    f"due to permission error, failed to create directory: {new_path}",
+                    style="fg:ansired",
+                )
                 return False
 
         return self._move_files(pathlib.Path(comic), new_path)

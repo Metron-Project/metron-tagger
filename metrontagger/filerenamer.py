@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from typing import Optional
 
+import questionary
 from darkseid.genericmetadata import GenericMetadata
 from darkseid.issuestring import IssueString
 from darkseid.utils import unique_file
@@ -167,7 +168,9 @@ class FileRenamer:
             return None
 
         if new_name == comic.name:
-            print("Filename is already good!")
+            questionary.print(
+                f"Filename for '{comic.name}' is already good!", style="fg:ansigreen"
+            )
             return None
 
         unique_name = unique_file(comic.parent / new_name)
