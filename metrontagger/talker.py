@@ -214,4 +214,7 @@ class Talker:
         if resp.arcs:
             md.story_arc = list_to_string([a.name for a in resp.arcs])
 
+        if resp.series.genres:
+            md.genre = list_to_string([g.name for g in resp.series.genres])
+
         return md

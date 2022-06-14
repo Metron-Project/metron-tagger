@@ -15,7 +15,11 @@ def metron_response():
     i = {
         "id": 31047,
         "publisher": {"id": 1, "name": "Marvel"},
-        "series": {"id": 2222, "name": "The Spectacular Spider-Man"},
+        "series": {
+            "id": 2222,
+            "name": "The Spectacular Spider-Man",
+            "genres": [{"id": 1, "name": "Super-Hero"}],
+        },
         "volume": 1,
         "number": "47",
         "name": ["A Night on the Prowl!"],
