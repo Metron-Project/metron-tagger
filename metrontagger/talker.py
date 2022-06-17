@@ -8,7 +8,7 @@ from darkseid.comicarchive import ComicArchive
 from darkseid.genericmetadata import GenericMetadata
 from darkseid.issuestring import IssueString
 from darkseid.utils import list_to_string
-from mokkari.issue import IssuesList
+from mokkari.issue import IssueSchema
 
 from metrontagger import __version__
 from metrontagger.settings import MetronTaggerSettings
@@ -19,7 +19,7 @@ from metrontagger.utils import create_query_params
 class MultipleMatch:
     """Class to hold information on searches with multiple matches"""
 
-    def __init__(self, filename: Path, match_list: IssuesList) -> None:
+    def __init__(self, filename: Path, match_list: List[IssueSchema]) -> None:
         self.filename = filename
         self.matches = match_list
 
@@ -48,7 +48,7 @@ class Talker:
         self.match_results = OnlineMatchResults()
 
     @staticmethod
-    def _create_choice_list(match_set) -> List[questionary.Choice]:
+    def _create_choice_list(match_set: List[IssueSchema]) -> List[questionary.Choice]:
         issue_lst = []
         for i in match_set:
             c = questionary.Choice(title=f"{i.issue_name} ({i.cover_date})", value=i.id)
@@ -57,7 +57,9 @@ class Talker:
         issue_lst.append(questionary.Choice(title="Skip", value=""))
         return issue_lst
 
-    def _select_choice_from_matches(self, fn: Path, match_set) -> Optional[int]:
+    def _select_choice_from_matches(
+        self, fn: Path, match_set: List[IssueSchema]
+    ) -> Optional[int]:
         """
         Function to ask user to choice which issue metadata to write,
         when there are multiple choices
@@ -70,9 +72,7 @@ class Talker:
 
         return questionary.select("Select an issue to match", choices=choices).ask()
 
-    def _process_file(
-        self, fn: Path, interactive: bool
-    ) -> Tuple[Optional[int], Optional[bool]]:
+    def _process_file(self, fn: Path, interactive: bool) -> Tuple[Optional[int], bool]:
         ca = ComicArchive(fn)
 
         if not ca.is_writable() and not ca.seems_to_be_a_comic_archive():
