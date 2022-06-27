@@ -135,7 +135,7 @@ toml = ["tomli"]
 
 [[package]]
 name = "darkseid"
-version = "1.2.3"
+version = "1.2.4"
 description = "A library to interact with comic archives"
 category = "main"
 optional = false
@@ -738,7 +738,7 @@ python-versions = ">=3.6"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "8871ff1dec536151686b59225a38475ee0d74b7c016e59d8021f74fdc073ab95"
+content-hash = "c0f3dc6872c170e4e9af6e3dc6b6bf380e300d148228afdd0e8f3a3c861f3df4"
 
 [metadata.files]
 atomicwrites = [
@@ -965,8 +965,8 @@ coverage = [
     {file = "coverage-6.4.1.tar.gz", hash = "sha256:4321f075095a096e70aff1d002030ee612b65a205a0a0f5b815280d5dc58100c"},
 ]
 darkseid = [
-    {file = "darkseid-1.2.3-py3-none-any.whl", hash = "sha256:f9d9decc59b792d4f496e3bc9482604103afc8a20f4005e43f5e4cdb40f1186b"},
-    {file = "darkseid-1.2.3.tar.gz", hash = "sha256:64e50ffef00742a4c0a592ea0ddb60c0828a874b6f8ffe60ea6c7ce92c8aa39a"},
+    {file = "darkseid-1.2.4-py3-none-any.whl", hash = "sha256:cb04b0f92c225c18bbd4abf3b7a922b8a40db8d025a4370b8a5a446a19c5a621"},
+    {file = "darkseid-1.2.4.tar.gz", hash = "sha256:073df2cff35d969c7d380912e23c4f9298a26299a2c47f5f195818de4bd1f43d"},
 ]
 distlib = [
     {file = "distlib-0.3.4-py2.py3-none-any.whl", hash = "sha256:6564fe0a8f51e734df6333d08b8b94d4ea8ee6b99b5ed50613f731fd4089f34b"},
