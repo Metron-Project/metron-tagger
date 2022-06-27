@@ -47,6 +47,13 @@ Installing the latest version from Github:
   $ cd metron-tagger
   $ python3 setup.py install
 
+FAQ
+---
+
+**How to enable RAR support?**
+
+- It depends on the unrar command-line utility, and expects it to be in your $PATH.
+
 Help
 ----
 
