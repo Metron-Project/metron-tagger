@@ -89,7 +89,7 @@ def make_parser():
         default=False,
     )
     parser.add_argument(
-        "--delete_original",
+        "--delete-original",
         help="Delete the original archive after successful export to another format.",
         action="store_true",
         default=False,

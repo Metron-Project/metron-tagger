@@ -80,7 +80,7 @@ Help
         --set-sort-dir        Set the directory where files should be sorted. (default: False)
         -e, --export-to-cb7   Export a CBZ (zip) or CBR (rar) archive to a CB7 (7zip) archive. (default: False)
         -z, --export-to-cbz   Export a CB7 (7zip) or CBR (rar) archive to a CBZ (zip) archive. (default: False)
-        --delete_original     Delete the original archive after successful export to another format. (default: False)
+        --delete-original     Delete the original archive after successful export to another format. (default: False)
         --version             Show the version number and exit
 
 Bugs/Requests
