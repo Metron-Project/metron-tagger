@@ -11,6 +11,9 @@ def cleanup_string(path_name: Optional[str]) -> Optional[str]:
     if path_name is None:
         return None
 
+    if isinstance(path_name, int):
+        path_name = str(path_name)
+
     path_name = path_name.replace("/", "-")
     path_name = path_name.replace(" :", " -")
     path_name = path_name.replace(": ", " - ")
