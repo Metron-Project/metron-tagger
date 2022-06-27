@@ -34,6 +34,8 @@ class MetronTaggerSettings:
         self.interactive: bool = False
         self.ignore_existing: bool = False
         self.export_to_cb7: bool = False
+        self.export_to_cbz: bool = False
+        self.delete_original: bool = False
 
         # Rename settings
         self.rename_template = "%series% v%volume% #%issue% (%year%)"

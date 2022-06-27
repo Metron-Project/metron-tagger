@@ -61,22 +61,46 @@ class Runner:
         file_list.extend(iter(new_file_names))
         return file_list
 
-    @staticmethod
-    def _export_to_cb7(file_list: List[Path]) -> None:
+    def _export_to_cb7(self, file_list: List[Path]) -> None:
         questionary.print("\nExporting to cb7:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
             ca = ComicArchive(comic)
-            if ca.is_zip():
+            if ca.is_zip() or ca.is_rar():
                 new_fn = Path(comic).with_suffix(".cb7")
                 if ca.export_as_cb7(new_fn):
                     questionary.print(
                         f"Exported '{comic.name}' to a cb7 archive.", style=Styles.SUCCESS
                     )
+                    if self.config.delete_original:
+                        questionary.print(f"Removing '{comic.name}'.", style=Styles.SUCCESS)
+                        comic.unlink()
                 else:
                     questionary.print(f"Failed to export '{comic.name}'", style=Styles.ERROR)
             else:
                 questionary.print(
-                    f"'{comic.name}' is not a cbz archive. skipping...", style=Styles.WARNING
+                    f"'{comic.name}' is not a cbr or cbz archive. skipping...",
+                    style=Styles.WARNING,
+                )
+
+    def _export_to_zip(self, file_list: List[Path]) -> None:
+        questionary.print("\nExporting to cbz:\n-----------------", style=Styles.TITLE)
+        for comic in file_list:
+            ca = ComicArchive(comic)
+            if ca.is_rar() or ca.is_sevenzip():
+                new_fn = Path(comic).with_suffix(".cbz")
+                if ca.export_as_zip(new_fn):
+                    questionary.print(
+                        f"Exported '{comic.name}' to a cbz archive.", style=Styles.SUCCESS
+                    )
+                    if self.config.delete_original:
+                        questionary.print(f"Removing '{comic.name}'.", style=Styles.SUCCESS)
+                        comic.unlink()
+                else:
+                    questionary.print(f"Failed to export '{comic.name}'", style=Styles.ERROR)
+            else:
+                questionary.print(
+                    f"'{comic.name}' is not a cbr or cb7 archive. skipping...",
+                    style=Styles.WARNING,
                 )
 
     def _sort_list_of_comics(self, file_list: List[Path]) -> None:
@@ -157,3 +181,6 @@ class Runner:
 
         if self.config.export_to_cb7:
             self._export_to_cb7(file_list)
+
+        if self.config.export_to_cbz:
+            self._export_to_zip(file_list)

@@ -18,7 +18,6 @@ classifiers=[
   "Intended Audience :: End Users/Desktop",
   "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
   "Natural Language :: English",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Topic :: Utilities",
@@ -32,9 +31,9 @@ classifiers=[
 keywords=["comics", "comic", "metadata", "tagging", "tagger"]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 mokkari = "^2.1.1"
-darkseid = "^1.2.0"
+darkseid = "^1.2.6"
 questionary = "^1.10.0"
 
 [tool.poetry.dev-dependencies]
