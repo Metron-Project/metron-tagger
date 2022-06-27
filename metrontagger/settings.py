@@ -5,6 +5,11 @@ from os import environ
 from pathlib import Path, PurePath
 from typing import Optional
 
+import questionary
+from xdg.BaseDirectory import save_config_path
+
+from metrontagger.styles import Styles
+
 
 class MetronTaggerSettings:
     """Class to handle project settings"""
@@ -14,10 +19,26 @@ class MetronTaggerSettings:
         """Method to determine where the users settings should be saved"""
 
         if platform.system() != "Windows":
-            return Path.home() / ".MetronTagger"
+            return Path(save_config_path("metron-tagger"))
 
         windows_path = PurePath(environ["APPDATA"]).joinpath("MetronTagger")
         return Path(windows_path)
+
+    def _migrate_old_config(self) -> None:
+        old_config = Path.home() / ".MetronTagger" / "settings.ini"
+        if old_config.exists():
+            # Let's move any existing config to the new location
+            old_config.replace(self.settings_file)
+            questionary.print(
+                f"Migrated existing configuration to: {self.settings_file.parent}",
+                style=Styles.WARNING,
+            )
+            if old_config.parent.exists():
+                questionary.print(
+                    f"Removing old configuration directory: {old_config.parent}",
+                    style=Styles.WARNING,
+                )
+                old_config.parent.rmdir()
 
     def __init__(self, config_dir: Optional[str] = None) -> None:
         # Metron creditials
@@ -49,6 +70,9 @@ class MetronTaggerSettings:
 
         if not self.settings_file.parent.exists():
             self.settings_file.parent.mkdir()
+
+        # We can probably remove this in a year or so. Around 2023-06-01
+        self._migrate_old_config()
 
         # Write the config file if it doesn't exist
         if not self.settings_file.exists():
