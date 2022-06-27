@@ -135,7 +135,7 @@ toml = ["tomli"]
 
 [[package]]
 name = "darkseid"
-version = "1.2.4"
+version = "1.2.5"
 description = "A library to interact with comic archives"
 category = "main"
 optional = false
@@ -387,7 +387,7 @@ virtualenv = ">=20.0.8"
 
 [[package]]
 name = "prompt-toolkit"
-version = "3.0.29"
+version = "3.0.30"
 description = "Library for building powerful interactive command lines in Python"
 category = "main"
 optional = false
@@ -738,7 +738,7 @@ python-versions = ">=3.6"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "c0f3dc6872c170e4e9af6e3dc6b6bf380e300d148228afdd0e8f3a3c861f3df4"
+content-hash = "6eced7c52dcc1768d08877e992295c8438576fb4feaad2e652951b13ea90371d"
 
 [metadata.files]
 atomicwrites = [
@@ -965,8 +965,8 @@ coverage = [
     {file = "coverage-6.4.1.tar.gz", hash = "sha256:4321f075095a096e70aff1d002030ee612b65a205a0a0f5b815280d5dc58100c"},
 ]
 darkseid = [
-    {file = "darkseid-1.2.4-py3-none-any.whl", hash = "sha256:cb04b0f92c225c18bbd4abf3b7a922b8a40db8d025a4370b8a5a446a19c5a621"},
-    {file = "darkseid-1.2.4.tar.gz", hash = "sha256:073df2cff35d969c7d380912e23c4f9298a26299a2c47f5f195818de4bd1f43d"},
+    {file = "darkseid-1.2.5-py3-none-any.whl", hash = "sha256:3239a3f29e7941aa18a29b041420ac9b2a4f5a08d0c2a8b899fd7ac7789135ee"},
+    {file = "darkseid-1.2.5.tar.gz", hash = "sha256:24659f524ce323bd10b83e86b1a92cc882453d2c8784886d351245a6540996eb"},
 ]
 distlib = [
     {file = "distlib-0.3.4-py2.py3-none-any.whl", hash = "sha256:6564fe0a8f51e734df6333d08b8b94d4ea8ee6b99b5ed50613f731fd4089f34b"},
@@ -1088,8 +1088,8 @@ pre-commit = [
     {file = "pre_commit-2.19.0.tar.gz", hash = "sha256:4233a1e38621c87d9dda9808c6606d7e7ba0e087cd56d3fe03202a01d2919615"},
 ]
 prompt-toolkit = [
-    {file = "prompt_toolkit-3.0.29-py3-none-any.whl", hash = "sha256:62291dad495e665fca0bda814e342c69952086afb0f4094d0893d357e5c78752"},
-    {file = "prompt_toolkit-3.0.29.tar.gz", hash = "sha256:bd640f60e8cecd74f0dc249713d433ace2ddc62b65ee07f96d358e0b152b6ea7"},
+    {file = "prompt_toolkit-3.0.30-py3-none-any.whl", hash = "sha256:d8916d3f62a7b67ab353a952ce4ced6a1d2587dfe9ef8ebc30dd7c386751f289"},
+    {file = "prompt_toolkit-3.0.30.tar.gz", hash = "sha256:859b283c50bde45f5f97829f77a4674d1c1fcd88539364f1b28a37805cfd89c0"},
 ]
 psutil = [
     {file = "psutil-5.9.1-cp27-cp27m-manylinux2010_i686.whl", hash = "sha256:799759d809c31aab5fe4579e50addf84565e71c1dc9f1c31258f159ff70d3f87"},
