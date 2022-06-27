@@ -77,7 +77,20 @@ def make_parser():
     parser.add_argument(
         "-e",
         "--export-to-cb7",
-        help="Export a CBZ (zip) archive to a CB7 (7zip) archive.",
+        help="Export a CBZ (zip) or CBR (rar) archive to a CB7 (7zip) archive.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "-z",
+        "--export-to-cbz",
+        help="Export a CB7 (7zip) or CBR (rar) archive to a CBZ (zip) archive.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--delete_original",
+        help="Delete the original archive after successful export to another format.",
         action="store_true",
         default=False,
     )

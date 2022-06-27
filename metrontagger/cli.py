@@ -53,6 +53,12 @@ def get_configs(opts: Namespace) -> MetronTaggerSettings:
     if opts.export_to_cb7:
         config.export_to_cb7 = opts.export_to_cb7
 
+    if opts.export_to_cbz:
+        config.export_to_cbz = opts.export_to_cbz
+
+    if opts.delete_original:
+        config.delete_original = opts.delete_original
+
     if opts.set_metron_user or opts.set_sort_dir:
         config.save()
 
