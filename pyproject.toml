@@ -35,6 +35,7 @@ python = "^3.9"
 mokkari = "^2.1.1"
 darkseid = "^1.2.6"
 questionary = "^1.10.0"
+pyxdg = "^0.28"
 
 [tool.poetry.dev-dependencies]
 pytest-cov = "^2.12.1"
