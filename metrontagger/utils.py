@@ -27,8 +27,8 @@ def create_query_params(filename: Path) -> Dict[str, str]:
     fnp = FileNameParser()
     fnp.parse_filename(filename)
 
-    # Substitute colon for hyphen when searching for series name
-    fixed_txt: str = fnp.series.replace(" - ", ": ")
+    # Remove hyphen when searching for series name
+    fixed_txt: str = fnp.series.replace(" - ", " ")
     series_word_list: List[str] = fixed_txt.split()
     series_string: str = " ".join(series_word_list).strip()
 
