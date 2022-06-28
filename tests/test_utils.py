@@ -23,6 +23,24 @@ def test_dict(tmp_path: Path) -> None:
     assert result == expected
 
 
+def test_dict_with_title_hyphon(tmp_path: Path) -> None:
+    series = "Batman - Superman"
+    number = "5"
+    volume = "1"
+    year = "2013"
+    # Make the tmp file
+    comic = tmp_path / f"{series} v{volume} #{number} ({year}).cbz"
+
+    result = create_query_params(comic)
+    expected = {
+        "series_name": "Batman Superman",
+        "series_volume": f"{volume}",
+        "number": f"{number}",
+        "cover_year": f"{year}",
+    }
+    assert result == expected
+
+
 def test_query_dict_without_issue_number(tmp_path: Path) -> None:
     series = "Batman"
     year = "1990"
