@@ -43,7 +43,7 @@ Installing the latest version from Github:
 
 .. code:: bash
 
-  $ git clone https://github.com/bpepple/metron-tagger.git
+  $ git clone https://github.com/Metron-Project/metron-tagger.git
   $ cd metron-tagger
   $ python3 setup.py install
 
@@ -93,7 +93,7 @@ Help
 Bugs/Requests
 -------------
 
-Please use the `GitHub issue tracker <https://github.com/bpepple/metron-tagger/issues>`_ to submit bugs or request features.
+Please use the `GitHub issue tracker <https://github.com/Metron-Project/metron-tagger/issues>`_ to submit bugs or request features.
 
 License
 -------

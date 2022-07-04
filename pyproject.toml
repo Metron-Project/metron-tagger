@@ -67,8 +67,8 @@ known_first_party = []
 known_third_party = ["darkseid", "mokkari", "pytest", "questionary", "xdg"]
 
 [tool.poetry.urls]
-"Homepage" = "https://github.com/bpepple/metron-tagger"
-"Bug Tracker" = "https://github.com/bpepple/metron-tagger/issues"
+"Homepage" = "https://github.com/Metron-Project/metron-tagger"
+"Bug Tracker" = "https://github.com/Metron-Project/metron-tagger/issues"
 
 [tool.coverage.run]
 source = ["metrontagger"]
