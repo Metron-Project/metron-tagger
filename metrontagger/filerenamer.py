@@ -108,7 +108,7 @@ class FileRenamer:
         meta_data = self.metdata
         new_name = self.template
 
-        new_name = self.replace_token(new_name, meta_data.series, "%series%")
+        new_name = self.replace_token(new_name, meta_data.series.name, "%series%")
         new_name = self.replace_token(new_name, meta_data.volume, "%volume%")
 
         if meta_data.issue is not None:
@@ -120,24 +120,27 @@ class FileRenamer:
         new_name = self.replace_token(new_name, issue_str, "%issue%")
 
         new_name = self.replace_token(new_name, meta_data.issue_count, "%issuecount%")
-        new_name = self.replace_token(new_name, meta_data.year, "%year%")
+        new_name = self.replace_token(new_name, meta_data.cover_date.year, "%year%")
         new_name = self.replace_token(new_name, meta_data.publisher, "%publisher%")
-        new_name = self.replace_token(new_name, meta_data.title, "%title%")
-        new_name = self.replace_token(new_name, meta_data.month, "%month%")
+        new_name = self.replace_token(new_name, meta_data.stories, "%title%")
+        new_name = self.replace_token(new_name, meta_data.cover_date.month, "%month%")
         month_name = None
         if (
-            meta_data.month is not None
+            meta_data.cover_date.month is not None
             and (
-                (isinstance(meta_data.month, str) and meta_data.month.isdigit())
-                or isinstance(meta_data.month, int)
+                (
+                    isinstance(meta_data.cover_date.month, str)
+                    and meta_data.cover_date.month.isdigit()
+                )
+                or isinstance(meta_data.cover_date.month, int)
             )
-            and int(meta_data.month) in range(1, 13)
+            and int(meta_data.cover_date.month) in range(1, 13)
         ):
-            date_time = datetime.datetime(1970, int(meta_data.month), 1, 0, 0)
+            date_time = datetime.datetime(1970, int(meta_data.cover_date.month), 1, 0, 0)
             month_name = date_time.strftime("%B")
         new_name = self.replace_token(new_name, month_name, "%month_name%")
 
-        new_name = self.replace_token(new_name, meta_data.genre, "%genre%")
+        new_name = self.replace_token(new_name, meta_data.genres, "%genre%")
         new_name = self.replace_token(new_name, meta_data.language, "%language_code%")
         new_name = self.replace_token(new_name, meta_data.critical_rating, "%criticalrating%")
         new_name = self.replace_token(
@@ -149,8 +152,8 @@ class FileRenamer:
         new_name = self.replace_token(new_name, meta_data.alternate_count, "%alternatecount%")
         new_name = self.replace_token(new_name, meta_data.imprint, "%imprint%")
         new_name = self.replace_token(new_name, meta_data.format, "%format%")
-        new_name = self.replace_token(new_name, meta_data.maturity_rating, "%maturityrating%")
-        new_name = self.replace_token(new_name, meta_data.story_arc, "%storyarc%")
+        new_name = self.replace_token(new_name, meta_data.age_rating, "%maturityrating%")
+        new_name = self.replace_token(new_name, meta_data.stories, "%storyarc%")
         new_name = self.replace_token(new_name, meta_data.series_group, "%seriesgroup%")
         new_name = self.replace_token(new_name, meta_data.scan_info, "%scaninfo%")
 

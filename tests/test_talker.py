@@ -3,7 +3,6 @@ from zipfile import ZipFile
 
 import pytest
 from darkseid.comicarchive import ComicArchive
-from darkseid.utils import list_to_string
 from mokkari.issue import IssueSchema, IssuesList
 from mokkari.session import Session
 
@@ -43,15 +42,15 @@ def metron_response():
 def test_map_resp_to_metadata(talker: Talker, metron_response) -> None:
     md = talker._map_resp_to_metadata(metron_response)
     assert md is not None
-    assert md.title == list_to_string(list(metron_response.story_titles))
-    assert md.series == metron_response.series.name
+    assert md.stories == metron_response.story_titles
+    assert md.series.name == metron_response.series.name
     assert md.volume == metron_response.volume
     assert md.publisher == metron_response.publisher.name
     assert md.issue == metron_response.number
-    assert md.story_arc == list_to_string([a.name for a in metron_response.arcs])
-    assert md.teams == list_to_string([t.name for t in metron_response.teams])
-    assert md.year == metron_response.cover_date.year
-    assert md.characters == list_to_string([c.name for c in metron_response.characters])
+    assert md.story_arcs == [a.name for a in metron_response.arcs]
+    assert md.teams == [t.name for t in metron_response.teams]
+    assert md.cover_date.year == metron_response.cover_date.year
+    assert md.characters == [c.name for c in metron_response.characters]
     assert md.credits is not None
     assert md.credits[0]["person"] == "Al Milgrom"
     assert md.credits[0]["role"] == "Cover"
@@ -62,12 +61,12 @@ def test_map_resp_to_metadata_with_no_story_name(talker: Talker, metron_response
     test_data.story_titles = None
     meta_data = talker._map_resp_to_metadata(test_data)
     assert meta_data is not None
-    assert meta_data.title is None
-    assert meta_data.series == metron_response.series.name
+    assert len(meta_data.stories) == 0
+    assert meta_data.series.name == metron_response.series.name
     assert meta_data.volume == metron_response.volume
     assert meta_data.publisher == metron_response.publisher.name
     assert meta_data.issue == metron_response.number
-    assert meta_data.year == metron_response.cover_date.year
+    assert meta_data.cover_date.year == metron_response.cover_date.year
 
 
 @pytest.fixture()
@@ -129,15 +128,15 @@ def test_write_issue_md(talker: Talker, fake_comic: ZipFile, metron_response, mo
     ca = ComicArchive(fake_comic)
     assert ca.has_metadata()
     ca_md = ca.read_metadata()
-    assert ca_md.title == list_to_string(list(metron_response.story_titles))
-    assert ca_md.series == metron_response.series.name
+    assert ca_md.stories == metron_response.story_titles
+    assert ca_md.series.name == metron_response.series.name
     assert ca_md.volume == metron_response.volume
     assert ca_md.publisher == metron_response.publisher.name
     assert ca_md.issue == metron_response.number
-    assert ca_md.story_arc == list_to_string([a.name for a in metron_response.arcs])
-    assert ca_md.teams == list_to_string([t.name for t in metron_response.teams])
-    assert ca_md.year == metron_response.cover_date.year
-    assert ca_md.characters == list_to_string([c.name for c in metron_response.characters])
+    assert ca_md.story_arcs == [a.name for a in metron_response.arcs]
+    assert ca_md.teams == [t.name for t in metron_response.teams]
+    assert ca_md.cover_date.year == metron_response.cover_date.year
+    assert ca_md.characters == [c.name for c in metron_response.characters]
     assert ca_md.credits is not None
     assert ca_md.credits[0]["person"] == "Al Milgrom"
     assert ca_md.credits[0]["role"] == "Cover"
@@ -160,15 +159,16 @@ def test_retrieve_single_issue(
     ca = ComicArchive(fake_comic)
     assert ca.has_metadata()
     ca_md = ca.read_metadata()
-    assert ca_md.title == list_to_string(list(metron_response.story_titles))
-    assert ca_md.series == metron_response.series.name
+    assert ca_md.stories == metron_response.story_titles
+    assert ca_md.series.name == metron_response.series.name
     assert ca_md.volume == metron_response.volume
     assert ca_md.publisher == metron_response.publisher.name
     assert ca_md.issue == metron_response.number
-    assert ca_md.story_arc == list_to_string([a.name for a in metron_response.arcs])
-    assert ca_md.teams == list_to_string([t.name for t in metron_response.teams])
-    assert ca_md.year == metron_response.cover_date.year
-    assert ca_md.characters == list_to_string([c.name for c in metron_response.characters])
+    # arc_result = [a.name for a in metron_response.arcs]
+    assert ca_md.story_arcs == [a.name for a in metron_response.arcs]
+    assert ca_md.teams == [t.name for t in metron_response.teams]
+    assert ca_md.cover_date.year == metron_response.cover_date.year
+    assert ca_md.characters == [c.name for c in metron_response.characters]
     assert ca_md.credits is not None
     assert ca_md.credits[0]["person"] == "Al Milgrom"
     assert ca_md.credits[0]["role"] == "Cover"

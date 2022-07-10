@@ -1,9 +1,10 @@
 import zipfile
 from argparse import ArgumentParser
+from datetime import date
 from pathlib import Path
 
 import pytest
-from darkseid.genericmetadata import GenericMetadata
+from darkseid.genericmetadata import GenericMetadata, SeriesMetadata
 
 from metrontagger.options import make_parser
 from metrontagger.talker import Talker
@@ -27,10 +28,10 @@ def talker() -> Talker:
 def fake_metadata() -> GenericMetadata:
     meta_data = GenericMetadata()
     meta_data.publisher = "DC Comics"
-    meta_data.series = "Aquaman"
+    meta_data.series = SeriesMetadata("Aquaman")
     meta_data.volume = "2"
     meta_data.issue = "1"
-    meta_data.year = "2011"
+    meta_data.cover_date = date(2011, 9, 1)
     meta_data.add_credit("Peter David", "Writer")
     meta_data.add_credit("Martin Egeland", "Penciller")
     meta_data.add_credit("Martin Egeland", "Cover")

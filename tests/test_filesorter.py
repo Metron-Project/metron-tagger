@@ -36,7 +36,10 @@ def test_sort_comic(
     test_dir.mkdir()
 
     result_dir = (
-        test_dir / fake_metadata.publisher / fake_metadata.series / f"v{fake_metadata.volume}"
+        test_dir
+        / fake_metadata.publisher
+        / fake_metadata.series.name
+        / f"v{fake_metadata.volume}"
     )
 
     # Write metadata to fake file

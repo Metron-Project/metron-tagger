@@ -5,9 +5,8 @@ from typing import List, Optional, Tuple
 import mokkari
 import questionary
 from darkseid.comicarchive import ComicArchive
-from darkseid.genericmetadata import GenericMetadata
+from darkseid.genericmetadata import GenericMetadata, SeriesMetadata
 from darkseid.issuestring import IssueString
-from darkseid.utils import list_to_string
 from mokkari.issue import IssueSchema
 
 from metrontagger import __version__
@@ -192,29 +191,27 @@ class Talker:
         if resp.credits:
             md = self._add_credits_to_metadata(md, resp.credits)
 
-        md.series = resp.series.name
+        md.series = SeriesMetadata(resp.series.name)
         md.volume = resp.volume
         md.issue = IssueString(resp.number).as_string()
         md.publisher = resp.publisher.name
-        md.day = resp.cover_date.day
-        md.month = resp.cover_date.month
-        md.year = resp.cover_date.year
+        md.cover_date = resp.cover_date
         md.comments = resp.desc
         md.notes = self._create_note(resp.id)
 
         if resp.story_titles:
-            md.title = list_to_string(list(resp.story_titles))
+            md.stories = resp.story_titles
 
         if resp.characters:
-            md.characters = list_to_string([c.name for c in resp.characters])
+            md.characters = [c.name for c in resp.characters]
 
         if resp.teams:
-            md.teams = list_to_string([t.name for t in resp.teams])
+            md.teams = [c.name for c in resp.teams]
 
         if resp.arcs:
-            md.story_arc = list_to_string([a.name for a in resp.arcs])
+            md.story_arcs = [a.name for a in resp.arcs]
 
         if resp.series.genres:
-            md.genre = list_to_string([g.name for g in resp.series.genres])
+            md.genres = [c.name for c in resp.series.genres]
 
         return md
