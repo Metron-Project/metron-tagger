@@ -17,24 +17,59 @@ def metron_response():
         "series": {
             "id": 2222,
             "name": "The Spectacular Spider-Man",
+            "sort_name": "Spectacular Spider-Man",
+            "volume": 1,
+            "series_type": {"id": 2, "name": "Cancelled Series"},
             "genres": [{"id": 1, "name": "Super-Hero"}],
         },
-        "volume": 1,
         "number": "47",
+        "title": "",
         "name": ["A Night on the Prowl!"],
         "cover_date": "1980-10-01",
         "store_date": None,
+        "price": "0.50",
+        "sku": "",
+        "isbn": "",
+        "upc": "",
+        "page": 36,
         "desc": "Spider-Man goes on a wild goose chase to find out who is behind the Prowler impersonation.",
         "image": "https://static.metron.cloud/media/issue/2021/05/22/the-spectacular-spider-man-47.jpg",
-        "arcs": [{"id": 1, "name": "Foo Bar"}],
+        "arcs": [],
         "credits": [
             {"id": 233, "creator": "Al Milgrom", "role": [{"id": 7, "name": "Cover"}]},
+            {
+                "id": 1402,
+                "creator": "Bruce Patterson",
+                "role": [{"id": 4, "name": "Inker"}, {"id": 6, "name": "Letterer"}],
+            },
+            {"id": 128, "creator": "Dennis O'Neil", "role": [{"id": 8, "name": "Editor"}]},
+            {"id": 1035, "creator": "Glynis Oliver", "role": [{"id": 5, "name": "Colorist"}]},
+            {
+                "id": 624,
+                "creator": "Jim Shooter",
+                "role": [{"id": 20, "name": "Editor In Chief"}],
+            },
+            {"id": 675, "creator": "Marie Severin", "role": [{"id": 3, "name": "Penciller"}]},
+            {"id": 273, "creator": "Roger Stern", "role": [{"id": 1, "name": "Writer"}]},
         ],
         "characters": [
-            {"id": 6784, "name": "Debra Whitman"},
-            {"id": 3067, "name": "Hobgoblin (Kingsley)"},
+            {
+                "id": 6784,
+                "name": "Debra Whitman",
+                "modified": "2021-05-22T22:47:25.294935-04:00",
+            },
+            {
+                "id": 3067,
+                "name": "Hobgoblin (Kingsley)",
+                "modified": "2019-12-11T17:21:51.365470-05:00",
+            },
+            {"id": 2415, "name": "Prowler", "modified": "2019-08-24T16:37:06.997976-04:00"},
+            {"id": 145, "name": "Spider-Man", "modified": "2022-05-16T09:22:42.644589-04:00"},
         ],
         "teams": [{"id": 1, "name": "Bar Foo"}],
+        "reprints": [],
+        "variants": [],
+        "modified": "2022-05-29T08:22:38.584485-04:00",
     }
     return IssueSchema().load(i)
 
@@ -44,7 +79,7 @@ def test_map_resp_to_metadata(talker: Talker, metron_response) -> None:
     assert md is not None
     assert md.stories == metron_response.story_titles
     assert md.series.name == metron_response.series.name
-    assert md.volume == metron_response.volume
+    assert md.volume == metron_response.series.volume
     assert md.publisher == metron_response.publisher.name
     assert md.issue == metron_response.number
     assert md.story_arcs == [a.name for a in metron_response.arcs]
@@ -63,7 +98,7 @@ def test_map_resp_to_metadata_with_no_story_name(talker: Talker, metron_response
     assert meta_data is not None
     assert len(meta_data.stories) == 0
     assert meta_data.series.name == metron_response.series.name
-    assert meta_data.volume == metron_response.volume
+    assert meta_data.volume == metron_response.series.volume
     assert meta_data.publisher == metron_response.publisher.name
     assert meta_data.issue == metron_response.number
     assert meta_data.cover_date.year == metron_response.cover_date.year
@@ -130,16 +165,15 @@ def test_write_issue_md(talker: Talker, fake_comic: ZipFile, metron_response, mo
     ca_md = ca.read_metadata()
     assert ca_md.stories == metron_response.story_titles
     assert ca_md.series.name == metron_response.series.name
-    assert ca_md.volume == metron_response.volume
+    assert ca_md.volume == metron_response.series.volume
     assert ca_md.publisher == metron_response.publisher.name
     assert ca_md.issue == metron_response.number
-    assert ca_md.story_arcs == [a.name for a in metron_response.arcs]
     assert ca_md.teams == [t.name for t in metron_response.teams]
     assert ca_md.cover_date.year == metron_response.cover_date.year
     assert ca_md.characters == [c.name for c in metron_response.characters]
     assert ca_md.credits is not None
-    assert ca_md.credits[0]["person"] == "Al Milgrom"
-    assert ca_md.credits[0]["role"] == "Cover"
+    assert ca_md.credits[0]["person"] == "Roger Stern"
+    assert ca_md.credits[0]["role"] == "Writer"
 
 
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
@@ -161,14 +195,12 @@ def test_retrieve_single_issue(
     ca_md = ca.read_metadata()
     assert ca_md.stories == metron_response.story_titles
     assert ca_md.series.name == metron_response.series.name
-    assert ca_md.volume == metron_response.volume
+    assert ca_md.volume == metron_response.series.volume
     assert ca_md.publisher == metron_response.publisher.name
     assert ca_md.issue == metron_response.number
-    # arc_result = [a.name for a in metron_response.arcs]
-    assert ca_md.story_arcs == [a.name for a in metron_response.arcs]
     assert ca_md.teams == [t.name for t in metron_response.teams]
     assert ca_md.cover_date.year == metron_response.cover_date.year
     assert ca_md.characters == [c.name for c in metron_response.characters]
     assert ca_md.credits is not None
-    assert ca_md.credits[0]["person"] == "Al Milgrom"
-    assert ca_md.credits[0]["role"] == "Cover"
+    assert ca_md.credits[0]["person"] == "Roger Stern"
+    assert ca_md.credits[0]["role"] == "Writer"
