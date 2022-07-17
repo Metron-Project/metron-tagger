@@ -28,8 +28,7 @@ def talker() -> Talker:
 def fake_metadata() -> GenericMetadata:
     meta_data = GenericMetadata()
     meta_data.publisher = "DC Comics"
-    meta_data.series = SeriesMetadata("Aquaman")
-    meta_data.volume = "2"
+    meta_data.series = SeriesMetadata("Aquaman", volume=2)
     meta_data.issue = "1"
     meta_data.cover_date = date(2011, 9, 1)
     meta_data.add_credit("Peter David", "Writer")

@@ -192,9 +192,11 @@ class Talker:
             md = self._add_credits_to_metadata(md, resp.credits)
 
         md.series = SeriesMetadata(
-            resp.series.name, resp.series.sort_name, resp.series.series_type.name
+            resp.series.name,
+            resp.series.sort_name,
+            resp.series.volume,
+            resp.series.series_type.name,
         )
-        md.volume = resp.series.volume
         md.issue = IssueString(resp.number).as_string()
         md.publisher = resp.publisher.name
         md.cover_date = resp.cover_date

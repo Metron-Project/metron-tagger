@@ -16,7 +16,7 @@ def test_sort_comic_with_missing_metadata(
 ) -> None:
     test_dir = tmp_path / "sort10"
 
-    fake_metadata.volume = None
+    fake_metadata.series.volume = None
 
     comic = ComicArchive(fake_comic)
     if comic.has_metadata():
@@ -39,7 +39,7 @@ def test_sort_comic(
         test_dir
         / fake_metadata.publisher
         / fake_metadata.series.name
-        / f"v{fake_metadata.volume}"
+        / f"v{fake_metadata.series.volume}"
     )
 
     # Write metadata to fake file
