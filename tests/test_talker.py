@@ -79,7 +79,7 @@ def test_map_resp_to_metadata(talker: Talker, metron_response) -> None:
     assert md is not None
     assert md.stories == metron_response.story_titles
     assert md.series.name == metron_response.series.name
-    assert md.volume == metron_response.series.volume
+    assert md.series.volume == metron_response.series.volume
     assert md.publisher == metron_response.publisher.name
     assert md.issue == metron_response.number
     assert md.story_arcs == [a.name for a in metron_response.arcs]
@@ -98,7 +98,7 @@ def test_map_resp_to_metadata_with_no_story_name(talker: Talker, metron_response
     assert meta_data is not None
     assert len(meta_data.stories) == 0
     assert meta_data.series.name == metron_response.series.name
-    assert meta_data.volume == metron_response.series.volume
+    assert meta_data.series.volume == metron_response.series.volume
     assert meta_data.publisher == metron_response.publisher.name
     assert meta_data.issue == metron_response.number
     assert meta_data.cover_date.year == metron_response.cover_date.year
@@ -165,7 +165,7 @@ def test_write_issue_md(talker: Talker, fake_comic: ZipFile, metron_response, mo
     ca_md = ca.read_metadata()
     assert ca_md.stories == metron_response.story_titles
     assert ca_md.series.name == metron_response.series.name
-    assert ca_md.volume == metron_response.series.volume
+    assert ca_md.series.volume == metron_response.series.volume
     assert ca_md.publisher == metron_response.publisher.name
     assert ca_md.issue == metron_response.number
     assert ca_md.teams == [t.name for t in metron_response.teams]
@@ -195,7 +195,7 @@ def test_retrieve_single_issue(
     ca_md = ca.read_metadata()
     assert ca_md.stories == metron_response.story_titles
     assert ca_md.series.name == metron_response.series.name
-    assert ca_md.volume == metron_response.series.volume
+    assert ca_md.series.volume == metron_response.series.volume
     assert ca_md.publisher == metron_response.publisher.name
     assert ca_md.issue == metron_response.number
     assert ca_md.teams == [t.name for t in metron_response.teams]

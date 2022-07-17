@@ -109,7 +109,7 @@ class FileRenamer:
         new_name = self.template
 
         new_name = self.replace_token(new_name, meta_data.series.name, "%series%")
-        new_name = self.replace_token(new_name, meta_data.volume, "%volume%")
+        new_name = self.replace_token(new_name, meta_data.series.volume, "%volume%")
 
         if meta_data.issue is not None:
             issue_str = "{0}".format(
@@ -151,7 +151,7 @@ class FileRenamer:
         )
         new_name = self.replace_token(new_name, meta_data.alternate_count, "%alternatecount%")
         new_name = self.replace_token(new_name, meta_data.imprint, "%imprint%")
-        new_name = self.replace_token(new_name, meta_data.format, "%format%")
+        new_name = self.replace_token(new_name, meta_data.series.format, "%format%")
         new_name = self.replace_token(new_name, meta_data.age_rating, "%maturityrating%")
         new_name = self.replace_token(new_name, meta_data.stories, "%storyarc%")
         new_name = self.replace_token(new_name, meta_data.series_group, "%seriesgroup%")

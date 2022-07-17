@@ -8,12 +8,12 @@ from zipfile import ZipFile
 import pytest
 from darkseid.comicarchive import ComicArchive
 
-# from darkseid.genericmetadata import GenericMetadata
-from mokkari.issue import IssuesList
-
 from metrontagger.run import Runner
 from metrontagger.settings import MetronTaggerSettings
 from metrontagger.talker import Talker
+
+# from darkseid.genericmetadata import GenericMetadata
+# from mokkari.issue import IssuesList
 
 
 def test_create_metron_talker(tmp_path: Path) -> None:
@@ -174,18 +174,18 @@ def test_export_to_cb7(fake_comic: ZipFile, tmpdir) -> None:
 #     assert expected_result == captured_output.getvalue()
 
 
-@pytest.fixture()
-def multi_choice_fixture() -> IssuesList:
-    i = {
-        "count": 2,
-        "next": None,
-        "previous": None,
-        "results": [
-            {"issue": "Superman #1", "cover_date": "1939-10-01"},
-            {"issue": "Superman #1", "cover_date": "1986-01-01"},
-        ],
-    }
-    return IssuesList(i)
+# @pytest.fixture()
+# def multi_choice_fixture() -> IssuesList:
+#     i = {
+#         "count": 2,
+#         "next": None,
+#         "previous": None,
+#         "results": [
+#             {"issue": "Superman #1", "cover_date": "1939-10-01"},
+#             {"issue": "Superman #1", "cover_date": "1986-01-01"},
+#         ],
+#     }
+#     return IssuesList(i)
 
 
 # def test_print_multi_choices_to_user(

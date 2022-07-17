@@ -26,7 +26,7 @@ class FileSorter:
         """Clean the metadata string."""
         publisher = cleanup_string(meta_data.publisher)
         series = cleanup_string(meta_data.series.name)
-        volume = cleanup_string(meta_data.volume)
+        volume = cleanup_string(meta_data.series.volume)
         return publisher, series, volume
 
     @staticmethod

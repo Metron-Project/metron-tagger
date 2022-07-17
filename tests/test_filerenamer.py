@@ -16,8 +16,7 @@ def test_determine_name(fake_comic: ZipFile, fake_metadata: GenericMetadata) -> 
 
 def test_rename_file(fake_comic: ZipFile) -> None:
     md = GenericMetadata()
-    md.series = SeriesMetadata("Batman")
-    md.volume = "2"
+    md.series = SeriesMetadata("Batman", volume=2)
     md.issue = "100"
     md.cover_date = date(2020, 9, 1)
 
@@ -28,7 +27,9 @@ def test_rename_file(fake_comic: ZipFile) -> None:
     renamed_file = renamer.rename_file(fake_comic)
     assert renamed_file is not None
 
-    expected_result = f"{md.series.name} v{md.volume} #{md.issue} ({md.cover_date.year}).cbz"
+    expected_result = (
+        f"{md.series.name} v{md.series.volume} #{md.issue} ({md.cover_date.year}).cbz"
+    )
     assert expected_result == renamed_file.name
 
 
