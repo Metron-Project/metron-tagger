@@ -25,6 +25,20 @@ def talker() -> Talker:
 
 
 @pytest.fixture(scope="function")
+def fake_tpb_metadata() -> GenericMetadata:
+    meta_data = GenericMetadata()
+    meta_data.publisher = "DC Comics"
+    meta_data.series = SeriesMetadata("Batman", volume=1, format="Trade Paperback")
+    meta_data.issue = "1"
+    meta_data.cover_date = date(2021, 9, 1)
+    meta_data.add_credit("Grant Morrison", "Writer")
+    meta_data.add_credit("Chris Burham", "Artist")
+    meta_data.add_credit("Chris Burham", "Cover")
+
+    return meta_data
+
+
+@pytest.fixture(scope="function")
 def fake_metadata() -> GenericMetadata:
     meta_data = GenericMetadata()
     meta_data.publisher = "DC Comics"

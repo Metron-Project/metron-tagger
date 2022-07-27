@@ -52,7 +52,13 @@ class FileSorter:
         publisher, series, volume = self._cleanup_metadata(meta_data)
 
         if publisher and series and volume:
-            new_path = pathlib.Path(self.sort_directory) / publisher / series / f"v{volume}"
+            tpb = meta_data.series.format == "Trade Paperback"
+            new_path = (
+                pathlib.Path(self.sort_directory)
+                / publisher
+                / f"{f'{series} TPB' if tpb else f'{series}'}"
+                / f"v{volume}"
+            )
         else:
             questionary.print(
                 "Missing metadata from comic and will be unable to sort."
