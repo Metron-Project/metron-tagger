@@ -1,6 +1,5 @@
 """Class to sort comic file based on it's metadata tags"""
 import pathlib
-from os import fspath
 from pathlib import Path
 from shutil import Error, move
 from typing import Optional, Tuple
@@ -32,9 +31,7 @@ class FileSorter:
     @staticmethod
     def _move_files(orig: Path, new: Path) -> bool:
         try:
-            # Until python 3.9 is released, we need to force the Path
-            # objects to strings so shutils.move will work correctly.
-            move(fspath(orig), fspath(new))
+            move(orig, new)
             questionary.print(f"moved '{orig.name}' to '{new}'", style=Styles.SUCCESS)
             return True
         except Error as e:
