@@ -1,16 +1,5 @@
-def test_creditial_options(parser, tmpdir):
-    parsed = parser.parse_args(
-        [
-            "--user",
-            "test_user",
-            "--password",
-            "test_passwd",
-            str(tmpdir),
-        ]
-    )
-
-    assert parsed.user == "test_user"
-    assert parsed.password == "test_passwd"
+def test_path_options(parser, tmpdir):
+    parsed = parser.parse_args([str(tmpdir)])
     assert parsed.path == [str(tmpdir)]
 
 
