@@ -146,6 +146,35 @@ class Runner:
             else:
                 questionary.print(f"no metadata in '{comic.name}'", style=Styles.WARNING)
 
+    def _has_credentials(self) -> bool:
+        return bool(self.config.metron_user and self.config.metron_pass)
+
+    def _get_credentials(self) -> bool:
+        answers = questionary.form(
+            user=questionary.text("What is your Metron username?"),
+            passwd=questionary.text("What is your Metron password?"),
+            save=questionary.confirm("Would you like to save your credentials?"),
+        ).ask()
+        if answers["user"] and answers["passwd"]:
+            self.config.metron_user = answers["user"]
+            self.config.metron_pass = answers["passwd"]
+            if answers["save"]:
+                self.config.save()
+            return True
+        return False
+
+    def _get_sort_dir(self) -> bool:
+        answers = questionary.form(
+            dir=questionary.path("What directory should comics be sorted to?"),
+            save=questionary.confirm("Would you like to save this location for future use?"),
+        ).ask()
+        if answers["dir"]:
+            self.config.sort_dir = answers["dir"]
+            if answers["save"]:
+                self.config.save()
+            return True
+        return False
+
     def run(self) -> None:
 
         if not (file_list := get_recursive_filelist(self.config.path)):
@@ -158,25 +187,31 @@ class Runner:
         if self.config.delete:
             self._delete_comics_metadata(file_list)
 
-        if self.config.id:
-            if len(file_list) == 1:
-                t = Talker(self.config.metron_user, self.config.metron_pass)
-                t.retrieve_single_issue(file_list[0], self.config.id)
-            else:
-                questionary.print(
-                    "More than one file was passed for Id processing. Exiting...",
-                    style=Styles.WARNING,
-                )
+        if self.config.id or self.config.online:
+            if not self._has_credentials() and not self._get_credentials():
+                questionary.print("No credentials provided. Exiting...")
                 exit(0)
 
-        if self.config.online:
             t = Talker(self.config.metron_user, self.config.metron_pass)
-            t.identify_comics(file_list, self.config)
+            if self.config.id:
+                if len(file_list) == 1:
+                    t.retrieve_single_issue(file_list[0], self.config.id)
+                else:
+                    questionary.print(
+                        "More than one file was passed for Id processing. Exiting...",
+                        style=Styles.WARNING,
+                    )
+                    exit(0)
+            else:
+                t.identify_comics(file_list, self.config)
 
         if self.config.rename:
             file_list = self.rename_comics(file_list)
 
         if self.config.sort:
+            if not self.config.sort_dir and not self._get_sort_dir():
+                questionary.print("No sort directory given. Exiting...")
+                exit(0)
             self._sort_list_of_comics(file_list)
 
         if self.config.export_to_cb7:

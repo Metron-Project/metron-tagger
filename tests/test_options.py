@@ -5,14 +5,12 @@ def test_creditial_options(parser, tmpdir):
             "test_user",
             "--password",
             "test_passwd",
-            "--set-metron-user",
             str(tmpdir),
         ]
     )
 
     assert parsed.user == "test_user"
     assert parsed.password == "test_passwd"
-    assert parsed.set_metron_user is True
     assert parsed.path == [str(tmpdir)]
 
 

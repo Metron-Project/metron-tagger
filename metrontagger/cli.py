@@ -14,17 +14,8 @@ def get_args() -> Namespace:
 
 def get_configs(opts: Namespace) -> MetronTaggerSettings:
     config = MetronTaggerSettings()
-    if opts.user:
-        config.metron_user = opts.user
-
-    if opts.password:
-        config.metron_pass = opts.password
-
     if opts.path:
         config.path = opts.path
-
-    if opts.sort_dir:
-        config.sort_dir = opts.sort_dir
 
     if opts.id:
         config.id = opts.id
@@ -58,9 +49,6 @@ def get_configs(opts: Namespace) -> MetronTaggerSettings:
 
     if opts.delete_original:
         config.delete_original = opts.delete_original
-
-    if opts.set_metron_user or opts.set_sort_dir:
-        config.save()
 
     return config
 
