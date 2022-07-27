@@ -74,4 +74,4 @@ class FileSorter:
                 )
                 return False
 
-        return self._move_files(pathlib.Path(comic), new_path)
+        return self._move_files(comic, new_path)
