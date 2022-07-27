@@ -103,7 +103,7 @@ class Runner:
                     style=Styles.WARNING,
                 )
 
-    def _sort_list_of_comics(self, file_list: List[Path]) -> None:
+    def _sort_comic_list(self, file_list: List[Path]) -> None:
         if not self.config.sort_dir:
             questionary.print(
                 "\nUnable to sort files. No destination directory was provided.",
@@ -122,7 +122,7 @@ class Runner:
                 questionary.print(f"unable to move {comic.name}.", style=Styles.ERROR)
 
     @staticmethod
-    def _list_comics_with_missing_metadata(file_list: List[Path]) -> None:
+    def _comics_with_no_metadata(file_list: List[Path]) -> None:
         questionary.print(
             "\nShowing files without metadata:\n-------------------------------",
             style=Styles.TITLE,
@@ -134,7 +134,7 @@ class Runner:
             questionary.print(f"no metadata in '{comic.name}'", style=Styles.SUCCESS)
 
     @staticmethod
-    def _delete_comics_metadata(file_list: List[Path]) -> None:
+    def _delete_metadata(file_list: List[Path]) -> None:
         questionary.print("\nRemoving metadata:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
             comic_archive = ComicArchive(comic)
@@ -182,10 +182,10 @@ class Runner:
             exit(0)
 
         if self.config.missing:
-            self._list_comics_with_missing_metadata(file_list)
+            self._comics_with_no_metadata(file_list)
 
         if self.config.delete:
-            self._delete_comics_metadata(file_list)
+            self._delete_metadata(file_list)
 
         if self.config.id or self.config.online:
             if not self._has_credentials() and not self._get_credentials():
@@ -212,7 +212,7 @@ class Runner:
             if not self.config.sort_dir and not self._get_sort_dir():
                 questionary.print("No sort directory given. Exiting...")
                 exit(0)
-            self._sort_list_of_comics(file_list)
+            self._sort_comic_list(file_list)
 
         if self.config.export_to_cb7:
             self._export_to_cb7(file_list)
