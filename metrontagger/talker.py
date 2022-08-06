@@ -5,7 +5,13 @@ from typing import List, Optional, Tuple
 import mokkari
 import questionary
 from darkseid.comicarchive import ComicArchive
-from darkseid.genericmetadata import GenericMetadata, SeriesMetadata
+from darkseid.genericmetadata import (
+    CreditMetadata,
+    GeneralResource,
+    GenericMetadata,
+    RoleMetadata,
+    SeriesMetadata,
+)
 from darkseid.issuestring import IssueString
 from mokkari.issue import IssueSchema
 
@@ -178,44 +184,54 @@ class Talker:
         return f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}. [issue_id:{issue_id}]"
 
     @staticmethod
-    def _add_credits_to_metadata(md: GenericMetadata, credits_resp) -> GenericMetadata:
-        for creator in credits_resp:
-            if creator.role:
-                for r in creator.role:
-                    md.add_credit(creator.creator, r.name)
+    def _create_role_list(roles) -> List[RoleMetadata]:
+        return [RoleMetadata(r.name, r.id) for r in roles]
+
+    @staticmethod
+    def _create_resource_list(resource) -> List[GeneralResource]:
+        return [GeneralResource(r.name, r.id) for r in resource]
+
+    @staticmethod
+    def _create_stories_list(resource) -> List[GeneralResource]:
+        # Metron doesn't have a story id field
+        return [GeneralResource(story) for story in resource]
+
+    def _add_credits_to_metadata(self, md: GenericMetadata, credits_resp) -> GenericMetadata:
+        for c in credits_resp:
+            if c.role:
+                md.add_credit(CreditMetadata(c.creator, self._create_role_list(c.role), c.id))
+            else:
+                md.add_credit(CreditMetadata(c.creator, [], c.id))
         return md
 
     def _map_resp_to_metadata(self, resp) -> GenericMetadata:
         md = GenericMetadata()
-
-        if resp.credits:
-            md = self._add_credits_to_metadata(md, resp.credits)
-
+        md.info_source = GeneralResource("Metron", resp.id)
         md.series = SeriesMetadata(
             resp.series.name,
+            resp.series.id,
             resp.series.sort_name,
             resp.series.volume,
             resp.series.series_type.name,
         )
         md.issue = IssueString(resp.number).as_string()
-        md.publisher = resp.publisher.name
+        md.publisher = GeneralResource(resp.publisher.name, resp.publisher.id)
         md.cover_date = resp.cover_date
         md.comments = resp.desc
-        md.notes = self._create_note(resp.id)
-
+        md.notes = self._create_note(md.info_source.id_)
         if resp.story_titles:
-            md.stories = resp.story_titles
-
+            md.stories = self._create_stories_list(resp.story_titles)
         if resp.characters:
-            md.characters = [c.name for c in resp.characters]
-
+            md.characters = self._create_resource_list(resp.characters)
         if resp.teams:
-            md.teams = [c.name for c in resp.teams]
-
+            md.teams = self._create_resource_list(resp.teams)
         if resp.arcs:
-            md.story_arcs = [a.name for a in resp.arcs]
-
+            md.story_arcs = self._create_resource_list(resp.arcs)
         if resp.series.genres:
-            md.genres = [c.name for c in resp.series.genres]
+            md.genres = self._create_resource_list(resp.series.genres)
+        if resp.reprints:
+            md.reprints = self._create_resource_list(resp.reprints)
+        if resp.credits:
+            md = self._add_credits_to_metadata(md, resp.credits)
 
         return md

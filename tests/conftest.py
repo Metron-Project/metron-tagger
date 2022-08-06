@@ -4,7 +4,13 @@ from datetime import date
 from pathlib import Path
 
 import pytest
-from darkseid.genericmetadata import GenericMetadata, SeriesMetadata
+from darkseid.genericmetadata import (
+    CreditMetadata,
+    GeneralResource,
+    GenericMetadata,
+    RoleMetadata,
+    SeriesMetadata,
+)
 
 from metrontagger.options import make_parser
 from metrontagger.talker import Talker
@@ -27,13 +33,14 @@ def talker() -> Talker:
 @pytest.fixture(scope="function")
 def fake_tpb_metadata() -> GenericMetadata:
     meta_data = GenericMetadata()
-    meta_data.publisher = "DC Comics"
+    meta_data.publisher = GeneralResource("DC Comics")
     meta_data.series = SeriesMetadata("Batman", volume=1, format="Trade Paperback")
     meta_data.issue = "1"
     meta_data.cover_date = date(2021, 9, 1)
-    meta_data.add_credit("Grant Morrison", "Writer")
-    meta_data.add_credit("Chris Burham", "Artist")
-    meta_data.add_credit("Chris Burham", "Cover")
+    meta_data.add_credit(CreditMetadata("Grant Morrison", [RoleMetadata("Writer")]))
+    meta_data.add_credit(
+        CreditMetadata("Chris Burham", [RoleMetadata("Artist"), RoleMetadata("Cover")])
+    )
 
     return meta_data
 
@@ -41,13 +48,14 @@ def fake_tpb_metadata() -> GenericMetadata:
 @pytest.fixture(scope="function")
 def fake_metadata() -> GenericMetadata:
     meta_data = GenericMetadata()
-    meta_data.publisher = "DC Comics"
+    meta_data.publisher = GeneralResource("DC Comics")
     meta_data.series = SeriesMetadata("Aquaman", volume=2)
     meta_data.issue = "1"
     meta_data.cover_date = date(2011, 9, 1)
-    meta_data.add_credit("Peter David", "Writer")
-    meta_data.add_credit("Martin Egeland", "Penciller")
-    meta_data.add_credit("Martin Egeland", "Cover")
+    meta_data.add_credit(CreditMetadata("Peter David", [RoleMetadata("Writer")]))
+    meta_data.add_credit(
+        CreditMetadata("Martin Egeland", [RoleMetadata("Penciller"), RoleMetadata("Cover")])
+    )
 
     return meta_data
 

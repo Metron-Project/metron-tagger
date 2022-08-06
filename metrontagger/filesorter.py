@@ -23,7 +23,7 @@ class FileSorter:
         meta_data: GenericMetadata,
     ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """Clean the metadata string."""
-        publisher = cleanup_string(meta_data.publisher)
+        publisher = cleanup_string(meta_data.publisher.name)
         series = cleanup_string(meta_data.series.name)
         volume = cleanup_string(meta_data.series.volume)
         return publisher, series, volume
