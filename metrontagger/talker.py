@@ -13,7 +13,7 @@ from darkseid.genericmetadata import (
     SeriesMetadata,
 )
 from darkseid.issuestring import IssueString
-from mokkari.issue import IssueSchema
+from mokkari.issue import CreditsSchema, IssueSchema, RolesSchema
 
 from metrontagger import __version__
 from metrontagger.settings import MetronTaggerSettings
@@ -179,7 +179,7 @@ class Talker:
         self._write_issue_md(fn, id)
 
     @staticmethod
-    def _map_resp_to_metadata(resp) -> GenericMetadata:
+    def _map_resp_to_metadata(resp: IssueSchema) -> GenericMetadata:
         # Helper functions
         def create_resource_list(resource) -> List[GeneralResource]:
             return [GeneralResource(r.name, r.id) for r in resource]
@@ -192,8 +192,10 @@ class Talker:
             now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             return f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}. [issue_id:{issue_id}]"
 
-        def add_credits_to_metadata(md: GenericMetadata, credits_resp) -> GenericMetadata:
-            def create_role_list(roles) -> List[RoleMetadata]:
+        def add_credits_to_metadata(
+            md: GenericMetadata, credits_resp: List[CreditsSchema]
+        ) -> GenericMetadata:
+            def create_role_list(roles: List[RolesSchema]) -> List[RoleMetadata]:
                 return [RoleMetadata(r.name, r.id) for r in roles]
 
             for c in credits_resp:
