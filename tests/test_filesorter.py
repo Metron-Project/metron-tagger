@@ -37,7 +37,7 @@ def test_sort_comic(
 
     result_dir = (
         test_dir
-        / fake_metadata.publisher
+        / fake_metadata.publisher.name
         / fake_metadata.series.name
         / f"v{fake_metadata.series.volume}"
     )
@@ -64,7 +64,7 @@ def test_sort_tpb(
 
     result_dir = (
         test_dir
-        / fake_tpb_metadata.publisher
+        / fake_tpb_metadata.publisher.name
         / f"{fake_tpb_metadata.series.name} TPB"
         / f"v{fake_tpb_metadata.series.volume}"
     )

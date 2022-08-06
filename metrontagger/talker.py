@@ -5,9 +5,15 @@ from typing import List, Optional, Tuple
 import mokkari
 import questionary
 from darkseid.comicarchive import ComicArchive
-from darkseid.genericmetadata import GenericMetadata, SeriesMetadata
+from darkseid.genericmetadata import (
+    CreditMetadata,
+    GeneralResource,
+    GenericMetadata,
+    RoleMetadata,
+    SeriesMetadata,
+)
 from darkseid.issuestring import IssueString
-from mokkari.issue import IssueSchema
+from mokkari.issue import CreditsSchema, IssueSchema, RolesSchema
 
 from metrontagger import __version__
 from metrontagger.settings import MetronTaggerSettings
@@ -173,49 +179,59 @@ class Talker:
         self._write_issue_md(fn, id)
 
     @staticmethod
-    def _create_note(issue_id: int) -> str:
-        now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}. [issue_id:{issue_id}]"
+    def _map_resp_to_metadata(resp: IssueSchema) -> GenericMetadata:
+        # Helper functions
+        def create_resource_list(resource) -> List[GeneralResource]:
+            return [GeneralResource(r.name, r.id) for r in resource]
 
-    @staticmethod
-    def _add_credits_to_metadata(md: GenericMetadata, credits_resp) -> GenericMetadata:
-        for creator in credits_resp:
-            if creator.role:
-                for r in creator.role:
-                    md.add_credit(creator.creator, r.name)
-        return md
+        def create_stories_list(resource) -> List[GeneralResource]:
+            # Metron doesn't have a story id field
+            return [GeneralResource(story) for story in resource]
 
-    def _map_resp_to_metadata(self, resp) -> GenericMetadata:
+        def create_note(issue_id: int) -> str:
+            now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            return f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}. [issue_id:{issue_id}]"
+
+        def add_credits_to_metadata(
+            md: GenericMetadata, credits_resp: List[CreditsSchema]
+        ) -> GenericMetadata:
+            def create_role_list(roles: List[RolesSchema]) -> List[RoleMetadata]:
+                return [RoleMetadata(r.name, r.id) for r in roles]
+
+            for c in credits_resp:
+                if c.role:
+                    md.add_credit(CreditMetadata(c.creator, create_role_list(c.role), c.id))
+                else:
+                    md.add_credit(CreditMetadata(c.creator, [], c.id))
+            return md
+
         md = GenericMetadata()
-
-        if resp.credits:
-            md = self._add_credits_to_metadata(md, resp.credits)
-
+        md.info_source = GeneralResource("Metron", resp.id)
         md.series = SeriesMetadata(
             resp.series.name,
+            resp.series.id,
             resp.series.sort_name,
             resp.series.volume,
             resp.series.series_type.name,
         )
         md.issue = IssueString(resp.number).as_string()
-        md.publisher = resp.publisher.name
+        md.publisher = GeneralResource(resp.publisher.name, resp.publisher.id)
         md.cover_date = resp.cover_date
         md.comments = resp.desc
-        md.notes = self._create_note(resp.id)
-
+        md.notes = create_note(md.info_source.id_)
         if resp.story_titles:
-            md.stories = resp.story_titles
-
+            md.stories = create_stories_list(resp.story_titles)
         if resp.characters:
-            md.characters = [c.name for c in resp.characters]
-
+            md.characters = create_resource_list(resp.characters)
         if resp.teams:
-            md.teams = [c.name for c in resp.teams]
-
+            md.teams = create_resource_list(resp.teams)
         if resp.arcs:
-            md.story_arcs = [a.name for a in resp.arcs]
-
+            md.story_arcs = create_resource_list(resp.arcs)
         if resp.series.genres:
-            md.genres = [c.name for c in resp.series.genres]
+            md.genres = create_resource_list(resp.series.genres)
+        if resp.reprints:
+            md.reprints = create_resource_list(resp.reprints)
+        if resp.credits:
+            md = add_credits_to_metadata(md, resp.credits)
 
         return md
