@@ -179,32 +179,30 @@ class Talker:
         self._write_issue_md(fn, id)
 
     @staticmethod
-    def _create_note(issue_id: int) -> str:
-        now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        return f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}. [issue_id:{issue_id}]"
+    def _map_resp_to_metadata(resp) -> GenericMetadata:
+        # Helper functions
+        def create_resource_list(resource) -> List[GeneralResource]:
+            return [GeneralResource(r.name, r.id) for r in resource]
 
-    @staticmethod
-    def _create_role_list(roles) -> List[RoleMetadata]:
-        return [RoleMetadata(r.name, r.id) for r in roles]
+        def create_stories_list(resource) -> List[GeneralResource]:
+            # Metron doesn't have a story id field
+            return [GeneralResource(story) for story in resource]
 
-    @staticmethod
-    def _create_resource_list(resource) -> List[GeneralResource]:
-        return [GeneralResource(r.name, r.id) for r in resource]
+        def create_note(issue_id: int) -> str:
+            now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            return f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}. [issue_id:{issue_id}]"
 
-    @staticmethod
-    def _create_stories_list(resource) -> List[GeneralResource]:
-        # Metron doesn't have a story id field
-        return [GeneralResource(story) for story in resource]
+        def add_credits_to_metadata(md: GenericMetadata, credits_resp) -> GenericMetadata:
+            def create_role_list(roles) -> List[RoleMetadata]:
+                return [RoleMetadata(r.name, r.id) for r in roles]
 
-    def _add_credits_to_metadata(self, md: GenericMetadata, credits_resp) -> GenericMetadata:
-        for c in credits_resp:
-            if c.role:
-                md.add_credit(CreditMetadata(c.creator, self._create_role_list(c.role), c.id))
-            else:
-                md.add_credit(CreditMetadata(c.creator, [], c.id))
-        return md
+            for c in credits_resp:
+                if c.role:
+                    md.add_credit(CreditMetadata(c.creator, create_role_list(c.role), c.id))
+                else:
+                    md.add_credit(CreditMetadata(c.creator, [], c.id))
+            return md
 
-    def _map_resp_to_metadata(self, resp) -> GenericMetadata:
         md = GenericMetadata()
         md.info_source = GeneralResource("Metron", resp.id)
         md.series = SeriesMetadata(
@@ -218,20 +216,20 @@ class Talker:
         md.publisher = GeneralResource(resp.publisher.name, resp.publisher.id)
         md.cover_date = resp.cover_date
         md.comments = resp.desc
-        md.notes = self._create_note(md.info_source.id_)
+        md.notes = create_note(md.info_source.id_)
         if resp.story_titles:
-            md.stories = self._create_stories_list(resp.story_titles)
+            md.stories = create_stories_list(resp.story_titles)
         if resp.characters:
-            md.characters = self._create_resource_list(resp.characters)
+            md.characters = create_resource_list(resp.characters)
         if resp.teams:
-            md.teams = self._create_resource_list(resp.teams)
+            md.teams = create_resource_list(resp.teams)
         if resp.arcs:
-            md.story_arcs = self._create_resource_list(resp.arcs)
+            md.story_arcs = create_resource_list(resp.arcs)
         if resp.series.genres:
-            md.genres = self._create_resource_list(resp.series.genres)
+            md.genres = create_resource_list(resp.series.genres)
         if resp.reprints:
-            md.reprints = self._create_resource_list(resp.reprints)
+            md.reprints = create_resource_list(resp.reprints)
         if resp.credits:
-            md = self._add_credits_to_metadata(md, resp.credits)
+            md = add_credits_to_metadata(md, resp.credits)
 
         return md
