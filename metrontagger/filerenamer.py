@@ -52,24 +52,24 @@ class FileRenamer:
 
         if value is not None:
             return text.replace(token, str(value))
+
+        if self.smart_cleanup:
+            # smart cleanup means we want to remove anything appended to token if it's empty
+            # (e.g "#%issue%"  or "v%volume%")
+            # (TODO: This could fail if there is more than one token appended together, I guess)
+            text_list = text.split()
+
+            # special case for issuecount, remove preceding non-token word,
+            # as in "...(of %issuecount%)..."
+            if token == "%issuecount%":
+                for idx, word in enumerate(text_list):
+                    if token in word and not is_token(text_list[idx - 1]):
+                        text_list[idx - 1] = ""
+
+            text_list = [x for x in text_list if token not in x]
+            return " ".join(text_list)
         else:
-            if self.smart_cleanup:
-                # smart cleanup means we want to remove anything appended to token if it's empty
-                # (e.g "#%issue%"  or "v%volume%")
-                # (TODO: This could fail if there is more than one token appended together, I guess)
-                text_list = text.split()
-
-                # special case for issuecount, remove preceding non-token word,
-                # as in "...(of %issuecount%)..."
-                if token == "%issuecount%":
-                    for idx, word in enumerate(text_list):
-                        if token in word and not is_token(text_list[idx - 1]):
-                            text_list[idx - 1] = ""
-
-                text_list = [x for x in text_list if token not in x]
-                return " ".join(text_list)
-            else:
-                return text.replace(token, "")
+            return text.replace(token, "")
 
     @staticmethod
     def _remove_empty_separators(value: str) -> str:
