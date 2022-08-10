@@ -184,6 +184,9 @@ class Talker:
         def create_resource_list(resource) -> List[GeneralResource]:
             return [GeneralResource(r.name, r.id) for r in resource]
 
+        def create_reprint_list(resource) -> List[GeneralResource]:
+            return [GeneralResource(r.issue, r.id) for r in resource]
+
         def create_stories_list(resource) -> List[GeneralResource]:
             # Metron doesn't have a story id field
             return [GeneralResource(story) for story in resource]
@@ -230,7 +233,7 @@ class Talker:
         if resp.series.genres:
             md.genres = create_resource_list(resp.series.genres)
         if resp.reprints:
-            md.reprints = create_resource_list(resp.reprints)
+            md.reprints = create_reprint_list(resp.reprints)
         if resp.credits:
             md = add_credits_to_metadata(md, resp.credits)
 
