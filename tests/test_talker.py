@@ -69,11 +69,19 @@ def metron_response():
             {"id": 145, "name": "Spider-Man", "modified": "2022-05-16T09:22:42.644589-04:00"},
         ],
         "teams": [{"id": 1, "name": "Bar Foo"}],
-        "reprints": [],
+        "reprints": [
+            {"id": 2860, "issue": "Twilight (1990) #1"},
+            {"id": 2861, "issue": "Twilight (1990) #2"},
+            {"id": 2862, "issue": "Twilight (1990) #3"},
+        ],
         "variants": [],
         "modified": "2022-05-29T08:22:38.584485-04:00",
     }
     return IssueSchema().load(i)
+
+
+def create_reprint_list(resource) -> List[GeneralResource]:
+    return [GeneralResource(r.issue, r.id) for r in resource]
 
 
 def create_resource_list(resource) -> List[GeneralResource]:
@@ -103,6 +111,7 @@ def test_map_resp_to_metadata(talker: Talker, metron_response) -> None:
     assert md.credits is not None
     assert md.credits[0].person == "Al Milgrom"
     assert md.credits[0].role[0].name == "Cover"
+    assert md.reprints == create_reprint_list(metron_response.reprints)
 
 
 def test_map_resp_to_metadata_with_no_story_name(talker: Talker, metron_response) -> None:
