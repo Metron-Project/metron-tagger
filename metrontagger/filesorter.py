@@ -5,8 +5,8 @@ from shutil import Error, move
 from typing import Optional, Tuple
 
 import questionary
-from darkseid.comicarchive import ComicArchive
-from darkseid.genericmetadata import GenericMetadata
+from darkseid.comic import Comic
+from darkseid.metadata import Metadata
 
 from metrontagger.styles import Styles
 from metrontagger.utils import cleanup_string
@@ -20,7 +20,7 @@ class FileSorter:
 
     @staticmethod
     def _cleanup_metadata(
-        meta_data: GenericMetadata,
+        meta_data: Metadata,
     ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """Clean the metadata string."""
         publisher = cleanup_string(meta_data.publisher.name)
@@ -40,7 +40,7 @@ class FileSorter:
 
     def sort_comics(self, comic: Path) -> bool:
         """Method to move the comic file based on it's metadata tag"""
-        comic_archive = ComicArchive(comic)
+        comic_archive = Comic(comic)
         if comic_archive.has_metadata():
             meta_data = comic_archive.read_metadata()
         else:

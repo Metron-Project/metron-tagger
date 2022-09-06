@@ -6,13 +6,13 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
-from darkseid.comicarchive import ComicArchive
+from darkseid.comic import Comic
 
 from metrontagger.run import Runner
 from metrontagger.settings import MetronTaggerSettings
 from metrontagger.talker import Talker
 
-# from darkseid.genericmetadata import GenericMetadata
+# from darkseid.metadata import Metadata
 # from mokkari.issue import IssuesList
 
 
@@ -30,7 +30,7 @@ def test_export_to_cb7(fake_comic: ZipFile, tmpdir) -> None:
     r = Runner(MetronTaggerSettings(tmpdir))
     r._export_to_cb7([fake_comic])
     new_name = Path(fake_comic).with_suffix(".cb7")
-    ca = ComicArchive(new_name)
+    ca = Comic(new_name)
     assert ca.is_sevenzip() is True
     assert ca.get_number_of_pages() == 3
 
@@ -43,8 +43,8 @@ def test_export_to_cb7(fake_comic: ZipFile, tmpdir) -> None:
 #         + "\n"
 #     )
 #     # Make sure fake comic archive doesn't have any metadata
-#     if ComicArchive(fake_comic).has_metadata():
-#         ComicArchive(fake_comic).remove_metadata()
+#     if Comic(fake_comic).has_metadata():
+#         Comic(fake_comic).remove_metadata()
 
 #     fake_list = [fake_comic]
 
@@ -59,7 +59,7 @@ def test_export_to_cb7(fake_comic: ZipFile, tmpdir) -> None:
 
 
 # def test_delete_comics_with_metadata(
-#     fake_comic: ZipFile, fake_metadata: GenericMetadata
+#     fake_comic: ZipFile, fake_metadata: Metadata
 # ) -> None:
 #     expected_result = (
 #         "\nRemoving metadata:\n-----------------"
@@ -68,8 +68,8 @@ def test_export_to_cb7(fake_comic: ZipFile, tmpdir) -> None:
 #     )
 
 #     # If comic doesn't already have metadata let's add it
-#     if not ComicArchive(fake_comic).has_metadata():
-#         ComicArchive(fake_comic).write_metadata(fake_metadata)
+#     if not Comic(fake_comic).has_metadata():
+#         Comic(fake_comic).write_metadata(fake_metadata)
 
 #     fake_list = [fake_comic]
 
@@ -91,8 +91,8 @@ def test_export_to_cb7(fake_comic: ZipFile, tmpdir) -> None:
 #     )
 
 #     # If comic has metadata let's remove it
-#     if ComicArchive(fake_comic).has_metadata():
-#         ComicArchive(fake_comic).remove_metadata()
+#     if Comic(fake_comic).has_metadata():
+#         Comic(fake_comic).remove_metadata()
 
 #     fake_list = [fake_comic]
 
@@ -126,7 +126,7 @@ def test_export_to_cb7(fake_comic: ZipFile, tmpdir) -> None:
 
 
 # def test_sort_comics_with_dir(
-#     fake_comic: ZipFile, fake_metadata: GenericMetadata, tmp_path: Path
+#     fake_comic: ZipFile, fake_metadata: Metadata, tmp_path: Path
 # ) -> None:
 #     s = MetronTaggerSettings(tmp_path)
 #     s.sort_dir = tmp_path
@@ -146,7 +146,7 @@ def test_export_to_cb7(fake_comic: ZipFile, tmpdir) -> None:
 #         + "'\n"
 #     )
 
-#     comic = ComicArchive(fake_comic)
+#     comic = Comic(fake_comic)
 
 #     if not comic.has_metadata():
 #         comic.write_metadata(fake_metadata)

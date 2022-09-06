@@ -3,8 +3,8 @@ from typing import List
 from zipfile import ZipFile
 
 import pytest
-from darkseid.comicarchive import ComicArchive
-from darkseid.genericmetadata import GeneralResource
+from darkseid.comic import Comic
+from darkseid.metadata import Basic
 from mokkari.issue import IssueSchema, IssuesList
 from mokkari.session import Session
 
@@ -80,20 +80,20 @@ def metron_response():
     return IssueSchema().load(i)
 
 
-def create_reprint_list(resource) -> List[GeneralResource]:
-    return [GeneralResource(r.issue, r.id) for r in resource]
+def create_reprint_list(resource) -> List[Basic]:
+    return [Basic(r.issue, r.id) for r in resource]
 
 
-def create_resource_list(resource) -> List[GeneralResource]:
-    return [GeneralResource(r.name, r.id) for r in resource]
+def create_resource_list(resource) -> List[Basic]:
+    return [Basic(r.name, r.id) for r in resource]
 
 
-def create_read_md_resource_list(resource) -> List[GeneralResource]:
-    return [GeneralResource(r.name) for r in resource]
+def create_read_md_resource_list(resource) -> List[Basic]:
+    return [Basic(r.name) for r in resource]
 
 
-def create_read_md_story(resource) -> List[GeneralResource]:
-    return [GeneralResource(story) for story in resource]
+def create_read_md_story(resource) -> List[Basic]:
+    return [Basic(story) for story in resource]
 
 
 def test_map_resp_to_metadata(talker: Talker, metron_response) -> None:
@@ -151,7 +151,7 @@ def test_process_file(
     talker: Talker, fake_comic: ZipFile, issue_list_response: IssuesList, mocker
 ) -> None:
     # Remove any existing metadata from comic fixture
-    ca = ComicArchive(fake_comic)
+    ca = Comic(fake_comic)
     if ca.has_metadata():
         ca.remove_metadata()
 
@@ -173,7 +173,7 @@ def test_process_file(
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
 def test_write_issue_md(talker: Talker, fake_comic: ZipFile, metron_response, mocker) -> None:
     # Remove any existing metadata from comic fixture
-    ca = ComicArchive(fake_comic)
+    ca = Comic(fake_comic)
     if ca.has_metadata():
         ca.remove_metadata()
 
@@ -183,7 +183,7 @@ def test_write_issue_md(talker: Talker, fake_comic: ZipFile, metron_response, mo
 
     # Now let's test writing the metadata to file
     talker._write_issue_md(fake_comic, 1)
-    ca = ComicArchive(fake_comic)
+    ca = Comic(fake_comic)
     assert ca.has_metadata()
     ca_md = ca.read_metadata()
     assert ca_md.stories == create_read_md_story(metron_response.story_titles)
@@ -204,7 +204,7 @@ def test_retrieve_single_issue(
     talker: Talker, fake_comic: ZipFile, metron_response, mocker
 ) -> None:
     # Remove any existing metadata from comic fixture
-    ca = ComicArchive(fake_comic)
+    ca = Comic(fake_comic)
     if ca.has_metadata():
         ca.remove_metadata()
 
@@ -213,7 +213,7 @@ def test_retrieve_single_issue(
     talker.retrieve_single_issue(fake_comic, 10)
 
     # Now let's test the metadata
-    ca = ComicArchive(fake_comic)
+    ca = Comic(fake_comic)
     assert ca.has_metadata()
     ca_md = ca.read_metadata()
     assert ca_md.stories == create_read_md_story(metron_response.story_titles)

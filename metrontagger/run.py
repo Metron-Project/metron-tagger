@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import List
 
 import questionary
-from darkseid.comicarchive import ComicArchive
+from darkseid.comic import Comic
 from darkseid.utils import get_recursive_filelist
 
 from metrontagger.filerenamer import FileRenamer
@@ -28,7 +28,7 @@ class Runner:
         new_file_names: List[Path] = []
         original_files_changed: List[Path] = []
         for comic in file_list:
-            comic_archive = ComicArchive(comic)
+            comic_archive = Comic(comic)
             if not comic_archive.has_metadata():
                 questionary.print(
                     f"skipping '{comic.name}'. no metadata available.", style=Styles.WARNING
@@ -64,7 +64,7 @@ class Runner:
     def _export_to_cb7(self, file_list: List[Path]) -> None:
         questionary.print("\nExporting to cb7:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
-            ca = ComicArchive(comic)
+            ca = Comic(comic)
             if ca.is_zip() or ca.is_rar():
                 new_fn = Path(comic).with_suffix(".cb7")
                 if ca.export_as_cb7(new_fn):
@@ -85,7 +85,7 @@ class Runner:
     def _export_to_zip(self, file_list: List[Path]) -> None:
         questionary.print("\nExporting to cbz:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
-            ca = ComicArchive(comic)
+            ca = Comic(comic)
             if ca.is_rar() or ca.is_sevenzip():
                 new_fn = Path(comic).with_suffix(".cbz")
                 if ca.export_as_zip(new_fn):
@@ -128,7 +128,7 @@ class Runner:
             style=Styles.TITLE,
         )
         for comic in file_list:
-            comic_archive = ComicArchive(comic)
+            comic_archive = Comic(comic)
             if comic_archive.has_metadata():
                 continue
             questionary.print(f"no metadata in '{comic.name}'", style=Styles.SUCCESS)
@@ -137,7 +137,7 @@ class Runner:
     def _delete_metadata(file_list: List[Path]) -> None:
         questionary.print("\nRemoving metadata:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
-            comic_archive = ComicArchive(comic)
+            comic_archive = Comic(comic)
             if comic_archive.has_metadata():
                 comic_archive.remove_metadata()
                 questionary.print(

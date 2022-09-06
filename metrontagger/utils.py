@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import quote_plus
 
-from darkseid.filenameparser import FileNameParser
+from darkseid.filename import FileNameParser
 
 
 def cleanup_string(path_name: Optional[str]) -> Optional[str]:

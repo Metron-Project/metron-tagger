@@ -4,15 +4,9 @@ from typing import List, Optional, Tuple
 
 import mokkari
 import questionary
-from darkseid.comicarchive import ComicArchive
-from darkseid.genericmetadata import (
-    CreditMetadata,
-    GeneralResource,
-    GenericMetadata,
-    RoleMetadata,
-    SeriesMetadata,
-)
-from darkseid.issuestring import IssueString
+from darkseid.comic import Comic
+from darkseid.issue_string import IssueString
+from darkseid.metadata import Basic, Credit, Metadata, Role, Series
 from mokkari.issue import CreditsSchema, IssueSchema, RolesSchema
 
 from metrontagger import __version__
@@ -78,7 +72,7 @@ class Talker:
         return questionary.select("Select an issue to match", choices=choices).ask()
 
     def _process_file(self, fn: Path, interactive: bool) -> Tuple[Optional[int], bool]:
-        ca = ComicArchive(fn)
+        ca = Comic(fn)
 
         if not ca.is_writable() and not ca.seems_to_be_a_comic_archive():
             questionary.print(
@@ -136,8 +130,8 @@ class Talker:
         success = False
 
         if resp := self.api.issue(issue_id):
-            ca = ComicArchive(filename)
-            meta_data = GenericMetadata()
+            ca = Comic(filename)
+            meta_data = Metadata()
             meta_data.set_default_page_list(ca.get_number_of_pages())
             md = self._map_resp_to_metadata(resp)
             md.overlay(meta_data)
@@ -159,7 +153,7 @@ class Talker:
 
         for fn in file_list:
             if config.ignore_existing:
-                comic_archive = ComicArchive(fn)
+                comic_archive = Comic(fn)
                 if comic_archive.has_metadata():
                     questionary.print(
                         f"{fn.name} has metadata. Skipping...", style=Styles.WARNING
@@ -179,38 +173,38 @@ class Talker:
         self._write_issue_md(fn, id)
 
     @staticmethod
-    def _map_resp_to_metadata(resp: IssueSchema) -> GenericMetadata:
+    def _map_resp_to_metadata(resp: IssueSchema) -> Metadata:
         # Helper functions
-        def create_resource_list(resource) -> List[GeneralResource]:
-            return [GeneralResource(r.name, r.id) for r in resource]
+        def create_resource_list(resource) -> List[Basic]:
+            return [Basic(r.name, r.id) for r in resource]
 
-        def create_reprint_list(resource) -> List[GeneralResource]:
-            return [GeneralResource(r.issue, r.id) for r in resource]
+        def create_reprint_list(resource) -> List[Basic]:
+            return [Basic(r.issue, r.id) for r in resource]
 
-        def create_stories_list(resource) -> List[GeneralResource]:
+        def create_stories_list(resource) -> List[Basic]:
             # Metron doesn't have a story id field
-            return [GeneralResource(story) for story in resource]
+            return [Basic(story) for story in resource]
 
         def create_note(issue_id: int) -> str:
             now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             return f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}. [issue_id:{issue_id}]"
 
         def add_credits_to_metadata(
-            md: GenericMetadata, credits_resp: List[CreditsSchema]
-        ) -> GenericMetadata:
-            def create_role_list(roles: List[RolesSchema]) -> List[RoleMetadata]:
-                return [RoleMetadata(r.name, r.id) for r in roles]
+            md: Metadata, credits_resp: List[CreditsSchema]
+        ) -> Metadata:
+            def create_role_list(roles: List[RolesSchema]) -> List[Role]:
+                return [Role(r.name, r.id) for r in roles]
 
             for c in credits_resp:
                 if c.role:
-                    md.add_credit(CreditMetadata(c.creator, create_role_list(c.role), c.id))
+                    md.add_credit(Credit(c.creator, create_role_list(c.role), c.id))
                 else:
-                    md.add_credit(CreditMetadata(c.creator, [], c.id))
+                    md.add_credit(Credit(c.creator, [], c.id))
             return md
 
-        md = GenericMetadata()
-        md.info_source = GeneralResource("Metron", resp.id)
-        md.series = SeriesMetadata(
+        md = Metadata()
+        md.info_source = Basic("Metron", resp.id)
+        md.series = Series(
             resp.series.name,
             resp.series.id,
             resp.series.sort_name,
@@ -218,7 +212,7 @@ class Talker:
             resp.series.series_type.name,
         )
         md.issue = IssueString(resp.number).as_string()
-        md.publisher = GeneralResource(resp.publisher.name, resp.publisher.id)
+        md.publisher = Basic(resp.publisher.name, resp.publisher.id)
         md.cover_date = resp.cover_date
         md.comments = resp.desc
         md.notes = create_note(md.info_source.id_)
