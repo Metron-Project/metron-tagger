@@ -3,8 +3,8 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
-from darkseid.comicarchive import ComicArchive
-from darkseid.genericmetadata import GenericMetadata
+from darkseid.comic import Comic
+from darkseid.metadata import Metadata
 
 from metrontagger.filesorter import FileSorter
 
@@ -12,13 +12,13 @@ from metrontagger.filesorter import FileSorter
 # Skip test for windows, until some with a windows box can help debug this.
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
 def test_sort_comic_with_missing_metadata(
-    fake_comic: ZipFile, fake_metadata: GenericMetadata, tmp_path: Path
+    fake_comic: ZipFile, fake_metadata: Metadata, tmp_path: Path
 ) -> None:
     test_dir = tmp_path / "sort10"
 
     fake_metadata.series.volume = None
 
-    comic = ComicArchive(fake_comic)
+    comic = Comic(fake_comic)
     if comic.has_metadata():
         comic.remove_metadata()
     comic.write_metadata(fake_metadata)
@@ -28,9 +28,7 @@ def test_sort_comic_with_missing_metadata(
 
 
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
-def test_sort_comic(
-    fake_comic: ZipFile, fake_metadata: GenericMetadata, tmp_path: Path
-) -> None:
+def test_sort_comic(fake_comic: ZipFile, fake_metadata: Metadata, tmp_path: Path) -> None:
     test_dir = tmp_path / "sort1"
 
     test_dir.mkdir()
@@ -43,7 +41,7 @@ def test_sort_comic(
     )
 
     # Write metadata to fake file
-    comic = ComicArchive(fake_comic)
+    comic = Comic(fake_comic)
     if comic.has_metadata():
         comic.remove_metadata()
     comic.write_metadata(fake_metadata)
@@ -55,9 +53,7 @@ def test_sort_comic(
 
 
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
-def test_sort_tpb(
-    fake_comic: ZipFile, fake_tpb_metadata: GenericMetadata, tmp_path: Path
-) -> None:
+def test_sort_tpb(fake_comic: ZipFile, fake_tpb_metadata: Metadata, tmp_path: Path) -> None:
     test_dir = tmp_path / "sort1"
 
     test_dir.mkdir()
@@ -70,7 +66,7 @@ def test_sort_tpb(
     )
 
     # Write metadata to fake file
-    comic = ComicArchive(fake_comic)
+    comic = Comic(fake_comic)
     if comic.has_metadata():
         comic.remove_metadata()
     comic.write_metadata(fake_tpb_metadata)
@@ -85,7 +81,7 @@ def test_sort_files_without_metadata(fake_comic: ZipFile, tmp_path: Path) -> Non
     test_dir = tmp_path / "sort2"
     # If we add more tests we should probably create another tmpfile
     # since we are removing the metadata from the tmpfile
-    comic = ComicArchive(fake_comic)
+    comic = Comic(fake_comic)
     comic.remove_metadata()
 
     file_sorter = FileSorter(test_dir)

@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Optional
 
 import questionary
-from darkseid.genericmetadata import GenericMetadata
-from darkseid.issuestring import IssueString
+from darkseid.issue_string import IssueString
+from darkseid.metadata import Metadata
 from darkseid.utils import unique_file
 
 from metrontagger.styles import Styles
@@ -20,7 +20,7 @@ from metrontagger.utils import cleanup_string
 class FileRenamer:
     """Class to rename a comic archive based on it's metadata tag"""
 
-    def __init__(self, metadata: GenericMetadata) -> None:
+    def __init__(self, metadata: Metadata) -> None:
         self.set_metadata(metadata)
         self.set_template("%series% v%volume% #%issue% (of %issuecount%) (%year%)")
         self.smart_cleanup = True
@@ -29,7 +29,7 @@ class FileRenamer:
     def set_smart_cleanup(self, on: bool) -> None:
         self.smart_cleanup = on
 
-    def set_metadata(self, metadata: GenericMetadata) -> None:
+    def set_metadata(self, metadata: Metadata) -> None:
         """Method to set the metadata"""
         self.metdata = metadata
 
