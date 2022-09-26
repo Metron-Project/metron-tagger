@@ -141,7 +141,7 @@ class FileRenamer:
         new_name = self.replace_token(new_name, month_name, "%month_name%")
 
         new_name = self.replace_token(new_name, meta_data.genres, "%genre%")
-        new_name = self.replace_token(new_name, meta_data.language, "%language_code%")
+        new_name = self.replace_token(new_name, meta_data.series.language, "%language_code%")
         new_name = self.replace_token(new_name, meta_data.critical_rating, "%criticalrating%")
         new_name = self.replace_token(
             new_name, meta_data.alternate_series, "%alternateseries%"
