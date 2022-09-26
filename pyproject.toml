@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "metron-tagger"
-version = "1.4.0"
+version = "1.4.1"
 description = "A program to write metadata from metron.cloud to a comic archive"
 authors = ["Brian Pepple <bdpepple@gmail.com>"]
 license = "GPL-3.0-or-later"
