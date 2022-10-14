@@ -34,9 +34,22 @@ class FileSorter:
             move(orig, new)
             questionary.print(f"moved '{orig.name}' to '{new}'", style=Styles.SUCCESS)
             return True
-        except Error as e:
-            questionary.print(f"Unable to move comic. Error: {e}", style=Styles.ERROR)
+        except Error:
             return False
+
+    @staticmethod
+    def _overwrite_existing(new_path: Path, old_comic: Path):
+        existing_comic = new_path / old_comic.name
+        if existing_comic.exists():
+            MB_CONV = 1048576
+            existing_size = existing_comic.stat().st_size / MB_CONV
+            new_size = old_comic.stat().st_size / MB_CONV
+            msg = f"{existing_comic.name} exists at {existing_comic.parent}.\nOld file: {existing_size:.2f} MB -> New file: {new_size:.2f} MB"
+            questionary.print(msg, Styles.WARNING)
+            if questionary.confirm(
+                "Would you like to overwrite existing file?", default=False
+            ).ask():
+                existing_comic.unlink()
 
     def sort_comics(self, comic: Path) -> bool:
         """Method to move the comic file based on it's metadata tag"""
@@ -63,6 +76,8 @@ class FileSorter:
                 style=Styles.WARNING,
             )
             return False
+
+        self._overwrite_existing(new_path, comic)
 
         if not new_path.is_dir():
             try:
