@@ -173,17 +173,10 @@ class Talker:
         self._write_issue_md(fn, id)
 
     @staticmethod
-    def _map_resp_to_metadata(resp: IssueSchema) -> Metadata:
+    def _map_resp_to_metadata(resp: IssueSchema) -> Metadata:  # NOQA C901
         # Helper functions
         def create_resource_list(resource) -> List[Basic]:
             return [Basic(r.name, r.id) for r in resource]
-
-        def create_reprint_list(resource) -> List[Basic]:
-            return [Basic(r.issue, r.id) for r in resource]
-
-        def create_stories_list(resource) -> List[Basic]:
-            # Metron doesn't have a story id field
-            return [Basic(story) for story in resource]
 
         def create_note(issue_id: int) -> str:
             now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -202,6 +195,17 @@ class Talker:
                     md.add_credit(Credit(c.creator, [], c.id))
             return md
 
+        def map_ratings(rating: str) -> str:
+            age_rating = rating.lower()
+            if age_rating == "everyone":
+                return "Everyone"
+            elif age_rating in {"teen", "teen plus"}:
+                return "Teen"
+            elif age_rating == "mature":
+                return "Mature 17+"
+            else:
+                return "Unknown"
+
         md = Metadata()
         md.info_source = Basic("Metron", resp.id)
         md.series = Series(
@@ -217,7 +221,7 @@ class Talker:
         md.comments = resp.desc
         md.notes = create_note(md.info_source.id_)
         if resp.story_titles:
-            md.stories = create_stories_list(resp.story_titles)
+            md.stories = [Basic(story) for story in resp.story_titles]
         if resp.characters:
             md.characters = create_resource_list(resp.characters)
         if resp.teams:
@@ -227,8 +231,10 @@ class Talker:
         if resp.series.genres:
             md.genres = create_resource_list(resp.series.genres)
         if resp.reprints:
-            md.reprints = create_reprint_list(resp.reprints)
+            md.reprints = [Basic(r.issue, r.id) for r in resp.reprints]
         if resp.credits:
             md = add_credits_to_metadata(md, resp.credits)
+        if resp.rating:
+            md.age_rating = map_ratings(resp.rating.name)
 
         return md
