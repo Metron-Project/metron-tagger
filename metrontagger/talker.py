@@ -197,7 +197,7 @@ class Talker:
 
         def map_ratings(rating: str) -> str:
             age_rating = rating.lower()
-            if age_rating == "everyone":
+            if age_rating in {"everyone", "cca"}:
                 return "Everyone"
             elif age_rating in {"teen", "teen plus"}:
                 return "Teen"
