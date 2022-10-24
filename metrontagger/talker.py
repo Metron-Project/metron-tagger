@@ -236,5 +236,7 @@ class Talker:
             md = add_credits_to_metadata(md, resp.credits)
         if resp.rating:
             md.age_rating = map_ratings(resp.rating.name)
+        if resp.resource_url:
+            md.web_link = resp.resource_url
 
         return md
