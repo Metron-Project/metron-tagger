@@ -252,7 +252,7 @@ python-versions = "*"
 
 [[package]]
 name = "mokkari"
-version = "2.3.2"
+version = "2.3.3"
 description = "Python wrapper for Metron API"
 category = "main"
 optional = false
@@ -764,7 +764,7 @@ python-versions = ">=3.6"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "4cd24ddb8c60b1133bc65b2844946213e393cb686afc7189110280adda969a7f"
+content-hash = "b974e092fcda587bccdfbbb5e1b50d5c3cbdf7d0f0a83fea76927e983c1eb52c"
 
 [metadata.files]
 attrs = [
@@ -1053,8 +1053,8 @@ mccabe = [
     {file = "mccabe-0.6.1.tar.gz", hash = "sha256:dd8d182285a0fe56bace7f45b5e7d1a6ebcbf524e8f3bd87eb0f125271b8831f"},
 ]
 mokkari = [
-    {file = "mokkari-2.3.2-py3-none-any.whl", hash = "sha256:3182253f3b307cc5042d5ba910a4f34df05b28ef68a42641c3a821aff3e706da"},
-    {file = "mokkari-2.3.2.tar.gz", hash = "sha256:14012844ebbfe38419b7dffd4e84f9a26a45458163c71fc4972bc3d1b8679635"},
+    {file = "mokkari-2.3.3-py3-none-any.whl", hash = "sha256:4afe4e315af4ce11b1c5e67df12fd37a5922297bb3f4b5e0ea0d25aca99c7c9d"},
+    {file = "mokkari-2.3.3.tar.gz", hash = "sha256:95b5cd6722248bbdd3960afc17e354f45c0fe35333ecbe7bf014acb5b0952117"},
 ]
 multivolumefile = [
     {file = "multivolumefile-0.2.3-py3-none-any.whl", hash = "sha256:237f4353b60af1703087cf7725755a1f6fcaeeea48421e1896940cd1c920d678"},

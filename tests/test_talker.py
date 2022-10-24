@@ -76,6 +76,7 @@ def metron_response():
         ],
         "variants": [],
         "rating": {"id": 1, "name": "Mature"},
+        "resource_url": "https://metron.cloud/issue/american-vampire-1976-2020-2/",
         "modified": "2022-05-29T08:22:38.584485-04:00",
     }
     return IssueSchema().load(i)
@@ -114,6 +115,7 @@ def test_map_resp_to_metadata(talker: Talker, metron_response) -> None:
     assert md.credits[0].role[0].name == "Cover"
     assert md.reprints == create_reprint_list(metron_response.reprints)
     assert md.age_rating == "Mature 17+"
+    assert md.web_link == metron_response.resource_url
 
 
 def test_map_resp_to_metadata_with_no_story_name(talker: Talker, metron_response) -> None:
