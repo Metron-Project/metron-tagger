@@ -131,7 +131,7 @@ class Runner:
             comic_archive = Comic(comic)
             if comic_archive.has_metadata():
                 continue
-            questionary.print(f"no metadata in '{comic.name}'", style=Styles.SUCCESS)
+            questionary.print(f"{comic}", style=Styles.SUCCESS)
 
     @staticmethod
     def _delete_metadata(file_list: List[Path]) -> None:
