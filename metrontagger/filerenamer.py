@@ -163,10 +163,7 @@ class FileRenamer:
         ext = filename.suffix
         new_name += ext
 
-        # some tweaks to keep various filesystems happy
-        new_name = cleanup_string(new_name)
-
-        return new_name
+        return cleanup_string(new_name)
 
     def rename_file(self, comic: Path) -> Optional[Path]:
         new_name = self.determine_name(comic)
