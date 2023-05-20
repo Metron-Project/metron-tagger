@@ -44,7 +44,7 @@ class OnlineMatchResults:
 
 class Talker:
     def __init__(self, username: str, password: str) -> None:
-        self.api = mokkari.api(username, password)
+        self.api = mokkari.api(username, password, user_agent=f"Metron-Tagger/{__version__}")
         self.match_results = OnlineMatchResults()
 
     @staticmethod
