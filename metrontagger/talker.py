@@ -7,6 +7,7 @@ import questionary
 from darkseid.comic import Comic
 from darkseid.issue_string import IssueString
 from darkseid.metadata import Basic, Credit, Metadata, Role, Series
+from mokkari.exceptions import ApiError
 from mokkari.issue import CreditsSchema, IssueSchema, RolesSchema
 
 from metrontagger import __version__
@@ -127,9 +128,14 @@ class Talker:
                     self._write_issue_md(match_set.filename, issue_id)
 
     def _write_issue_md(self, filename: Path, issue_id: int) -> None:
+        # sourcery skip: extract-method, inline-immediately-returned-variable
         success = False
-
-        if resp := self.api.issue(issue_id):
+        resp = None
+        try:
+            resp = self.api.issue(issue_id)
+        except ApiError as e:
+            questionary.print(f"Failed to retrieve data: {repr(e)}", style=Styles.ERROR)
+        if resp is not None:
             ca = Comic(filename)
             meta_data = Metadata()
             meta_data.set_default_page_list(ca.get_number_of_pages())
