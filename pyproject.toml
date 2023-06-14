@@ -65,7 +65,7 @@ multi_line_output = 3
 line_length = 95
 default_section = "THIRDPARTY"
 known_first_party = []
-known_third_party = ["darkseid", "mokkari", "pytest", "questionary", "xdg"]
+known_third_party = ["darkseid", "lxml", "mokkari", "pytest", "questionary", "xdg"]
 
 [tool.poetry.urls]
 "Homepage" = "https://github.com/Metron-Project/metron-tagger"
