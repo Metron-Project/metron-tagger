@@ -11,14 +11,14 @@ from lxml import etree as et
 class SchemaVersion(Enum):
     v1 = auto()
     v2 = auto()
+    Unknown = auto()
 
 
 class ValidateComicInfo:
     """Class to verify comic archive ComicInfo XML."""
 
-    def __init__(self, ci_xml: bytes, schema_version: SchemaVersion) -> None:
+    def __init__(self, ci_xml: bytes) -> None:
         self.comic_info_xml = ci_xml
-        self.schema_version = schema_version
 
     @staticmethod
     def _get_xsd(schema_version: SchemaVersion) -> Path | None:
@@ -32,12 +32,22 @@ class ValidateComicInfo:
         else:
             return None
 
-    def validate(self) -> bool:
+    def _is_valid(self, schema_version: SchemaVersion) -> bool:
         """Method to validate CI XML."""
-        xsd_path = self._get_xsd(self.schema_version)
+        xsd_path = self._get_xsd(schema_version)
         if xsd_path is None:
             return False
         xmlschema_doc = et.parse(xsd_path)
         xmlschema = et.XMLSchema(xmlschema_doc)
         xml_doc = et.parse(BytesIO(self.comic_info_xml))
         return xmlschema.validate(xml_doc)
+
+    def validate(self):
+        return next(
+            (
+                schema_version
+                for schema_version in [SchemaVersion.v2, SchemaVersion.v1]
+                if self._is_valid(schema_version)
+            ),
+            SchemaVersion.Unknown,
+        )

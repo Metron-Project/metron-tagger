@@ -50,11 +50,8 @@ def get_configs(opts: Namespace) -> MetronTaggerSettings:
     if opts.delete_original:
         config.delete_original = opts.delete_original
 
-    if opts.v2:
-        config.comic_info_v2 = opts.v2
-
-    if opts.v1:
-        config.comic_info_v1 = opts.v1
+    if opts.validate:
+        config.validate = opts.validate
 
     return config
 

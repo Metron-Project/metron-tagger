@@ -74,14 +74,8 @@ def make_parser():
         default=False,
     )
     parser.add_argument(
-        "--v1",
-        help="Verify that comic archive has a valid ComicInfo Version 1 XMl.",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
-        "--v2",
-        help="Verify that comic archive has a valid ComicInfo Version 2 XMl.",
+        "--validate",
+        help="Verify that comic archive has a valid ComicInfo.xml.",
         action="store_true",
         default=False,
     )

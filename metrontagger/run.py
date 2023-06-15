@@ -104,7 +104,7 @@ class Runner:
                     style=Styles.WARNING,
                 )
 
-    def _validate_comic_info(self, file_list: List[Path], schema_enum: SchemaVersion) -> None:
+    def _validate_comic_info(self, file_list: List[Path]) -> None:
         questionary.print("\nValidating ComicInfo:\n---------------------", style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(comic)
@@ -115,11 +115,18 @@ class Runner:
                 )
                 continue
             xml = ca.archiver.read_file("ComicInfo.xml")
-            vci = ValidateComicInfo(xml, schema_enum)
-            if vci.validate():
-                questionary.print(f"'{ca.path.name}' is valid!", style=Styles.SUCCESS)
+            vci = ValidateComicInfo(xml)
+            result = vci.validate()
+            if result == SchemaVersion.v2:
+                questionary.print(
+                    f"'{ca.path.name}' is a valid ComicInfo Version 2", style=Styles.SUCCESS
+                )
+            elif result == SchemaVersion.v1:
+                questionary.print(
+                    f"'{ca.path.name}' is a valid ComicInfo Version 1", style=Styles.SUCCESS
+                )
             else:
-                questionary.print(f"'{ca.path.name}' is not valid!", style=Styles.ERROR)
+                questionary.print(f"'{ca.path.name}' is not valid", style=Styles.ERROR)
 
     def _sort_comic_list(self, file_list: List[Path]) -> None:
         if not self.config.sort_dir:
@@ -237,8 +244,5 @@ class Runner:
         if self.config.export_to_cbz:
             self._export_to_zip(file_list)
 
-        if self.config.comic_info_v1:
-            self._validate_comic_info(file_list, SchemaVersion.v1)
-
-        if self.config.comic_info_v2:
-            self._validate_comic_info(file_list, SchemaVersion.v2)
+        if self.config.validate:
+            self._validate_comic_info(file_list)
