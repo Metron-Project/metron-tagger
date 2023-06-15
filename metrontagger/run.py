@@ -115,8 +115,7 @@ class Runner:
                 )
                 continue
             xml = ca.archiver.read_file("ComicInfo.xml")
-            vci = ValidateComicInfo(xml)
-            result = vci.validate()
+            result = ValidateComicInfo(xml).validate()
             if result == SchemaVersion.v2:
                 questionary.print(
                     f"'{ca.path.name}' is a valid ComicInfo Version 2", style=Styles.SUCCESS
