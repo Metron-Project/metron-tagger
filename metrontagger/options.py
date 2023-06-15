@@ -74,6 +74,12 @@ def make_parser():
         default=False,
     )
     parser.add_argument(
+        "--validate",
+        help="Verify that comic archive has a valid ComicInfo.xml.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--delete-original",
         help="Delete the original archive after successful export to another format.",
         action="store_true",

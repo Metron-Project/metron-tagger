@@ -50,6 +50,9 @@ def get_configs(opts: Namespace) -> MetronTaggerSettings:
     if opts.delete_original:
         config.delete_original = opts.delete_original
 
+    if opts.validate:
+        config.validate = opts.validate
+
     return config
 
 

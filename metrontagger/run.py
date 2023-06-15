@@ -10,6 +10,7 @@ from metrontagger.filesorter import FileSorter
 from metrontagger.settings import MetronTaggerSettings
 from metrontagger.styles import Styles
 from metrontagger.talker import Talker
+from metrontagger.validate_ci import SchemaVersion, ValidateComicInfo
 
 
 class Runner:
@@ -103,6 +104,29 @@ class Runner:
                     style=Styles.WARNING,
                 )
 
+    def _validate_comic_info(self, file_list: List[Path]) -> None:
+        questionary.print("\nValidating ComicInfo:\n---------------------", style=Styles.TITLE)
+        for comic in file_list:
+            ca = Comic(comic)
+            if not ca.has_metadata():
+                questionary.print(
+                    f"'{ca.path.name}' doesn't have a ComicInfo.xml file.",
+                    style=Styles.WARNING,
+                )
+                continue
+            xml = ca.archiver.read_file("ComicInfo.xml")
+            result = ValidateComicInfo(xml).validate()
+            if result == SchemaVersion.v2:
+                questionary.print(
+                    f"'{ca.path.name}' is a valid ComicInfo Version 2", style=Styles.SUCCESS
+                )
+            elif result == SchemaVersion.v1:
+                questionary.print(
+                    f"'{ca.path.name}' is a valid ComicInfo Version 1", style=Styles.SUCCESS
+                )
+            else:
+                questionary.print(f"'{ca.path.name}' is not valid", style=Styles.ERROR)
+
     def _sort_comic_list(self, file_list: List[Path]) -> None:
         if not self.config.sort_dir:
             questionary.print(
@@ -176,7 +200,6 @@ class Runner:
         return False
 
     def run(self) -> None:
-
         if not (file_list := get_recursive_filelist(self.config.path)):
             print("No files to process. Exiting.")
             exit(0)
@@ -219,3 +242,6 @@ class Runner:
 
         if self.config.export_to_cbz:
             self._export_to_zip(file_list)
+
+        if self.config.validate:
+            self._validate_comic_info(file_list)
