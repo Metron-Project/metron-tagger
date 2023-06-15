@@ -11,9 +11,6 @@ Metron-Tagger
 .. image:: https://img.shields.io/github/license/bpepple/metron-tagger
     :target: https://opensource.org/licenses/GPL-3.0
 
-.. image:: https://codecov.io/gh/Metron-Project/metron-tagger/branch/master/graph/badge.svg?token=d8TyzWM2Uz 
-    :target: https://codecov.io/gh/Metron-Project/metron-tagger
-
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
 
