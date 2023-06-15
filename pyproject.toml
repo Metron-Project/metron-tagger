@@ -2,9 +2,9 @@
 name = "metron-tagger"
 version = "1.5.0"
 description = "A program to write metadata from metron.cloud to a comic archive"
-authors = ["Brian Pepple <bdpepple@gmail.com>"]
+authors = ["Brian Pepple <bpepple@metron.cloud>"]
 license = "GPL-3.0-or-later"
-maintainers = ["Brian Pepple <bdpepple@gmail.com>"]
+maintainers = ["Brian Pepple <bpepple@metron.cloud>"]
 readme = "README.rst"
 packages = [
 	{ include = "metrontagger" },
