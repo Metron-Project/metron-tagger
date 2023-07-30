@@ -20,11 +20,11 @@ def parser() -> ArgumentParser:
 @pytest.fixture(scope="session")
 def talker() -> Talker:
     username = "Foo"
-    password = "Bar"
+    password = "Bar"  # noqa: S105
     return Talker(username, password)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def fake_tpb_metadata() -> Metadata:
     meta_data = Metadata()
     meta_data.publisher = Basic("DC Comics")
@@ -37,7 +37,7 @@ def fake_tpb_metadata() -> Metadata:
     return meta_data
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def fake_metadata() -> Metadata:
     meta_data = Metadata()
     meta_data.publisher = Basic("DC Comics")
@@ -50,7 +50,7 @@ def fake_metadata() -> Metadata:
     return meta_data
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture()
 def fake_comic(tmp_path_factory: Path) -> zipfile.ZipFile:
     test_dir = tmp_path_factory.mktemp("data")
     img_1 = test_dir / "image-1.jpg"

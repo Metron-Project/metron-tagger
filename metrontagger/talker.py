@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import mokkari
 import questionary
@@ -19,7 +19,7 @@ from metrontagger.utils import create_query_params
 class MultipleMatch:
     """Class to hold information on searches with multiple matches"""
 
-    def __init__(self, filename: Path, match_list: List[IssueSchema]) -> None:
+    def __init__(self: "MultipleMatch", filename: Path, match_list: list[IssueSchema]) -> None:
         self.filename = filename
         self.matches = match_list
 
@@ -27,28 +27,28 @@ class MultipleMatch:
 class OnlineMatchResults:
     """Class to track online match results"""
 
-    def __init__(self) -> None:
-        self.good_matches: List[Path] = []
-        self.no_matches: List[Path] = []
-        self.multiple_matches: List[MultipleMatch] = []
+    def __init__(self: "OnlineMatchResults") -> None:
+        self.good_matches: list[Path] = []
+        self.no_matches: list[Path] = []
+        self.multiple_matches: list[MultipleMatch] = []
 
-    def add_good_match(self, file_name: Path) -> None:
+    def add_good_match(self: "OnlineMatchResults", file_name: Path) -> None:
         self.good_matches.append(file_name)
 
-    def add_no_match(self, file_name: Path) -> None:
+    def add_no_match(self: "OnlineMatchResults", file_name: Path) -> None:
         self.no_matches.append(file_name)
 
-    def add_multiple_match(self, multi_match: MultipleMatch) -> None:
+    def add_multiple_match(self: "OnlineMatchResults", multi_match: MultipleMatch) -> None:
         self.multiple_matches.append(multi_match)
 
 
 class Talker:
-    def __init__(self, username: str, password: str) -> None:
+    def __init__(self: "Talker", username: str, password: str) -> None:
         self.api = mokkari.api(username, password, user_agent=f"Metron-Tagger/{__version__}")
         self.match_results = OnlineMatchResults()
 
     @staticmethod
-    def _create_choice_list(match_set: List[IssueSchema]) -> List[questionary.Choice]:
+    def _create_choice_list(match_set: list[IssueSchema]) -> list[questionary.Choice]:
         issue_lst = []
         for i in match_set:
             c = questionary.Choice(title=f"{i.issue_name} ({i.cover_date})", value=i.id)
@@ -58,7 +58,9 @@ class Talker:
         return issue_lst
 
     def _select_choice_from_matches(
-        self, fn: Path, match_set: List[IssueSchema]
+        self: "Talker",
+        fn: Path,
+        match_set: list[IssueSchema],
     ) -> Optional[int]:
         """
         Function to ask user to choice which issue metadata to write,
@@ -72,12 +74,17 @@ class Talker:
 
         return questionary.select("Select an issue to match", choices=choices).ask()
 
-    def _process_file(self, fn: Path, interactive: bool) -> Tuple[Optional[int], bool]:
+    def _process_file(
+        self: "Talker",
+        fn: Path,
+        interactive: bool,
+    ) -> tuple[Optional[int], bool]:
         ca = Comic(fn)
 
         if not ca.is_writable() and not ca.seems_to_be_a_comic_archive():
             questionary.print(
-                f"{fn.name} appears not to be a comic or writable.", style=Styles.ERROR
+                f"{fn.name} appears not to be a comic or writable.",
+                style=Styles.ERROR,
             )
             return None, False
 
@@ -107,7 +114,7 @@ class Talker:
 
         return issue_id, multiple_match
 
-    def _post_process_matches(self) -> None:
+    def _post_process_matches(self: "Talker") -> None:
         # Print file matching results.
         if self.match_results.good_matches:
             questionary.print("\nSuccessful matches:\n------------------", style=Styles.TITLE)
@@ -123,18 +130,19 @@ class Talker:
         if self.match_results.multiple_matches:
             for match_set in self.match_results.multiple_matches:
                 if issue_id := self._select_choice_from_matches(
-                    match_set.filename, match_set.matches
+                    match_set.filename,
+                    match_set.matches,
                 ):
                     self._write_issue_md(match_set.filename, issue_id)
 
-    def _write_issue_md(self, filename: Path, issue_id: int) -> None:
+    def _write_issue_md(self: "Talker", filename: Path, issue_id: int) -> None:
         # sourcery skip: extract-method, inline-immediately-returned-variable
         success = False
         resp = None
         try:
             resp = self.api.issue(issue_id)
         except ApiError as e:
-            questionary.print(f"Failed to retrieve data: {repr(e)}", style=Styles.ERROR)
+            questionary.print(f"Failed to retrieve data: {e!r}", style=Styles.ERROR)
         if resp is not None:
             ca = Comic(filename)
             meta_data = Metadata()
@@ -151,7 +159,11 @@ class Talker:
                 style=Styles.ERROR,
             )
 
-    def identify_comics(self, file_list: List[Path], config: MetronTaggerSettings):
+    def identify_comics(
+        self: "Talker",
+        file_list: list[Path],
+        config: MetronTaggerSettings,
+    ) -> None:
         questionary.print(
             "\nStarting online search and tagging:\n----------------------------------",
             style=Styles.TITLE,
@@ -162,7 +174,8 @@ class Talker:
                 comic_archive = Comic(fn)
                 if comic_archive.has_metadata():
                     questionary.print(
-                        f"{fn.name} has metadata. Skipping...", style=Styles.WARNING
+                        f"{fn.name} has metadata. Skipping...",
+                        style=Styles.WARNING,
                     )
                     continue
 
@@ -175,23 +188,27 @@ class Talker:
         # Print match results
         self._post_process_matches()
 
-    def retrieve_single_issue(self, fn: Path, id: int) -> None:
-        self._write_issue_md(fn, id)
+    def retrieve_single_issue(self: "Talker", fn: Path, id_: int) -> None:
+        self._write_issue_md(fn, id_)
 
     @staticmethod
-    def _map_resp_to_metadata(resp: IssueSchema) -> Metadata:  # NOQA C901
+    def _map_resp_to_metadata(resp: IssueSchema) -> Metadata:  # C901
         # Helper functions
-        def create_resource_list(resource) -> List[Basic]:
+        def create_resource_list(resource: any) -> list[Basic]:
             return [Basic(r.name, r.id) for r in resource]
 
         def create_note(issue_id: int) -> str:
-            now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            return f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}. [issue_id:{issue_id}]"
+            now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # noqa: DTZ005
+            return (
+                f"Tagged with MetronTagger-{__version__} using info from Metron on "
+                f"{now_date}. [issue_id:{issue_id}]"
+            )
 
         def add_credits_to_metadata(
-            md: Metadata, credits_resp: List[CreditsSchema]
+            md: Metadata,
+            credits_resp: list[CreditsSchema],
         ) -> Metadata:
-            def create_role_list(roles: List[RolesSchema]) -> List[Role]:
+            def create_role_list(roles: list[RolesSchema]) -> list[Role]:
                 return [Role(r.name, r.id) for r in roles]
 
             for c in credits_resp:
@@ -205,12 +222,9 @@ class Talker:
             age_rating = rating.lower()
             if age_rating in {"everyone", "cca"}:
                 return "Everyone"
-            elif age_rating in {"teen", "teen plus"}:
+            if age_rating in {"teen", "teen plus"}:
                 return "Teen"
-            elif age_rating == "mature":
-                return "Mature 17+"
-            else:
-                return "Unknown"
+            return "Mature 17+" if age_rating == "mature" else "Unknown"
 
         md = Metadata()
         md.info_source = Basic("Metron", resp.id)

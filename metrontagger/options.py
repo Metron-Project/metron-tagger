@@ -4,7 +4,7 @@ import argparse
 from metrontagger import __version__
 
 
-def make_parser():
+def make_parser() -> argparse.ArgumentParser:
     """Function to create the argument parser"""
     parser = argparse.ArgumentParser(
         description="Read in a file or set of files, and return the result.",

@@ -12,7 +12,9 @@ from metrontagger.filesorter import FileSorter
 # Skip test for windows, until some with a windows box can help debug this.
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
 def test_sort_comic_with_missing_metadata(
-    fake_comic: ZipFile, fake_metadata: Metadata, tmp_path: Path
+    fake_comic: ZipFile,
+    fake_metadata: Metadata,
+    tmp_path: Path,
 ) -> None:
     test_dir = tmp_path / "sort10"
 
