@@ -1,5 +1,5 @@
 import sys
-from typing import List
+from typing import Union
 from zipfile import ZipFile
 
 import pytest
@@ -12,7 +12,7 @@ from metrontagger.talker import Talker
 
 
 @pytest.fixture()
-def metron_response():
+def metron_response() -> dict[str, any]:
     i = {
         "id": 31047,
         "publisher": {"id": 1, "name": "Marvel"},
@@ -34,7 +34,7 @@ def metron_response():
         "isbn": "",
         "upc": "",
         "page": 36,
-        "desc": "Spider-Man goes on a wild goose chase to find out who is behind the Prowler impersonation.",
+        "desc": "Spider-Man goes on a wild goose chase to find out who is behind the Prowler impersonation.",  # noqa: E501
         "image": "https://static.metron.cloud/media/issue/2021/05/22/the-spectacular-spider-man-47.jpg",
         "arcs": [],
         "credits": [
@@ -82,23 +82,23 @@ def metron_response():
     return IssueSchema().load(i)
 
 
-def create_reprint_list(resource) -> List[Basic]:
+def create_reprint_list(resource: dict[str, Union[int, str]]) -> list[Basic]:
     return [Basic(r.issue, r.id) for r in resource]
 
 
-def create_resource_list(resource) -> List[Basic]:
+def create_resource_list(resource: dict[str, Union[int, str]]) -> list[Basic]:
     return [Basic(r.name, r.id) for r in resource]
 
 
-def create_read_md_resource_list(resource) -> List[Basic]:
+def create_read_md_resource_list(resource: dict[str, Union[int, str]]) -> list[Basic]:
     return [Basic(r.name) for r in resource]
 
 
-def create_read_md_story(resource) -> List[Basic]:
+def create_read_md_story(resource: dict[str, Union[int, str]]) -> list[Basic]:
     return [Basic(story) for story in resource]
 
 
-def test_map_resp_to_metadata(talker: Talker, metron_response) -> None:
+def test_map_resp_to_metadata(talker: Talker, metron_response: dict[str, any]) -> None:
     md = talker._map_resp_to_metadata(metron_response)
     assert md is not None
     assert md.stories == create_read_md_story(metron_response.story_titles)
@@ -118,7 +118,10 @@ def test_map_resp_to_metadata(talker: Talker, metron_response) -> None:
     assert md.web_link == metron_response.resource_url
 
 
-def test_map_resp_to_metadata_with_no_story_name(talker: Talker, metron_response) -> None:
+def test_map_resp_to_metadata_with_no_story_name(
+    talker: Talker,
+    metron_response: dict[str, any],
+) -> None:
     test_data = metron_response
     test_data.story_titles = None
     meta_data = talker._map_resp_to_metadata(test_data)
@@ -152,7 +155,10 @@ def issue_list_response() -> IssuesList:
 
 
 def test_process_file(
-    talker: Talker, fake_comic: ZipFile, issue_list_response: IssuesList, mocker
+    talker: Talker,
+    fake_comic: ZipFile,
+    issue_list_response: IssuesList,
+    mocker: any,
 ) -> None:
     # Remove any existing metadata from comic fixture
     ca = Comic(fake_comic)
@@ -175,7 +181,12 @@ def test_process_file(
 
 
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
-def test_write_issue_md(talker: Talker, fake_comic: ZipFile, metron_response, mocker) -> None:
+def test_write_issue_md(
+    talker: Talker,
+    fake_comic: ZipFile,
+    metron_response: dict[str, any],
+    mocker: any,
+) -> None:
     # Remove any existing metadata from comic fixture
     ca = Comic(fake_comic)
     if ca.has_metadata():
@@ -205,7 +216,10 @@ def test_write_issue_md(talker: Talker, fake_comic: ZipFile, metron_response, mo
 
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
 def test_retrieve_single_issue(
-    talker: Talker, fake_comic: ZipFile, metron_response, mocker
+    talker: Talker,
+    fake_comic: ZipFile,
+    metron_response: dict[str, any],
+    mocker: any,
 ) -> None:
     # Remove any existing metadata from comic fixture
     ca = Comic(fake_comic)

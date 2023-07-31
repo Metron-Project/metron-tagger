@@ -67,6 +67,6 @@ test_strings = [
 ]
 
 
-@pytest.mark.parametrize("string,reason,expected", test_strings)
-def test_string_cleanup(string: str, reason: str, expected: str) -> None:
+@pytest.mark.parametrize(("string", "reason", "expected"), test_strings)
+def test_string_cleanup(string: str, reason: str, expected: str) -> None:  # noqa: ARG001
     assert cleanup_string(string) == expected

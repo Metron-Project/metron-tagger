@@ -18,7 +18,7 @@ class SchemaVersion(Enum):
 class ValidateComicInfo:
     """Class to verify comic archive ComicInfo XML."""
 
-    def __init__(self, ci_xml: bytes) -> None:
+    def __init__(self: "ValidateComicInfo", ci_xml: bytes) -> None:
         self.comic_info_xml = ci_xml
 
     @staticmethod
@@ -33,17 +33,17 @@ class ValidateComicInfo:
         else:
             return None
 
-    def _is_valid(self, schema_version: SchemaVersion) -> bool:
+    def _is_valid(self: "ValidateComicInfo", schema_version: SchemaVersion) -> bool:
         """Method to validate CI XML."""
         xsd_path = self._get_xsd(schema_version)
         if xsd_path is None:
             return False
-        xmlschema_doc = et.parse(xsd_path)
+        xmlschema_doc = et.parse(xsd_path)  # noqa: S320
         xmlschema = et.XMLSchema(xmlschema_doc)
-        xml_doc = et.parse(BytesIO(self.comic_info_xml))
+        xml_doc = et.parse(BytesIO(self.comic_info_xml))  # noqa: S320
         return xmlschema.validate(xml_doc)
 
-    def validate(self):
+    def validate(self: "ValidateComicInfo") -> SchemaVersion:
         return next(
             (
                 schema_version

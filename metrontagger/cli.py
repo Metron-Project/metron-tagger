@@ -56,7 +56,7 @@ def get_configs(opts: Namespace) -> MetronTaggerSettings:
     return config
 
 
-def main():
+def main() -> None:
     args = get_args()
     config = get_configs(args)
 

@@ -3,17 +3,13 @@ repos:
     rev: v2.2.0
     hooks:
       - id: seed-isort-config
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.0.280
     hooks:
-      - id: isort
+      - id: ruff
   - repo: https://github.com/ambv/black
-    rev: 23.3.0
+    rev: 23.7.0
     hooks:
       - id: black
-        language_version: python3.8
-  - repo: https://github.com/PyCQA/flake8
-    rev: 6.0.0
-    hooks:
-      - id: flake8
-        additional_dependencies: [flake8-builtins, flake8-blind-except]
+        language_version: python3.9

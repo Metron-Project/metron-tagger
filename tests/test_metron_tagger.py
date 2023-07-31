@@ -19,13 +19,13 @@ from metrontagger.talker import Talker
 def test_create_metron_talker(tmp_path: Path) -> None:
     s = MetronTaggerSettings(tmp_path)
     s.metron_user = "test"
-    s.metron_pass = "test_password"
+    s.metron_pass = "test_password"  # noqa: S105
     talker = Talker(s.metron_user, s.metron_pass)
     assert isinstance(talker, Talker)
 
 
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
-def test_export_to_cb7(fake_comic: ZipFile, tmpdir) -> None:
+def test_export_to_cb7(fake_comic: ZipFile, tmpdir: Path) -> None:
     # This function will create a new archive with a cb7 extension.
     r = Runner(MetronTaggerSettings(tmpdir))
     r._export_to_cb7([fake_comic])

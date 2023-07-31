@@ -24,7 +24,7 @@ class MetronTaggerSettings:
         windows_path = PurePath(environ["APPDATA"]).joinpath("MetronTagger")
         return Path(windows_path)
 
-    def _migrate_old_config(self) -> None:
+    def _migrate_old_config(self: "MetronTaggerSettings") -> None:
         old_config = Path.home() / ".MetronTagger" / "settings.ini"
         if old_config.exists():
             # Let's move any existing config to the new location
@@ -40,7 +40,7 @@ class MetronTaggerSettings:
                 )
                 old_config.parent.rmdir()
 
-    def __init__(self, config_dir: Optional[str] = None) -> None:
+    def __init__(self: "MetronTaggerSettings", config_dir: Optional[str] = None) -> None:
         # Metron creditials
         self.metron_user: str = ""
         self.metron_pass: str = ""
@@ -81,7 +81,7 @@ class MetronTaggerSettings:
         else:
             self.load()
 
-    def load(self) -> None:
+    def load(self: "MetronTaggerSettings") -> None:
         """Method to retrieve a users settings"""
         self.config.read(self.settings_file)
 
@@ -99,15 +99,17 @@ class MetronTaggerSettings:
 
         if self.config.has_option("rename", "rename_issue_number_padding"):
             self.rename_issue_number_padding = self.config.getint(
-                "rename", "rename_issue_number_padding"
+                "rename",
+                "rename_issue_number_padding",
             )
 
         if self.config.has_option("rename", "rename_use_smart_string_cleanup"):
             self.rename_use_smart_string_cleanup = self.config.getboolean(
-                "rename", "rename_use_smart_string_cleanup"
+                "rename",
+                "rename_use_smart_string_cleanup",
             )
 
-    def save(self) -> None:
+    def save(self: "MetronTaggerSettings") -> None:
         """Method to save a users settings"""
         if not self.config.has_section("metron"):
             self.config.add_section("metron")
@@ -121,7 +123,9 @@ class MetronTaggerSettings:
 
         self.config.set("rename", "rename_template", self.rename_template)
         self.config.set(
-            "rename", "rename_issue_number_padding", str(self.rename_issue_number_padding)
+            "rename",
+            "rename_issue_number_padding",
+            str(self.rename_issue_number_padding),
         )
         self.config.set(
             "rename",

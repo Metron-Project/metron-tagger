@@ -2,7 +2,7 @@
 import pathlib
 from pathlib import Path
 from shutil import Error, move
-from typing import Optional, Tuple
+from typing import Optional
 
 import questionary
 from darkseid.comic import Comic
@@ -15,13 +15,13 @@ from metrontagger.utils import cleanup_string
 class FileSorter:
     """Class to move comic files based on it's metadata tags"""
 
-    def __init__(self, directory: str) -> None:
+    def __init__(self: "FileSorter", directory: str) -> None:
         self.sort_directory = directory
 
     @staticmethod
     def _cleanup_metadata(
         meta_data: Metadata,
-    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    ) -> tuple[Optional[str], Optional[str], Optional[str]]:
         """Clean the metadata string."""
         publisher = cleanup_string(meta_data.publisher.name)
         series = cleanup_string(meta_data.series.name)
@@ -38,20 +38,24 @@ class FileSorter:
             return False
 
     @staticmethod
-    def _overwrite_existing(new_path: Path, old_comic: Path):
+    def _overwrite_existing(new_path: Path, old_comic: Path) -> None:
         existing_comic = new_path / old_comic.name
         if existing_comic.exists():
-            MB_CONV = 1048576
-            existing_size = existing_comic.stat().st_size / MB_CONV
-            new_size = old_comic.stat().st_size / MB_CONV
-            msg = f"{existing_comic.name} exists at {existing_comic.parent}.\nOld file: {existing_size:.2f} MB -> New file: {new_size:.2f} MB"
+            mb_conversion = 1048576
+            existing_size = existing_comic.stat().st_size / mb_conversion
+            new_size = old_comic.stat().st_size / mb_conversion
+            msg = (
+                f"{existing_comic.name} exists at {existing_comic.parent}.\nOld file: "
+                f"{existing_size:.2f} MB -> New file: {new_size:.2f} MB"
+            )
             questionary.print(msg, Styles.WARNING)
             if questionary.confirm(
-                "Would you like to overwrite existing file?", default=False
+                "Would you like to overwrite existing file?",
+                default=False,
             ).ask():
                 existing_comic.unlink()
 
-    def sort_comics(self, comic: Path) -> bool:
+    def sort_comics(self: "FileSorter", comic: Path) -> bool:
         """Method to move the comic file based on it's metadata tag"""
         comic_archive = Comic(comic)
         if comic_archive.has_metadata():
@@ -72,7 +76,7 @@ class FileSorter:
         else:
             questionary.print(
                 "Missing metadata from comic and will be unable to sort."
-                + f"Publisher: {publisher}\nSeries: {series}\nVolume: {volume}",
+                f"Publisher: {publisher}\nSeries: {series}\nVolume: {volume}",
                 style=Styles.WARNING,
             )
             return False

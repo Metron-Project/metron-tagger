@@ -1,7 +1,9 @@
+from pathlib import Path
+
 from metrontagger.settings import MetronTaggerSettings
 
 
-def test_settings(tmpdir):
+def test_settings(tmpdir: Path) -> None:
     user = "test"
     dummy = "dummy_value"
     padding = 4

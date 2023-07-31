@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import List
 
 import questionary
 from darkseid.comic import Comic
@@ -16,23 +15,24 @@ from metrontagger.validate_ci import SchemaVersion, ValidateComicInfo
 class Runner:
     """Main runner"""
 
-    def __init__(self, config: MetronTaggerSettings) -> None:
+    def __init__(self: "Runner", config: MetronTaggerSettings) -> None:
         self.config = config
 
-    def rename_comics(self, file_list: List[Path]) -> List[Path]:
+    def rename_comics(self: "Runner", file_list: list[Path]) -> list[Path]:
         questionary.print(
             "\nStarting comic archive renaming:\n-------------------------------",
             style=Styles.TITLE,
         )
 
         # Lists to track filename changes
-        new_file_names: List[Path] = []
-        original_files_changed: List[Path] = []
+        new_file_names: list[Path] = []
+        original_files_changed: list[Path] = []
         for comic in file_list:
             comic_archive = Comic(comic)
             if not comic_archive.has_metadata():
                 questionary.print(
-                    f"skipping '{comic.name}'. no metadata available.", style=Styles.WARNING
+                    f"skipping '{comic.name}'. no metadata available.",
+                    style=Styles.WARNING,
                 )
                 continue
 
@@ -51,7 +51,8 @@ class Runner:
             original_files_changed.append(comic)
 
             questionary.print(
-                f"renamed '{comic.name}' -> '{unique_name.name}'", style=Styles.SUCCESS
+                f"renamed '{comic.name}' -> '{unique_name.name}'",
+                style=Styles.SUCCESS,
             )
 
         # Update file_list for renamed files
@@ -62,7 +63,7 @@ class Runner:
         file_list.extend(iter(new_file_names))
         return file_list
 
-    def _export_to_cb7(self, file_list: List[Path]) -> None:
+    def _export_to_cb7(self: "Runner", file_list: list[Path]) -> None:
         questionary.print("\nExporting to cb7:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(comic)
@@ -70,7 +71,8 @@ class Runner:
                 new_fn = Path(comic).with_suffix(".cb7")
                 if ca.export_as_cb7(new_fn):
                     questionary.print(
-                        f"Exported '{comic.name}' to a cb7 archive.", style=Styles.SUCCESS
+                        f"Exported '{comic.name}' to a cb7 archive.",
+                        style=Styles.SUCCESS,
                     )
                     if self.config.delete_original:
                         questionary.print(f"Removing '{comic.name}'.", style=Styles.SUCCESS)
@@ -83,7 +85,7 @@ class Runner:
                     style=Styles.WARNING,
                 )
 
-    def _export_to_zip(self, file_list: List[Path]) -> None:
+    def _export_to_zip(self: "Runner", file_list: list[Path]) -> None:
         questionary.print("\nExporting to cbz:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(comic)
@@ -91,7 +93,8 @@ class Runner:
                 new_fn = Path(comic).with_suffix(".cbz")
                 if ca.export_as_zip(new_fn):
                     questionary.print(
-                        f"Exported '{comic.name}' to a cbz archive.", style=Styles.SUCCESS
+                        f"Exported '{comic.name}' to a cbz archive.",
+                        style=Styles.SUCCESS,
                     )
                     if self.config.delete_original:
                         questionary.print(f"Removing '{comic.name}'.", style=Styles.SUCCESS)
@@ -104,7 +107,7 @@ class Runner:
                     style=Styles.WARNING,
                 )
 
-    def _validate_comic_info(self, file_list: List[Path]) -> None:
+    def _validate_comic_info(self: "Runner", file_list: list[Path]) -> None:
         questionary.print("\nValidating ComicInfo:\n---------------------", style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(comic)
@@ -118,16 +121,18 @@ class Runner:
             result = ValidateComicInfo(xml).validate()
             if result == SchemaVersion.v2:
                 questionary.print(
-                    f"'{ca.path.name}' is a valid ComicInfo Version 2", style=Styles.SUCCESS
+                    f"'{ca.path.name}' is a valid ComicInfo Version 2",
+                    style=Styles.SUCCESS,
                 )
             elif result == SchemaVersion.v1:
                 questionary.print(
-                    f"'{ca.path.name}' is a valid ComicInfo Version 1", style=Styles.SUCCESS
+                    f"'{ca.path.name}' is a valid ComicInfo Version 1",
+                    style=Styles.SUCCESS,
                 )
             else:
                 questionary.print(f"'{ca.path.name}' is not valid", style=Styles.ERROR)
 
-    def _sort_comic_list(self, file_list: List[Path]) -> None:
+    def _sort_comic_list(self: "Runner", file_list: list[Path]) -> None:
         if not self.config.sort_dir:
             questionary.print(
                 "\nUnable to sort files. No destination directory was provided.",
@@ -146,7 +151,7 @@ class Runner:
                 questionary.print(f"unable to move {comic.name}.", style=Styles.ERROR)
 
     @staticmethod
-    def _comics_with_no_metadata(file_list: List[Path]) -> None:
+    def _comics_with_no_metadata(file_list: list[Path]) -> None:
         questionary.print(
             "\nShowing files without metadata:\n-------------------------------",
             style=Styles.TITLE,
@@ -158,22 +163,23 @@ class Runner:
             questionary.print(f"{comic}", style=Styles.SUCCESS)
 
     @staticmethod
-    def _delete_metadata(file_list: List[Path]) -> None:
+    def _delete_metadata(file_list: list[Path]) -> None:
         questionary.print("\nRemoving metadata:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
             comic_archive = Comic(comic)
             if comic_archive.has_metadata():
                 comic_archive.remove_metadata()
                 questionary.print(
-                    f"removed metadata from '{comic.name}'", style=Styles.SUCCESS
+                    f"removed metadata from '{comic.name}'",
+                    style=Styles.SUCCESS,
                 )
             else:
                 questionary.print(f"no metadata in '{comic.name}'", style=Styles.WARNING)
 
-    def _has_credentials(self) -> bool:
+    def _has_credentials(self: "Runner") -> bool:
         return bool(self.config.metron_user and self.config.metron_pass)
 
-    def _get_credentials(self) -> bool:
+    def _get_credentials(self: "Runner") -> bool:
         answers = questionary.form(
             user=questionary.text("What is your Metron username?"),
             passwd=questionary.text("What is your Metron password?"),
@@ -187,7 +193,7 @@ class Runner:
             return True
         return False
 
-    def _get_sort_dir(self) -> bool:
+    def _get_sort_dir(self: "Runner") -> bool:
         answers = questionary.form(
             dir=questionary.path("What directory should comics be sorted to?"),
             save=questionary.confirm("Would you like to save this location for future use?"),
@@ -199,9 +205,9 @@ class Runner:
             return True
         return False
 
-    def run(self) -> None:
+    def run(self: "Runner") -> None:
         if not (file_list := get_recursive_filelist(self.config.path)):
-            print("No files to process. Exiting.")
+            questionary.print("No files to process. Exiting.", style=Styles.WARNING)
             exit(0)
 
         if self.config.missing:
@@ -212,7 +218,7 @@ class Runner:
 
         if self.config.id or self.config.online:
             if not self._has_credentials() and not self._get_credentials():
-                questionary.print("No credentials provided. Exiting...")
+                questionary.print("No credentials provided. Exiting...", style=Styles.ERROR)
                 exit(0)
 
             t = Talker(self.config.metron_user, self.config.metron_pass)
