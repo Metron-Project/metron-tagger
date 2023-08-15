@@ -41,9 +41,6 @@ def get_configs(opts: Namespace) -> MetronTaggerSettings:
     if opts.ignore_existing:
         config.ignore_existing = opts.ignore_existing
 
-    if opts.export_to_cb7:
-        config.export_to_cb7 = opts.export_to_cb7
-
     if opts.export_to_cbz:
         config.export_to_cbz = opts.export_to_cbz
 

@@ -1,14 +1,8 @@
 """Main metron_tagger tests"""
 # import io
 # import sys
-import sys
 from pathlib import Path
-from zipfile import ZipFile
 
-import pytest
-from darkseid.comic import Comic
-
-from metrontagger.run import Runner
 from metrontagger.settings import MetronTaggerSettings
 from metrontagger.talker import Talker
 
@@ -22,17 +16,6 @@ def test_create_metron_talker(tmp_path: Path) -> None:
     s.metron_pass = "test_password"  # noqa: S105
     talker = Talker(s.metron_user, s.metron_pass)
     assert isinstance(talker, Talker)
-
-
-@pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
-def test_export_to_cb7(fake_comic: ZipFile, tmpdir: Path) -> None:
-    # This function will create a new archive with a cb7 extension.
-    r = Runner(MetronTaggerSettings(tmpdir))
-    r._export_to_cb7([fake_comic])
-    new_name = Path(fake_comic).with_suffix(".cb7")
-    ca = Comic(new_name)
-    assert ca.is_sevenzip() is True
-    assert ca.get_number_of_pages() == 3
 
 
 # def test_list_comics_with_missing_metadata(fake_comic: ZipFile) -> None:
