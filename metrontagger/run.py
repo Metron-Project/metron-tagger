@@ -63,28 +63,6 @@ class Runner:
         file_list.extend(iter(new_file_names))
         return file_list
 
-    def _export_to_cb7(self: "Runner", file_list: list[Path]) -> None:
-        questionary.print("\nExporting to cb7:\n-----------------", style=Styles.TITLE)
-        for comic in file_list:
-            ca = Comic(comic)
-            if ca.is_zip() or ca.is_rar():
-                new_fn = Path(comic).with_suffix(".cb7")
-                if ca.export_as_cb7(new_fn):
-                    questionary.print(
-                        f"Exported '{comic.name}' to a cb7 archive.",
-                        style=Styles.SUCCESS,
-                    )
-                    if self.config.delete_original:
-                        questionary.print(f"Removing '{comic.name}'.", style=Styles.SUCCESS)
-                        comic.unlink()
-                else:
-                    questionary.print(f"Failed to export '{comic.name}'", style=Styles.ERROR)
-            else:
-                questionary.print(
-                    f"'{comic.name}' is not a cbr or cbz archive. skipping...",
-                    style=Styles.WARNING,
-                )
-
     def _export_to_zip(self: "Runner", file_list: list[Path]) -> None:
         questionary.print("\nExporting to cbz:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
@@ -103,7 +81,7 @@ class Runner:
                     questionary.print(f"Failed to export '{comic.name}'", style=Styles.ERROR)
             else:
                 questionary.print(
-                    f"'{comic.name}' is not a cbr or cb7 archive. skipping...",
+                    f"'{comic.name}' is not a cbr archive. skipping...",
                     style=Styles.WARNING,
                 )
 
@@ -242,9 +220,6 @@ class Runner:
                 questionary.print("No sort directory given. Exiting...")
                 exit(0)
             self._sort_comic_list(file_list)
-
-        if self.config.export_to_cb7:
-            self._export_to_cb7(file_list)
 
         if self.config.export_to_cbz:
             self._export_to_zip(file_list)

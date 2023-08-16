@@ -54,7 +54,6 @@ class MetronTaggerSettings:
         self.sort: bool = False
         self.interactive: bool = False
         self.ignore_existing: bool = False
-        self.export_to_cb7: bool = False
         self.export_to_cbz: bool = False
         self.delete_original: bool = False
         self.validate: bool = False
