@@ -152,7 +152,11 @@ class Talker:
             success = ca.write_metadata(md)
 
         if success:
-            questionary.print(f"Match found for '{filename.name}'.", style=Styles.SUCCESS)
+            questionary.print(
+                f"Using '{md.series.name} #{md.issue} ({md.cover_date.year})' metadata for "
+                f"'{filename.name}'.",
+                style=Styles.SUCCESS,
+            )
         else:
             questionary.print(
                 f"There was a problem writing metadata for '{filename.name}'.",
