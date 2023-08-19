@@ -1,5 +1,4 @@
 """Class to sort comic file based on it's metadata tags"""
-import pathlib
 from pathlib import Path
 from shutil import Error, move
 from typing import Optional
@@ -68,7 +67,7 @@ class FileSorter:
         if publisher and series and volume:
             tpb = meta_data.series.format == "Trade Paperback"
             new_path = (
-                pathlib.Path(self.sort_directory)
+                Path(self.sort_directory)
                 / publisher
                 / f"{f'{series} TPB' if tpb else f'{series}'}"
                 / f"v{volume}"
