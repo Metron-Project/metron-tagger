@@ -10,6 +10,8 @@ from darkseid.metadata import Metadata
 from metrontagger.styles import Styles
 from metrontagger.utils import cleanup_string
 
+MEGABYTE = 1048576
+
 
 class FileSorter:
     """Class to move comic files based on it's metadata tags"""
@@ -40,9 +42,8 @@ class FileSorter:
     def _overwrite_existing(new_path: Path, old_comic: Path) -> None:
         existing_comic = new_path / old_comic.name
         if existing_comic.exists():
-            mb_conversion = 1048576
-            existing_size = existing_comic.stat().st_size / mb_conversion
-            new_size = old_comic.stat().st_size / mb_conversion
+            existing_size = existing_comic.stat().st_size / MEGABYTE
+            new_size = old_comic.stat().st_size / MEGABYTE
             msg = (
                 f"{existing_comic.name} exists at {existing_comic.parent}.\nOld file: "
                 f"{existing_size:.2f} MB -> New file: {new_size:.2f} MB"
