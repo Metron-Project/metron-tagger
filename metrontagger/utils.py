@@ -35,6 +35,9 @@ def create_query_params(filename: Path) -> dict[str, str]:
 
     # If there isn't an issue number, let's assume it's "1".
     number: str = quote_plus(fnp.issue.encode("utf-8")) if fnp.issue else "1"
+    # Handle issues with #½
+    if number == "0.5":
+        number = "½"
 
     params = {
         "series_name": series_string,

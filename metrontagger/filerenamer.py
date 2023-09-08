@@ -107,12 +107,14 @@ class FileRenamer:
         new_name = self.replace_token(new_name, meta_data.series.name, "%series%")
         new_name = self.replace_token(new_name, meta_data.series.volume, "%volume%")
 
-        if meta_data.issue is not None:
+        if meta_data.issue is None:
+            issue_str = None
+        elif meta_data.issue == "½":
+            issue_str = IssueString("0.5").as_string(pad=self.issue_zero_padding)
+        else:
             issue_str = "{}".format(
                 IssueString(meta_data.issue).as_string(pad=self.issue_zero_padding),
             )
-        else:
-            issue_str = None
         new_name = self.replace_token(new_name, issue_str, "%issue%")
 
         new_name = self.replace_token(new_name, meta_data.issue_count, "%issuecount%")
