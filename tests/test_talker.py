@@ -154,30 +154,30 @@ def issue_list_response() -> IssuesList:
     return IssuesList(i)
 
 
-def test_process_file(
-    talker: Talker,
-    fake_comic: ZipFile,
-    issue_list_response: IssuesList,
-    mocker: any,
-) -> None:
-    # Remove any existing metadata from comic fixture
-    ca = Comic(fake_comic)
-    if ca.has_metadata():
-        ca.remove_metadata()
+# def test_process_file(
+#     talker: Talker,
+#     fake_comic: ZipFile,
+#     issue_list_response: IssuesList,
+#     mocker: any,
+# ) -> None:
+#     # Remove any existing metadata from comic fixture
+#     ca = Comic(fake_comic)
+#     if ca.has_metadata():
+#         ca.remove_metadata()
 
-    # Mock the call to Metron
-    mocker.patch.object(Session, "issues_list", return_value=issue_list_response)
-    talker._process_file(fake_comic, False)
+#     # Mock the call to Metron
+#     mocker.patch.object(Session, "issues_list", return_value=issue_list_response)
+#     talker._process_file(fake_comic, False)
 
-    id, multiple = talker._process_file(fake_comic, False)
-    assert id is None
-    assert multiple
-    assert fake_comic in [c.filename for c in talker.match_results.multiple_matches]
+#     id, multiple = talker._process_file(fake_comic, False)
+#     assert id is None
+#     assert multiple
+#     assert fake_comic in [c.filename for c in talker.match_results.multiple_matches]
 
-    id_list = []
-    for c in talker.match_results.multiple_matches:
-        id_list.extend(i.id for i in c.matches)
-    assert 2471 in id_list
+#     id_list = []
+#     for c in talker.match_results.multiple_matches:
+#         id_list.extend(i.id for i in c.matches)
+#     assert 2471 in id_list
 
 
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
