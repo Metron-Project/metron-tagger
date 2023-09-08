@@ -1,3 +1,4 @@
+import io
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -7,13 +8,17 @@ import questionary
 from darkseid.comic import Comic
 from darkseid.issue_string import IssueString
 from darkseid.metadata import Basic, Credit, Metadata, Role, Series
+from imagehash import ImageHash, hex_to_hash, phash
 from mokkari.exceptions import ApiError
 from mokkari.issue import CreditsSchema, IssueSchema, RolesSchema
+from PIL import Image
 
 from metrontagger import __version__
 from metrontagger.settings import MetronTaggerSettings
 from metrontagger.styles import Styles
 from metrontagger.utils import create_query_params
+
+HAMMING_DISTANCE = 10
 
 
 class MultipleMatch:
@@ -74,6 +79,25 @@ class Talker:
 
         return questionary.select("Select an issue to match", choices=choices).ask()
 
+    @staticmethod
+    def _get_comic_cover_hash(comic: Comic) -> Optional[ImageHash]:
+        with Image.open(io.BytesIO(comic.get_page(0))) as img:
+            try:
+                ch = phash(img)
+            except OSError:
+                questionary.print("Unable to get cover hash.", style=Styles.ERROR)
+                ch = None
+        return ch
+
+    @staticmethod
+    def _get_cover_hamming_results(cover_hash: ImageHash, lst: list) -> list[any]:
+        hamming_lst = []
+        for item in lst:
+            hamming = cover_hash - hex_to_hash(item.cover_hash)
+            if hamming <= HAMMING_DISTANCE:
+                hamming_lst.append(item)
+        return hamming_lst
+
     def _process_file(
         self: "Talker",
         fn: Path,
@@ -99,9 +123,21 @@ class Talker:
             self.match_results.add_no_match(fn)
             multiple_match = False
         elif result_count > 1:
-            issue_id = None
-            self.match_results.add_multiple_match(MultipleMatch(fn, i_list))
-            multiple_match = True
+            # Let's use the cover hash to try to narrow down the results
+            if hamming_lst := self._get_cover_hamming_results(
+                self._get_comic_cover_hash(ca),
+                i_list,
+            ):
+                if len(hamming_lst) == 1:
+                    issue_id = hamming_lst[0].id
+                    self.match_results.add_good_match(fn)
+                # TODO: Need to handle situation where *None* of the choices match.
+                elif issue_id := self._select_choice_from_matches(fn, hamming_lst):
+                    self.match_results.add_good_match(fn)
+            else:
+                issue_id = None
+                self.match_results.add_multiple_match(MultipleMatch(fn, i_list))
+                multiple_match = True
         elif result_count == 1:
             if not interactive:
                 issue_id = i_list[0].id
