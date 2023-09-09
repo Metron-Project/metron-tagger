@@ -67,7 +67,7 @@ class Runner:
         questionary.print("\nExporting to cbz:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(comic)
-            if ca.is_rar() or ca.is_sevenzip():
+            if ca.is_rar():
                 new_fn = Path(comic).with_suffix(".cbz")
                 if ca.export_as_zip(new_fn):
                     questionary.print(
