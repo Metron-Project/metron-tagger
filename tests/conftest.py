@@ -1,15 +1,29 @@
 import zipfile
 from argparse import ArgumentParser
 from datetime import date
+from io import BytesIO
 from pathlib import Path
+from random import randint
 
 import pytest
 from darkseid.metadata import Basic, Credit, Metadata, Role, Series
+from PIL import Image
 
 from metrontagger.options import make_parser
 from metrontagger.talker import Talker
 
 CONTENT = "blah blah blah"
+
+
+def create_cover_page() -> bytes:
+    """Create a small randomly colored square image."""
+    r = randint(0, 255)  # noqa: S311
+    g = randint(0, 255)  # noqa: S311
+    b = randint(0, 255)  # noqa: S311
+    img = Image.new("RGB", (250, 250), (r, g, b))
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
 
 
 @pytest.fixture(scope="session")
@@ -52,21 +66,9 @@ def fake_metadata() -> Metadata:
 
 @pytest.fixture()
 def fake_comic(tmp_path_factory: Path) -> zipfile.ZipFile:
-    test_dir = tmp_path_factory.mktemp("data")
-    img_1 = test_dir / "image-1.jpg"
-    img_1.write_text(CONTENT)
-    img_2 = test_dir / "image-2.jpg"
-    img_2.write_text(CONTENT)
-    img_3 = test_dir / "image-3.jpg"
-    img_3.write_text(CONTENT)
-
     z_file = tmp_path_factory.mktemp("comic") / "Aquaman v1 #001 (of 08) (1994).cbz"
-    zf = zipfile.ZipFile(z_file, "w")
-    try:
-        zf.write(img_1)
-        zf.write(img_2)
-        zf.write(img_3)
-    finally:
-        zf.close()
+    image_data = create_cover_page()
+    with zipfile.ZipFile(z_file, mode="w") as zf:
+        zf.writestr("cover.jpg", image_data)
 
     return z_file

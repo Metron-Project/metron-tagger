@@ -22,7 +22,7 @@ def metron_response() -> dict[str, any]:
             "sort_name": "Spectacular Spider-Man",
             "volume": 1,
             "series_type": {"id": 2, "name": "Cancelled Series"},
-            "genres": [{"id": 1, "name": "Super-Hero"}],
+            "genres": [],
         },
         "number": "47",
         "title": "",
@@ -30,12 +30,14 @@ def metron_response() -> dict[str, any]:
         "cover_date": "1980-10-01",
         "store_date": None,
         "price": "0.50",
+        "rating": {"id": 6, "name": "CCA"},
         "sku": "",
         "isbn": "",
         "upc": "",
         "page": 36,
         "desc": "Spider-Man goes on a wild goose chase to find out who is behind the Prowler impersonation.",  # noqa: E501
         "image": "https://static.metron.cloud/media/issue/2021/05/22/the-spectacular-spider-man-47.jpg",
+        "cover_hash": "c0f83fe438876c1b",
         "arcs": [],
         "credits": [
             {"id": 233, "creator": "Al Milgrom", "role": [{"id": 7, "name": "Cover"}]},
@@ -65,19 +67,15 @@ def metron_response() -> dict[str, any]:
                 "name": "Hobgoblin (Kingsley)",
                 "modified": "2019-12-11T17:21:51.365470-05:00",
             },
-            {"id": 2415, "name": "Prowler", "modified": "2019-08-24T16:37:06.997976-04:00"},
-            {"id": 145, "name": "Spider-Man", "modified": "2022-05-16T09:22:42.644589-04:00"},
+            {"id": 2415, "name": "Prowler", "modified": "2023-03-04T10:29:02.743798-05:00"},
+            {"id": 145, "name": "Spider-Man", "modified": "2023-08-31T08:53:14.183600-04:00"},
         ],
-        "teams": [{"id": 1, "name": "Bar Foo"}],
-        "reprints": [
-            {"id": 2860, "issue": "Twilight (1990) #1"},
-            {"id": 2861, "issue": "Twilight (1990) #2"},
-            {"id": 2862, "issue": "Twilight (1990) #3"},
-        ],
+        "teams": [],
+        "reprints": [],
         "variants": [],
-        "rating": {"id": 1, "name": "Mature"},
-        "resource_url": "https://metron.cloud/issue/american-vampire-1976-2020-2/",
-        "modified": "2022-05-29T08:22:38.584485-04:00",
+        "cv_id": 20745,
+        "resource_url": "https://metron.cloud/issue/the-spectacular-spider-man-1976-47/",
+        "modified": "2023-05-21T16:09:03.709255-04:00",
     }
     return IssueSchema().load(i)
 
@@ -114,7 +112,7 @@ def test_map_resp_to_metadata(talker: Talker, metron_response: dict[str, any]) -
     assert md.credits[0].person == "Al Milgrom"
     assert md.credits[0].role[0].name == "Cover"
     assert md.reprints == create_reprint_list(metron_response.reprints)
-    assert md.age_rating == "Mature 17+"
+    assert md.age_rating == "Everyone"
     assert md.web_link == metron_response.resource_url
 
 
@@ -141,43 +139,115 @@ def issue_list_response() -> IssuesList:
         "next": None,
         "previous": None,
         "results": [
-            {"id": 3634, "__str__": "Aquaman #1", "cover_date": "1962-02-01"},
-            {"id": 2471, "__str__": "Aquaman #1", "cover_date": "1986-02-01"},
-            {"id": 2541, "__str__": "Aquaman #1", "cover_date": "1989-06-01"},
-            {"id": 2510, "__str__": "Aquaman #1", "cover_date": "1991-12-01"},
-            {"id": 1776, "__str__": "Aquaman #1", "cover_date": "1994-08-01"},
-            {"id": 2429, "__str__": "Aquaman #1", "cover_date": "2003-02-01"},
-            {"id": 2523, "__str__": "Aquaman #1", "cover_date": "2011-11-01"},
-            {"id": 2896, "__str__": "Aquaman #1", "cover_date": "2016-08-01"},
+            {
+                "id": 3634,
+                "series": {"name": "Aquaman", "volume": 1, "year_began": 1962},
+                "number": "1",
+                "issue": "Aquaman (1962) #1",
+                "cover_date": "1962-02-01",
+                "image": "https://static.metron.cloud/media/issue/2019/07/12/aquaman-v1-1.jpg",
+                "cover_hash": "ccb2097c5b273c1b",
+                "modified": "2023-05-27T07:33:05.220213-04:00",
+            },
+            {
+                "id": 2471,
+                "series": {"name": "Aquaman", "volume": 2, "year_began": 1986},
+                "number": "1",
+                "issue": "Aquaman (1986) #1",
+                "cover_date": "1986-02-01",
+                "image": "https://static.metron.cloud/media/issue/2019/05/19/aquaman-v2-1.jpg",
+                "cover_hash": "ea97c11cb3660c79",
+                "modified": "2023-05-30T11:16:46.832919-04:00",
+            },
+            {
+                "id": 2541,
+                "series": {"name": "Aquaman", "volume": 3, "year_began": 1989},
+                "number": "1",
+                "issue": "Aquaman (1989) #1",
+                "cover_date": "1989-06-01",
+                "image": "https://static.metron.cloud/media/issue/2019/05/25/aquaman-v3-1.jpg",
+                "cover_hash": "d50df6181876276d",
+                "modified": "2023-05-30T11:16:59.837088-04:00",
+            },
+            {
+                "id": 2510,
+                "series": {"name": "Aquaman", "volume": 4, "year_began": 1991},
+                "number": "1",
+                "issue": "Aquaman (1991) #1",
+                "cover_date": "1991-12-01",
+                "image": "https://static.metron.cloud/media/issue/2019/05/20/aquaman-v4-1.jpg",
+                "cover_hash": "b45b17f5214a1cbc",
+                "modified": "2023-05-27T07:45:16.756751-04:00",
+            },
+            {
+                "id": 1776,
+                "series": {"name": "Aquaman", "volume": 5, "year_began": 1994},
+                "number": "1",
+                "issue": "Aquaman (1994) #1",
+                "cover_date": "1994-08-01",
+                "image": "https://static.metron.cloud/media/issue/2019/04/01/aquaman-1.jpg",
+                "cover_hash": "abf0cf94916ab126",
+                "modified": "2023-05-27T07:49:39.853440-04:00",
+            },
+            {
+                "id": 2429,
+                "series": {"name": "Aquaman", "volume": 6, "year_began": 2003},
+                "number": "1",
+                "issue": "Aquaman (2003) #1",
+                "cover_date": "2003-02-01",
+                "image": "https://static.metron.cloud/media/issue/2019/05/15/aquaman-v6-1.jpg",
+                "cover_hash": "904aaee7e6d0d88d",
+                "modified": "2023-05-27T07:54:56.676104-04:00",
+            },
+            {
+                "id": 2523,
+                "series": {"name": "Aquaman", "volume": 7, "year_began": 2011},
+                "number": "1",
+                "issue": "Aquaman (2011) #1",
+                "cover_date": "2011-11-01",
+                "image": "https://static.metron.cloud/media/issue/2019/05/21/aquaman-v7-1.jpg",
+                "cover_hash": "91f1c7f28b346b30",
+                "modified": "2023-05-27T07:58:16.239841-04:00",
+            },
+            {
+                "id": 2896,
+                "series": {"name": "Aquaman", "volume": 8, "year_began": 2016},
+                "number": "1",
+                "issue": "Aquaman (2016) #1",
+                "cover_date": "2016-08-01",
+                "image": "https://static.metron.cloud/media/issue/2019/06/19/aquaman-v8-1.jpg",
+                "cover_hash": "8c4bf0234b3c3ae7",
+                "modified": "2023-05-29T15:53:16.887401-04:00",
+            },
         ],
     }
     return IssuesList(i)
 
 
-# def test_process_file(
-#     talker: Talker,
-#     fake_comic: ZipFile,
-#     issue_list_response: IssuesList,
-#     mocker: any,
-# ) -> None:
-#     # Remove any existing metadata from comic fixture
-#     ca = Comic(fake_comic)
-#     if ca.has_metadata():
-#         ca.remove_metadata()
+def test_process_file(
+    talker: Talker,
+    fake_comic: ZipFile,
+    issue_list_response: IssuesList,
+    mocker: any,
+) -> None:
+    # Remove any existing metadata from comic fixture
+    ca = Comic(fake_comic)
+    if ca.has_metadata():
+        ca.remove_metadata()
 
-#     # Mock the call to Metron
-#     mocker.patch.object(Session, "issues_list", return_value=issue_list_response)
-#     talker._process_file(fake_comic, False)
+    # Mock the call to Metron
+    mocker.patch.object(Session, "issues_list", return_value=issue_list_response)
+    talker._process_file(fake_comic, False)
 
-#     id, multiple = talker._process_file(fake_comic, False)
-#     assert id is None
-#     assert multiple
-#     assert fake_comic in [c.filename for c in talker.match_results.multiple_matches]
+    id, multiple = talker._process_file(fake_comic, False)
+    assert id is None
+    assert multiple
+    assert fake_comic in [c.filename for c in talker.match_results.multiple_matches]
 
-#     id_list = []
-#     for c in talker.match_results.multiple_matches:
-#         id_list.extend(i.id for i in c.matches)
-#     assert 2471 in id_list
+    id_list = []
+    for c in talker.match_results.multiple_matches:
+        id_list.extend(i.id for i in c.matches)
+    assert 2471 in id_list
 
 
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
@@ -206,7 +276,7 @@ def test_write_issue_md(
     assert ca_md.series.volume == metron_response.series.volume
     assert ca_md.publisher.name == metron_response.publisher.name
     assert ca_md.issue == metron_response.number
-    assert ca_md.teams == create_read_md_resource_list(metron_response.teams)
+    assert ca_md.teams is None
     assert ca_md.cover_date.year == metron_response.cover_date.year
     assert ca_md.characters == create_read_md_resource_list(metron_response.characters)
     assert ca_md.credits is not None
@@ -239,7 +309,7 @@ def test_retrieve_single_issue(
     assert ca_md.series.volume == metron_response.series.volume
     assert ca_md.publisher.name == metron_response.publisher.name
     assert ca_md.issue == metron_response.number
-    assert ca_md.teams == create_read_md_resource_list(metron_response.teams)
+    assert ca_md.teams is None
     assert ca_md.cover_date.year == metron_response.cover_date.year
     assert ca_md.characters == create_read_md_resource_list(metron_response.characters)
     assert ca_md.credits is not None
