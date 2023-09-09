@@ -33,6 +33,23 @@ def test_rename_file(fake_comic: ZipFile) -> None:
     assert expected_result == renamed_file.name
 
 
+def test_half_issues_rename(fake_comic: ZipFile) -> None:
+    md = Metadata()
+    md.series = Series("Batman", volume=2)
+    md.issue = "½"
+    md.cover_date = date(2023, 9, 1)
+
+    # Verify what the original name of the file is.
+    assert fake_comic.name == "Aquaman v1 #001 (of 08) (1994).cbz"
+
+    renamer = FileRenamer(md)
+    renamed_file = renamer.rename_file(fake_comic)
+    assert renamed_file is not None
+
+    expected_result = f"{md.series.name} v{md.series.volume} #000.5 ({md.cover_date.year}).cbz"
+    assert expected_result == renamed_file.name
+
+
 def test_empty_parenthesis(fake_metadata: Metadata) -> None:
     test_str = "Aquaman #1()"
 
