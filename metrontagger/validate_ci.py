@@ -1,6 +1,6 @@
 """Class to validate a comic archive ComicInfo.xml."""
 from enum import Enum, auto, unique
-from importlib.resources import path
+from importlib.resources import as_file, files
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
@@ -25,10 +25,10 @@ class ValidateComicInfo:
     def _get_xsd(schema_version: SchemaVersion) -> Optional[Path]:
         """Method to return path of CI Schema."""
         if schema_version == SchemaVersion.v1:
-            with path("metrontagger.schema.v1", "ComicInfo.xsd") as xsd:
+            with as_file(files("metrontagger.schema.v1").joinpath("ComicInfo.xsd")) as xsd:
                 return xsd
         elif schema_version == SchemaVersion.v2:
-            with path("metrontagger.schema.v2", "ComicInfo.xsd") as xsd:
+            with as_file(files("metrontagger.schema.v2").joinpath("ComicInfo.xsd")) as xsd:
                 return xsd
         else:
             return None
