@@ -39,6 +39,7 @@ pyxdg = "^0.28"
 darkseid = "^3.0.0"
 lxml = "^4.9.2"
 imagehash = "^4.3.1"
+pandas = "^2.1.0"
 
 [tool.poetry.scripts]
 metron-tagger = "metrontagger.cli:main"
