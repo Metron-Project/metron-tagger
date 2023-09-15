@@ -79,6 +79,13 @@ def make_parser() -> argparse.ArgumentParser:
         default=False,
     )
     parser.add_argument(
+        "--duplicates",
+        help="Identify and give the option to delete duplicate pages "
+        "in a directory of comics.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",

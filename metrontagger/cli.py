@@ -50,6 +50,9 @@ def get_configs(opts: Namespace) -> MetronTaggerSettings:
     if opts.validate:
         config.validate = opts.validate
 
+    if opts.duplicates:
+        config.duplicates = opts.duplicates
+
     return config
 
 
