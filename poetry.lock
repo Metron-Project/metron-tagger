@@ -250,14 +250,14 @@ toml = ["tomli"]
 
 [[package]]
 name = "darkseid"
-version = "3.1.0"
+version = "3.2.0"
 description = "A library to interact with comic archives"
 category = "main"
 optional = false
 python-versions = ">=3.9,<4.0"
 files = [
-    {file = "darkseid-3.1.0-py3-none-any.whl", hash = "sha256:61842df7270ccbd32663033d082317c817ea1ad877a0265347e7947e3343ce3d"},
-    {file = "darkseid-3.1.0.tar.gz", hash = "sha256:600a66cde90ccf535d070d64b8f3ada8a56aac0a2be66ca028fbec20e2325f16"},
+    {file = "darkseid-3.2.0-py3-none-any.whl", hash = "sha256:662c6934ec4d7079b1e8cfa2fa68a0325edcb7499f38b8c1cf526add2c210882"},
+    {file = "darkseid-3.2.0.tar.gz", hash = "sha256:55c0e0f1362113eddbd1d310d07202b5bc4c6c362b6c1930bce9c204a36a7204"},
 ]
 
 [package.dependencies]
@@ -312,14 +312,14 @@ typing = ["typing-extensions (>=4.7.1)"]
 
 [[package]]
 name = "identify"
-version = "2.5.28"
+version = "2.5.29"
 description = "File identification library for Python"
 category = "dev"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "identify-2.5.28-py2.py3-none-any.whl", hash = "sha256:87816de144bf46d161bd5b3e8f5596b16cade3b80be537087334b26bc5c177f3"},
-    {file = "identify-2.5.28.tar.gz", hash = "sha256:94bb59643083ebd60dc996d043497479ee554381fbc5307763915cda49b0e78f"},
+    {file = "identify-2.5.29-py2.py3-none-any.whl", hash = "sha256:24437fbf6f4d3fe6efd0eb9d67e24dd9106db99af5ceb27996a5f7895f24bf1b"},
+    {file = "identify-2.5.29.tar.gz", hash = "sha256:d43d52b86b15918c137e3a74fff5224f60385cd0e9c38e99d07c257f02f151a5"},
 ]
 
 [package.extras]
