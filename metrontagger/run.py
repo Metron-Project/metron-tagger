@@ -1,9 +1,11 @@
 from pathlib import Path
+from typing import Optional
 
 import questionary
 from darkseid.comic import Comic
 from darkseid.utils import get_recursive_filelist
 
+from metrontagger.duplicates import DuplicateIssue, Duplicates
 from metrontagger.filerenamer import FileRenamer
 from metrontagger.filesorter import FileSorter
 from metrontagger.settings import MetronTaggerSettings
@@ -183,6 +185,70 @@ class Runner:
             return True
         return False
 
+    @staticmethod
+    def _get_duplicate_entry_index(
+        comic_path: str,
+        dups_list: list[DuplicateIssue],
+    ) -> Optional[int]:
+        return next(
+            (idx for idx, item in enumerate(dups_list) if comic_path in item.path_),
+            None,
+        )
+
+    def _remove_duplicates(self: "Runner", file_list: list[Path]) -> None:
+        dups_obj = Duplicates(file_list)
+        distinct_hashes = dups_obj.get_distinct_hashes()
+        if not questionary.confirm(
+            f"Found {len(distinct_hashes)} duplicate images. Do you want to review them?",
+        ).ask():
+            return
+
+        # List of page indexes to delete for each comic.
+        duplicates_lst = []
+        # This Loop runs for each *distinct* hash.
+        for count, img_hash in enumerate(distinct_hashes, 1):
+            comics_lst = dups_obj.get_comic_list_from_hash(img_hash)
+            # Simple info message to show the user
+            comics_lst_str = "\n\t".join(
+                map(str, [Path(i.path_).name for i in comics_lst]),
+            )
+            questionary.print(
+                f"Showing image #{count} which is in:\n\t{comics_lst_str}",
+                style=Styles.SUCCESS,
+            )
+            # Get first image from comics list for a hash to display to the user.
+            first_comic = dups_obj.get_comic_info_for_distinct_hash(img_hash)
+            dups_obj.show_image(first_comic)
+
+            # TODO: Give user the option to delete page per book.
+            if questionary.confirm("Do you want to remove this image from all comics?").ask():
+                for comic in comics_lst:
+                    if duplicates_lst:
+                        dup_entry_idx = self._get_duplicate_entry_index(
+                            comic.path_,
+                            duplicates_lst,
+                        )
+                        if dup_entry_idx is not None:
+                            di: DuplicateIssue = duplicates_lst[dup_entry_idx]
+                            di.pages_index.append(comic.pages_index[0])
+                        else:
+                            duplicates_lst.append(
+                                DuplicateIssue(comic.path_, [comic.pages_index[0]]),
+                            )
+                    else:
+                        duplicates_lst.append(
+                            DuplicateIssue(comic.path_, [comic.pages_index[0]]),
+                        )
+
+        # After building the list let's ask the user if they want to write the changes.
+        if (
+            duplicates_lst
+            and questionary.confirm("Do want to write your changes to the comics?").ask()
+        ):
+            dups_obj.delete_comic_pages(duplicates_lst)
+        else:
+            questionary.print("No duplicate page changes to write.", style=Styles.SUCCESS)
+
     def run(self: "Runner") -> None:
         if not (file_list := get_recursive_filelist(self.config.path)):
             questionary.print("No files to process. Exiting.", style=Styles.WARNING)
@@ -191,8 +257,14 @@ class Runner:
         if self.config.missing:
             self._comics_with_no_metadata(file_list)
 
+        if self.config.export_to_cbz:
+            self._export_to_zip(file_list)
+
         if self.config.delete:
             self._delete_metadata(file_list)
+
+        if self.config.duplicates:
+            self._remove_duplicates(file_list)
 
         if self.config.id or self.config.online:
             if not self._has_credentials() and not self._get_credentials():
@@ -220,9 +292,6 @@ class Runner:
                 questionary.print("No sort directory given. Exiting...")
                 exit(0)
             self._sort_comic_list(file_list)
-
-        if self.config.export_to_cbz:
-            self._export_to_zip(file_list)
 
         if self.config.validate:
             self._validate_comic_info(file_list)
