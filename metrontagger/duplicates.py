@@ -29,15 +29,15 @@ class Duplicates:
     """Class to find and remove any duplicate pages."""
 
     def __init__(self: "Duplicates", file_lst: list[Path]) -> None:
-        self.file_lst = file_lst
-        self.data_frame: Optional[pd.DataFrame] = None
+        self._file_lst = file_lst
+        self._data_frame: Optional[pd.DataFrame] = None
 
     def _image_hashes(self: "Duplicates") -> list[dict[str, any]]:
         """
         Method to get a list of dicts containing the file path, page index, and page hashes.
         """
         hashes_lst = []
-        for item in self.file_lst:
+        for item in self._file_lst:
             comic = Comic(str(item))
             if not comic.is_writable():
                 questionary.print(f"'{comic}' is not writable. Skipping...")
@@ -63,9 +63,9 @@ class Duplicates:
     def _get_page_hashes(self: "Duplicates") -> pd.DataFrame:
         """Method to get a dataframe of comics with duplicate pages."""
         comic_hashes = self._image_hashes()
-        self.data_frame = pd.DataFrame(comic_hashes)
-        hashes = self.data_frame["hash"]
-        return self.data_frame[hashes.isin(hashes[hashes.duplicated()])].sort_values("hash")
+        self._data_frame = pd.DataFrame(comic_hashes)
+        hashes = self._data_frame["hash"]
+        return self._data_frame[hashes.isin(hashes[hashes.duplicated()])].sort_values("hash")
 
     def get_distinct_hashes(self: "Duplicates") -> list[str]:
         """Method to get distinct hash values."""
@@ -74,14 +74,14 @@ class Duplicates:
 
     def get_comic_info_for_distinct_hash(self: "Duplicates", img_hash: str) -> DuplicateIssue:
         """Method to retrieve first comic instance's path and page index from a hash value."""
-        idx = self.data_frame.loc[self.data_frame["hash"] == img_hash].index[0]
-        row = self.data_frame.iloc[idx]
+        idx = self._data_frame.loc[self._data_frame["hash"] == img_hash].index[0]
+        row = self._data_frame.iloc[idx]
         return DuplicateIssue(row["path"], row["index"])
 
     def get_comic_list_from_hash(self: "Duplicates", img_hash: str) -> list[DuplicateIssue]:
         comic_lst = []
-        for i in self.data_frame.loc[self.data_frame["hash"] == img_hash].index:
-            row = self.data_frame.iloc[i]
+        for i in self._data_frame.loc[self._data_frame["hash"] == img_hash].index:
+            row = self._data_frame.iloc[i]
             comic_lst.append(DuplicateIssue(row["path"], [row["index"]]))
         return comic_lst
 
