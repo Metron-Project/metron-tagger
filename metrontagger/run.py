@@ -216,7 +216,8 @@ class Runner:
                 f"Showing image #{count} which is in:\n\t{comics_lst_str}",
                 style=Styles.SUCCESS,
             )
-            # Get first image from comics list for a hash to display to the user.
+            # Get image from the first comic in the comics list for the hash to display
+            # to the user.
             first_comic = dups_obj.get_comic_info_for_distinct_hash(img_hash)
             dups_obj.show_image(first_comic)
 
