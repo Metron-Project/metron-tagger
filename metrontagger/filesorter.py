@@ -57,7 +57,10 @@ class FileSorter:
 
     def sort_comics(self: "FileSorter", comic: Path) -> bool:
         """Method to move the comic file based on it's metadata tag"""
-        comic_archive = Comic(comic)
+        try:
+            comic_archive = Comic(comic)
+        except FileNotFoundError:
+            return False
         if comic_archive.has_metadata():
             meta_data = comic_archive.read_metadata()
         else:

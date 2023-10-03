@@ -128,7 +128,7 @@ class Runner:
         for comic in file_list:
             result = file_sorter.sort_comics(comic)
             if not result:
-                questionary.print(f"unable to move {comic.name}.", style=Styles.ERROR)
+                questionary.print(f"Unable to move '{comic.name}'.", style=Styles.ERROR)
 
     @staticmethod
     def _comics_with_no_metadata(file_list: list[Path]) -> None:
