@@ -72,3 +72,17 @@ def fake_comic(tmp_path_factory: Path) -> zipfile.ZipFile:
         zf.writestr("cover.jpg", image_data)
 
     return z_file
+
+
+@pytest.fixture()
+def fake_tpb(tmp_path_factory: Path) -> zipfile.ZipFile:
+    z_file = (
+        tmp_path_factory.mktemp("comic")
+        / "Batman - The Adventures Continue Season One (2021) "
+        "(digital) (Son of Ultron-Empire).cbz"
+    )
+    image_data = create_cover_page()
+    with zipfile.ZipFile(z_file, mode="w") as zf:
+        zf.writestr("cover.jpg", image_data)
+
+    return z_file
