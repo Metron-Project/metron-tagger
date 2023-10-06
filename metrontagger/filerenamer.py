@@ -163,6 +163,8 @@ class FileRenamer:
             new_name = self.replace_token(new_name, "HC", "%format%")
         elif meta_data.series.format == "Trade Paperback":
             new_name = self.replace_token(new_name, "TPB", "%format%")
+        else:
+            new_name = self.replace_token(new_name, "", "%format%")
         new_name = self.replace_token(new_name, meta_data.age_rating, "%maturityrating%")
         new_name = self.replace_token(new_name, meta_data.stories, "%storyarc%")
         new_name = self.replace_token(new_name, meta_data.series_group, "%seriesgroup%")
