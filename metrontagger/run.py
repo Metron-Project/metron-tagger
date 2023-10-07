@@ -29,6 +29,7 @@ class Runner:
         # Lists to track filename changes
         new_file_names: list[Path] = []
         original_files_changed: list[Path] = []
+        renamer = FileRenamer()
         for comic in file_list:
             comic_archive = Comic(comic)
             if not comic_archive.has_metadata():
@@ -39,7 +40,7 @@ class Runner:
                 continue
 
             meta_data = comic_archive.read_metadata()
-            renamer = FileRenamer(meta_data)
+            renamer.set_metadata(meta_data)
             renamer.set_template(self.config.rename_template)
             renamer.set_issue_zero_padding(self.config.rename_issue_number_padding)
             renamer.set_smart_cleanup(self.config.rename_use_smart_string_cleanup)

@@ -20,18 +20,18 @@ from metrontagger.utils import cleanup_string
 class FileRenamer:
     """Class to rename a comic archive based on it's metadata tag"""
 
-    def __init__(self: "FileRenamer", metadata: Metadata) -> None:
-        self.set_metadata(metadata)
-        self.set_template("%series% v%volume% #%issue% (of %issuecount%) (%year%)")
-        self.smart_cleanup = True
-        self.issue_zero_padding = 3
+    def __init__(self: "FileRenamer", metadata: Optional[Metadata] = None) -> None:
+        self.metadata: Optional[Metadata] = metadata
+        self.template: str = "%series% v%volume% #%issue% (of %issuecount%) (%year%)"
+        self.smart_cleanup: bool = True
+        self.issue_zero_padding: int = 3
 
     def set_smart_cleanup(self: "FileRenamer", on: bool) -> None:
         self.smart_cleanup = on
 
     def set_metadata(self: "FileRenamer", metadata: Metadata) -> None:
         """Method to set the metadata"""
-        self.metdata = metadata
+        self.metadata = metadata
 
     def set_issue_zero_padding(self: "FileRenamer", count: int) -> None:
         """Method to set the padding for the issue's number"""
@@ -40,7 +40,6 @@ class FileRenamer:
     def set_template(self: "FileRenamer", template: str) -> None:
         """
         Method to use a user's custom file naming template.
-        Currently this hasn't been implemented
         """
         self.template = template
 
@@ -48,8 +47,8 @@ class FileRenamer:
         """Method to replace a value with another value"""
 
         # helper func
-        def is_token(word: str) -> bool:
-            return word[0] == "%" and word.endswith("%")
+        def is_token(txt: str) -> bool:
+            return txt[0] == "%" and txt.endswith("%")
 
         if value is not None:
             return text.replace(token, str(value))
@@ -101,42 +100,37 @@ class FileRenamer:
 
     def determine_name(self: "FileRenamer", filename: Path) -> Optional[str]:
         """Method to create the new filename based on the files metadata"""
-        meta_data = self.metdata
+        md = self.metadata
         new_name = self.template
 
-        new_name = self.replace_token(new_name, meta_data.series.name, "%series%")
-        new_name = self.replace_token(new_name, meta_data.series.volume, "%volume%")
+        new_name = self.replace_token(new_name, md.series.name, "%series%")
+        new_name = self.replace_token(new_name, md.series.volume, "%volume%")
 
-        if meta_data.issue is None:
+        if md.issue is None:
             issue_str = None
-        elif meta_data.issue == "½":
+        elif md.issue == "½":
             issue_str = IssueString("0.5").as_string(pad=self.issue_zero_padding)
         else:
-            issue_str = "{}".format(
-                IssueString(meta_data.issue).as_string(pad=self.issue_zero_padding),
-            )
+            issue_str = IssueString(md.issue).as_string(pad=self.issue_zero_padding)
         new_name = self.replace_token(new_name, issue_str, "%issue%")
 
-        new_name = self.replace_token(new_name, meta_data.issue_count, "%issuecount%")
-        new_name = self.replace_token(new_name, meta_data.cover_date.year, "%year%")
-        new_name = self.replace_token(new_name, meta_data.publisher, "%publisher%")
-        new_name = self.replace_token(new_name, meta_data.stories, "%title%")
-        new_name = self.replace_token(new_name, meta_data.cover_date.month, "%month%")
+        new_name = self.replace_token(new_name, md.issue_count, "%issuecount%")
+        new_name = self.replace_token(new_name, md.cover_date.year, "%year%")
+        new_name = self.replace_token(new_name, md.publisher, "%publisher%")
+        new_name = self.replace_token(new_name, md.stories, "%title%")
+        new_name = self.replace_token(new_name, md.cover_date.month, "%month%")
         month_name = None
         if (
-            meta_data.cover_date.month is not None
+            md.cover_date.month is not None
             and (
-                (
-                    isinstance(meta_data.cover_date.month, str)
-                    and meta_data.cover_date.month.isdigit()
-                )
-                or isinstance(meta_data.cover_date.month, int)
+                (isinstance(md.cover_date.month, str) and md.cover_date.month.isdigit())
+                or isinstance(md.cover_date.month, int)
             )
-            and int(meta_data.cover_date.month) in range(1, 13)
+            and int(md.cover_date.month) in range(1, 13)
         ):
             date_time = datetime.datetime(  # noqa: DTZ001
                 1970,
-                int(meta_data.cover_date.month),
+                int(md.cover_date.month),
                 1,
                 0,
                 0,
@@ -144,31 +138,31 @@ class FileRenamer:
             month_name = date_time.strftime("%B")
         new_name = self.replace_token(new_name, month_name, "%month_name%")
 
-        new_name = self.replace_token(new_name, meta_data.genres, "%genre%")
-        new_name = self.replace_token(new_name, meta_data.series.language, "%language_code%")
-        new_name = self.replace_token(new_name, meta_data.critical_rating, "%criticalrating%")
+        new_name = self.replace_token(new_name, md.genres, "%genre%")
+        new_name = self.replace_token(new_name, md.series.language, "%language_code%")
+        new_name = self.replace_token(new_name, md.critical_rating, "%criticalrating%")
         new_name = self.replace_token(
             new_name,
-            meta_data.alternate_series,
+            md.alternate_series,
             "%alternateseries%",
         )
         new_name = self.replace_token(
             new_name,
-            meta_data.alternate_number,
+            md.alternate_number,
             "%alternatenumber%",
         )
-        new_name = self.replace_token(new_name, meta_data.alternate_count, "%alternatecount%")
-        new_name = self.replace_token(new_name, meta_data.imprint, "%imprint%")
-        if meta_data.series.format == "Hard Cover":
+        new_name = self.replace_token(new_name, md.alternate_count, "%alternatecount%")
+        new_name = self.replace_token(new_name, md.imprint, "%imprint%")
+        if md.series.format == "Hard Cover":
             new_name = self.replace_token(new_name, "HC", "%format%")
-        elif meta_data.series.format == "Trade Paperback":
+        elif md.series.format == "Trade Paperback":
             new_name = self.replace_token(new_name, "TPB", "%format%")
         else:
             new_name = self.replace_token(new_name, "", "%format%")
-        new_name = self.replace_token(new_name, meta_data.age_rating, "%maturityrating%")
-        new_name = self.replace_token(new_name, meta_data.stories, "%storyarc%")
-        new_name = self.replace_token(new_name, meta_data.series_group, "%seriesgroup%")
-        new_name = self.replace_token(new_name, meta_data.scan_info, "%scaninfo%")
+        new_name = self.replace_token(new_name, md.age_rating, "%maturityrating%")
+        new_name = self.replace_token(new_name, md.stories, "%storyarc%")
+        new_name = self.replace_token(new_name, md.series_group, "%seriesgroup%")
+        new_name = self.replace_token(new_name, md.scan_info, "%scaninfo%")
 
         if self.smart_cleanup:
             new_name = self.smart_cleanup_string(new_name)
@@ -179,6 +173,14 @@ class FileRenamer:
         return cleanup_string(new_name)
 
     def rename_file(self: "FileRenamer", comic: Path) -> Optional[Path]:
+        # This shouldn't happen, but just in case let's make sure there is metadata.
+        if self.metadata is None:
+            questionary.print(
+                f"Metadata hasn't been set for {comic}. Skipping...",
+                style=Styles.WARNING,
+            )
+            return None
+
         new_name = self.determine_name(comic)
         if not new_name:
             return None
