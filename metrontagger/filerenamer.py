@@ -47,8 +47,8 @@ class FileRenamer:
         """Method to replace a value with another value"""
 
         # helper func
-        def is_token(word: str) -> bool:
-            return word[0] == "%" and word.endswith("%")
+        def is_token(txt: str) -> bool:
+            return txt[0] == "%" and txt.endswith("%")
 
         if value is not None:
             return text.replace(token, str(value))
