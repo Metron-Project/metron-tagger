@@ -20,11 +20,11 @@ from metrontagger.utils import cleanup_string
 class FileRenamer:
     """Class to rename a comic archive based on it's metadata tag"""
 
-    def __init__(self: "FileRenamer", metadata: Metadata) -> None:
-        self.metadata = metadata
-        self.template = "%series% v%volume% #%issue% (of %issuecount%) (%year%)"
-        self.smart_cleanup = True
-        self.issue_zero_padding = 3
+    def __init__(self: "FileRenamer", metadata: Optional[Metadata] = None) -> None:
+        self.metadata: Optional[Metadata] = metadata
+        self.template: str = "%series% v%volume% #%issue% (of %issuecount%) (%year%)"
+        self.smart_cleanup: bool = True
+        self.issue_zero_padding: int = 3
 
     def set_smart_cleanup(self: "FileRenamer", on: bool) -> None:
         self.smart_cleanup = on
@@ -173,6 +173,14 @@ class FileRenamer:
         return cleanup_string(new_name)
 
     def rename_file(self: "FileRenamer", comic: Path) -> Optional[Path]:
+        # This shouldn't happen, but just in case let's make sure there is metadata.
+        if self.metadata is None:
+            questionary.print(
+                f"Metadata hasn't been set for {comic}. Skipping...",
+                style=Styles.WARNING,
+            )
+            return None
+
         new_name = self.determine_name(comic)
         if not new_name:
             return None
