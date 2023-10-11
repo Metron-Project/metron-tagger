@@ -29,7 +29,7 @@ class Runner:
         original_files_changed: list[Path] = []
         renamer = FileRenamer()
         for comic in file_list:
-            comic_archive = Comic(comic)
+            comic_archive = Comic(str(comic))
             if not comic_archive.has_metadata():
                 questionary.print(
                     f"skipping '{comic.name}'. no metadata available.",
@@ -67,7 +67,7 @@ class Runner:
     def _export_to_zip(self: "Runner", file_list: list[Path]) -> None:
         questionary.print("\nExporting to cbz:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
-            ca = Comic(comic)
+            ca = Comic(str(comic))
             if ca.is_rar():
                 new_fn = Path(comic).with_suffix(".cbz")
                 if ca.export_as_zip(new_fn):
@@ -89,7 +89,7 @@ class Runner:
     def _validate_comic_info(self: "Runner", file_list: list[Path]) -> None:
         questionary.print("\nValidating ComicInfo:\n---------------------", style=Styles.TITLE)
         for comic in file_list:
-            ca = Comic(comic)
+            ca = Comic(str(comic))
             if not ca.has_metadata():
                 questionary.print(
                     f"'{ca.path.name}' doesn't have a ComicInfo.xml file.",
@@ -136,7 +136,7 @@ class Runner:
             style=Styles.TITLE,
         )
         for comic in file_list:
-            comic_archive = Comic(comic)
+            comic_archive = Comic(str(comic))
             if comic_archive.has_metadata():
                 continue
             questionary.print(f"{comic}", style=Styles.SUCCESS)
@@ -145,7 +145,7 @@ class Runner:
     def _delete_metadata(file_list: list[Path]) -> None:
         questionary.print("\nRemoving metadata:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
-            comic_archive = Comic(comic)
+            comic_archive = Comic(str(comic))
             if comic_archive.has_metadata():
                 comic_archive.remove_metadata()
                 questionary.print(
