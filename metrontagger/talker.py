@@ -103,7 +103,7 @@ class Talker:
         fn: Path,
         interactive: bool,
     ) -> tuple[Optional[int], bool]:
-        ca = Comic(fn)
+        ca = Comic(str(fn))
 
         if not ca.is_writable() and not ca.seems_to_be_a_comic_archive():
             questionary.print(
@@ -175,19 +175,20 @@ class Talker:
         # sourcery skip: extract-method, inline-immediately-returned-variable
         success = False
         resp = None
+        md = None
         try:
             resp = self.api.issue(issue_id)
         except ApiError as e:
             questionary.print(f"Failed to retrieve data: {e!r}", style=Styles.ERROR)
         if resp is not None:
-            ca = Comic(filename)
+            ca = Comic(str(filename))
             meta_data = Metadata()
             meta_data.set_default_page_list(ca.get_number_of_pages())
             md = self._map_resp_to_metadata(resp)
             md.overlay(meta_data)
             success = ca.write_metadata(md)
 
-        if success:
+        if success and md is not None:
             questionary.print(
                 f"Using '{md.series.name} #{md.issue} ({md.cover_date.year})' metadata for "
                 f"'{filename.name}'.",
@@ -211,7 +212,7 @@ class Talker:
 
         for fn in file_list:
             if config.ignore_existing:
-                comic_archive = Comic(fn)
+                comic_archive = Comic(str(fn))
                 if comic_archive.has_metadata():
                     questionary.print(
                         f"{fn.name} has metadata. Skipping...",
@@ -245,7 +246,7 @@ class Talker:
             )
 
         def add_credits_to_metadata(
-            md: Metadata,
+            meta_data: Metadata,
             credits_resp: list[CreditsSchema],
         ) -> Metadata:
             def create_role_list(roles: list[RolesSchema]) -> list[Role]:
@@ -253,10 +254,10 @@ class Talker:
 
             for c in credits_resp:
                 if c.role:
-                    md.add_credit(Credit(c.creator, create_role_list(c.role), c.id))
+                    meta_data.add_credit(Credit(c.creator, create_role_list(c.role), c.id))
                 else:
-                    md.add_credit(Credit(c.creator, [], c.id))
-            return md
+                    meta_data.add_credit(Credit(c.creator, [], c.id))
+            return meta_data
 
         def map_ratings(rating: str) -> str:
             age_rating = rating.lower()
