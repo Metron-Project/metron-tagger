@@ -265,14 +265,14 @@ toml = ["tomli"]
 
 [[package]]
 name = "darkseid"
-version = "3.2.1"
+version = "3.2.2"
 description = "A library to interact with comic archives"
 category = "main"
 optional = false
 python-versions = ">=3.9,<4.0"
 files = [
-    {file = "darkseid-3.2.1-py3-none-any.whl", hash = "sha256:0d5500b52b04639b3106a390d48078ce63f326ad59785c82dc7b5dfbd625699a"},
-    {file = "darkseid-3.2.1.tar.gz", hash = "sha256:8c8cbb2fe06aa5b81567fce529c756ad5b559332407163de591b5e94bd383006"},
+    {file = "darkseid-3.2.2-py3-none-any.whl", hash = "sha256:17ea37d560d4cc57a50ed2c76f25152d866b81643eeed083744d2a1e283cb099"},
+    {file = "darkseid-3.2.2.tar.gz", hash = "sha256:85350d76979e9444161b84d9a91774c2b4b73fa30b75c1c441ba785c664ebc14"},
 ]
 
 [package.dependencies]
