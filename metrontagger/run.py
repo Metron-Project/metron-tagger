@@ -3,6 +3,7 @@ from typing import Optional
 
 import questionary
 from darkseid.comic import Comic
+from darkseid.metadata import Metadata
 from darkseid.utils import get_recursive_filelist
 
 from metrontagger.duplicates import DuplicateIssue, Duplicates
@@ -196,6 +197,29 @@ class Runner:
             None,
         )
 
+    @staticmethod
+    def _update_ci_xml(file_list: list[DuplicateIssue]) -> None:
+        for item in file_list:
+            comic = Comic(item.path_)
+            if comic.has_metadata():
+                md = comic.read_metadata()
+                new_md = Metadata()
+                new_md.set_default_page_list(comic.get_number_of_pages())
+                md.overlay(new_md)
+                if comic.write_metadata(md):
+                    questionary.print(
+                        f"Wrote updated metadata to '{comic}'",
+                        style=Styles.SUCCESS,
+                    )
+                else:
+                    questionary.print(
+                        f"Failed to updated metadata for {comic}",
+                        style=Styles.WARNING,
+                    )
+                continue
+            # No metadata
+            questionary.print(f"No metadata in {comic}. Skipping...")
+
     def _remove_duplicates(self: "Runner", file_list: list[Path]) -> None:
         dups_obj = Duplicates(file_list)
         distinct_hashes = dups_obj.get_distinct_hashes()
@@ -205,7 +229,7 @@ class Runner:
             return
 
         # List of page indexes to delete for each comic.
-        duplicates_lst = []
+        duplicates_lst: list[DuplicateIssue] = []
         # This Loop runs for each *distinct* hash.
         for count, img_hash in enumerate(distinct_hashes, 1):
             comics_lst = dups_obj.get_comic_list_from_hash(img_hash)
@@ -250,6 +274,12 @@ class Runner:
             dups_obj.delete_comic_pages(duplicates_lst)
         else:
             questionary.print("No duplicate page changes to write.", style=Styles.SUCCESS)
+
+        # Ask user if they want to update ComicInfo.xml for changes.
+        if questionary.confirm(
+            "Do you want to update the comic's 'comicinfo.xml' for the changes?",
+        ).ask():
+            self._update_ci_xml(duplicates_lst)
 
     def run(self: "Runner") -> None:
         if not (file_list := get_recursive_filelist(self.config.path)):
