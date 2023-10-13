@@ -14,34 +14,8 @@ from metrontagger.styles import Styles
 class MetronTaggerSettings:
     """Class to handle project settings"""
 
-    @staticmethod
-    def get_settings_folder() -> Path:
-        """Method to determine where the users settings should be saved"""
-
-        if platform.system() != "Windows":
-            return Path(save_config_path("metron-tagger"))
-
-        windows_path = PurePath(environ["APPDATA"]).joinpath("MetronTagger")
-        return Path(windows_path)
-
-    def _migrate_old_config(self: "MetronTaggerSettings") -> None:
-        old_config = Path.home() / ".MetronTagger" / "settings.ini"
-        if old_config.exists():
-            # Let's move any existing config to the new location
-            old_config.replace(self.settings_file)
-            questionary.print(
-                f"Migrated existing configuration to: {self.settings_file.parent}",
-                style=Styles.WARNING,
-            )
-            if old_config.parent.exists():
-                questionary.print(
-                    f"Removing old configuration directory: {old_config.parent}",
-                    style=Styles.WARNING,
-                )
-                old_config.parent.rmdir()
-
     def __init__(self: "MetronTaggerSettings", config_dir: Optional[str] = None) -> None:
-        # Metron creditials
+        # Metron credentials
         self.metron_user: str = ""
         self.metron_pass: str = ""
         self.path: str = ""
@@ -80,6 +54,32 @@ class MetronTaggerSettings:
             self.save()
         else:
             self.load()
+
+    @staticmethod
+    def get_settings_folder() -> Path:
+        """Method to determine where the users settings should be saved"""
+
+        if platform.system() != "Windows":
+            return Path(save_config_path("metron-tagger"))
+
+        windows_path = PurePath(environ["APPDATA"]).joinpath("MetronTagger")
+        return Path(windows_path)
+
+    def _migrate_old_config(self: "MetronTaggerSettings") -> None:
+        old_config = Path.home() / ".MetronTagger" / "settings.ini"
+        if old_config.exists():
+            # Let's move any existing config to the new location
+            old_config.replace(self.settings_file)
+            questionary.print(
+                f"Migrated existing configuration to: {self.settings_file.parent}",
+                style=Styles.WARNING,
+            )
+            if old_config.parent.exists():
+                questionary.print(
+                    f"Removing old configuration directory: {old_config.parent}",
+                    style=Styles.WARNING,
+                )
+                old_config.parent.rmdir()
 
     def load(self: "MetronTaggerSettings") -> None:
         """Method to retrieve a users settings"""

@@ -1,4 +1,4 @@
-"""Class to sort comic file based on it's metadata tags"""
+"""Class to sort comic file based on its metadata tags"""
 from pathlib import Path
 from shutil import Error, move
 from typing import Optional
@@ -14,7 +14,7 @@ MEGABYTE = 1048576
 
 
 class FileSorter:
-    """Class to move comic files based on it's metadata tags"""
+    """Class to move comic files based on its metadata tags"""
 
     def __init__(self: "FileSorter", directory: str) -> None:
         self.sort_directory = directory
@@ -56,9 +56,9 @@ class FileSorter:
                 existing_comic.unlink()
 
     def sort_comics(self: "FileSorter", comic: Path) -> bool:
-        """Method to move the comic file based on it's metadata tag"""
+        """Method to move the comic file based on its metadata tag"""
         try:
-            comic_archive = Comic(comic)
+            comic_archive = Comic(str(comic))
         except FileNotFoundError:
             return False
         if comic_archive.has_metadata():
