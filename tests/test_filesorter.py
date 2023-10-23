@@ -20,12 +20,12 @@ def test_sort_comic_with_missing_metadata(
 
     fake_metadata.series.volume = None
 
-    comic = Comic(fake_comic)
+    comic = Comic(str(fake_comic))
     if comic.has_metadata():
         comic.remove_metadata()
     comic.write_metadata(fake_metadata)
-    file_sorter = FileSorter(test_dir)
-    res = file_sorter.sort_comics(fake_comic)
+    file_sorter = FileSorter(str(test_dir))
+    res = file_sorter.sort_comics(Path(str(fake_comic)))
     assert res is False
 
 
@@ -43,13 +43,13 @@ def test_sort_comic(fake_comic: ZipFile, fake_metadata: Metadata, tmp_path: Path
     )
 
     # Write metadata to fake file
-    comic = Comic(fake_comic)
+    comic = Comic(str(fake_comic))
     if comic.has_metadata():
         comic.remove_metadata()
     comic.write_metadata(fake_metadata)
 
-    file_sorter = FileSorter(test_dir)
-    res = file_sorter.sort_comics(fake_comic)
+    file_sorter = FileSorter(str(test_dir))
+    res = file_sorter.sort_comics(Path(str(fake_comic)))
     assert result_dir.is_dir()
     assert res is True
 
@@ -68,13 +68,13 @@ def test_sort_tpb(fake_comic: ZipFile, fake_tpb_metadata: Metadata, tmp_path: Pa
     )
 
     # Write metadata to fake file
-    comic = Comic(fake_comic)
+    comic = Comic(str(fake_comic))
     if comic.has_metadata():
         comic.remove_metadata()
     comic.write_metadata(fake_tpb_metadata)
 
-    file_sorter = FileSorter(test_dir)
-    res = file_sorter.sort_comics(fake_comic)
+    file_sorter = FileSorter(str(test_dir))
+    res = file_sorter.sort_comics(Path(str(fake_comic)))
     assert result_dir.is_dir()
     assert res is True
 
@@ -83,9 +83,9 @@ def test_sort_files_without_metadata(fake_comic: ZipFile, tmp_path: Path) -> Non
     test_dir = tmp_path / "sort2"
     # If we add more tests we should probably create another tmpfile
     # since we are removing the metadata from the tmpfile
-    comic = Comic(fake_comic)
+    comic = Comic(str(fake_comic))
     comic.remove_metadata()
 
-    file_sorter = FileSorter(test_dir)
-    res = file_sorter.sort_comics(fake_comic)
+    file_sorter = FileSorter(str(test_dir))
+    res = file_sorter.sort_comics(Path(str(fake_comic)))
     assert res is False
