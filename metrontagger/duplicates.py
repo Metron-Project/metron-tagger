@@ -105,6 +105,7 @@ class Duplicates:
     def show_image(first_comic: DuplicateIssue) -> None:
         """Method to show the user an image from a comic."""
         comic = Comic(first_comic.path_)
+        # noinspection PyTypeChecker
         img_data = comic.get_page(first_comic.pages_index)
         try:
             image = Image.open(io.BytesIO(img_data))
