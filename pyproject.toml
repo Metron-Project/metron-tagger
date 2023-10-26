@@ -7,29 +7,29 @@ license = "GPL-3.0-or-later"
 maintainers = ["Brian Pepple <bpepple@metron.cloud>"]
 readme = "README.rst"
 packages = [
-	{ include = "metrontagger" },
+    { include = "metrontagger" },
 ]
 include = [
     { path = "tests", format = "sdist" }, "CHANGELOG.md"
 ]
-classifiers=[
-  "Development Status :: 5 - Production/Stable",
-  "Environment :: Console",
-  "Intended Audience :: End Users/Desktop",
-  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-  "Natural Language :: English",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Topic :: Utilities",
-  "Topic :: Other/Nonlisted Topic",
-  "Operating System :: MacOS :: MacOS X",
-  "Operating System :: POSIX",
-  "Operating System :: POSIX :: BSD",
-  "Operating System :: POSIX :: Linux",
-  "Operating System :: Microsoft :: Windows",
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Utilities",
+    "Topic :: Other/Nonlisted Topic",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX",
+    "Operating System :: POSIX :: BSD",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
 ]
-keywords=["comics", "comic", "metadata", "tagging", "tagger"]
+keywords = ["comics", "comic", "metadata", "tagging", "tagger"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -48,17 +48,12 @@ metron-tagger = "metrontagger.cli:main"
 pytest-cov = "^2.12.1"
 pytest-mock = "^3.6.1"
 pre-commit = "^2.14.1"
-black = "^23.0.0"
 tox = "^3.24.3"
-ruff = "^0.0.280"
+ruff = "^0.1.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.black]
-line-length = 95
-target-version = ['py39']
 
 [tool.isort]
 profile = "black"
@@ -73,56 +68,57 @@ known_third_party = ["PIL", "darkseid", "imagehash", "lxml", "mokkari", "pandas"
 "Bug Tracker" = "https://github.com/Metron-Project/metron-tagger/issues"
 
 [tool.ruff]
-fix = true
 line-length = 95
 show-fixes = true
 target-version = "py39"
-ignore = ["A001", "A003"]
+
+[tool.ruff.lint]
 select = [
-  "A",
-  "ANN",
-  "ARG",
-  "B",
-  "BLE",
-  "C40",
-  "COM",
-  "CPY",
-  "DJ",
-  "DTZ",
-  "E",
-  "ERA",
-  "F",
-  "G",
-  "I",
-  "ICN",
-  "INP",
-  "ISC",
-  "N",
-  "NPY",
-  "PD",
-  "PGH",
-  "PIE",
-  "PLC",
-  "PLE",
-  "PLW",
-  "PT",
-  "PTH",
-  "PYI",
-  "Q",
-  "RET",
-  "RSE",
-  "RUF",
-  "S",
-  "SIM",
-  "SLF",
-  "T10",
-  "T20",
-  "TCH",
-  "TID",
-  "UP",
-  "W",
-  "YTT"
+    "A",
+    "ANN",
+    "ARG",
+    "B",
+    "BLE",
+    "C40",
+    "COM",
+    "DTZ",
+    "E",
+    "ERA",
+    "F",
+    "G",
+    "I",
+    "ICN",
+    "INP",
+    "ISC",
+    "N",
+    "NPY",
+    "PD",
+    "PGH",
+    "PIE",
+    "PLC",
+    "PLE",
+    "PLW",
+    "PT",
+    "PTH",
+    "PYI",
+    "Q",
+    "RET",
+    "RSE",
+    "RUF",
+    "S",
+    "SIM",
+    "SLF",
+    "T10",
+    "T20",
+    "TCH",
+    "TID",
+    "UP",
+    "W",
+    "YTT"
 ]
+ignore = ["A001", "A003", "COM812", "COM819", "E501", "ISC001", "Q000", "Q001", "Q002", "Q003", "W191"]
+fixable = ["ALL"]
+unfixable = []
 
 [tool.ruff.flake8-annotations]
 allow-star-arg-any = true
