@@ -35,7 +35,7 @@ def metron_response() -> dict[str, any]:
         "isbn": "",
         "upc": "",
         "page": 36,
-        "desc": "Spider-Man goes on a wild goose chase to find out who is behind the Prowler impersonation.",  # noqa: E501
+        "desc": "Spider-Man goes on a wild goose chase to find out who is behind the Prowler impersonation.",
         "image": "https://static.metron.cloud/media/issue/2021/05/22/the-spectacular-spider-man-47.jpg",
         "cover_hash": "c0f83fe438876c1b",
         "arcs": [],
