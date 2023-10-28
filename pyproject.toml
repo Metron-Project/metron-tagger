@@ -52,7 +52,7 @@ tox = "^3.24.3"
 ruff = "^0.1.2"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.1.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.isort]
@@ -137,4 +137,7 @@ source = ["metrontagger"]
 
 [tool.coverage.report]
 show_missing = true
+
+[tool.coverage.html]
+directory = "test-results/coverage"
 
