@@ -86,7 +86,8 @@ class Runner:
                     style=Styles.WARNING,
                 )
 
-    def _validate_comic_info(self: "Runner", file_list: list[Path]) -> None:
+    @staticmethod
+    def _validate_comic_info(file_list: list[Path]) -> None:
         questionary.print("\nValidating ComicInfo:\n---------------------", style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(str(comic))
