@@ -10,7 +10,7 @@ packages = [
     { include = "metrontagger" },
 ]
 include = [
-    { path = "tests", format = "sdist" }, "CHANGELOG.md"
+    { path = "tests", format = "sdist" }, { path = "CHANGELOG.md", format = "sdist" }
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
