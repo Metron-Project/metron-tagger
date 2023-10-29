@@ -45,7 +45,7 @@ Help
 
 ::
 
-  usage: metron-tagger [-h] [-r] [-o] [--id ID] [-d] [--ignore-existing] [-i] [--missing] [-s] [-e] [-z] [--delete-original] [--version] path [path ...]
+  usage: metron-tagger [-h] [-r] [-o] [--id ID] [-d] [--ignore-existing] [-i] [--missing] [-s] [-z] [--validate] [--delete-original] [--duplicates] [--version] path [path ...]
 
   Read in a file or set of files, and return the result.
 
@@ -65,8 +65,8 @@ Help
     -z, --export-to-cbz  Export a CBR (rar) archive to a CBZ (zip) archive. (default: False)
     --validate           Verify that comic archive has a valid ComicInfo.xml. (default: False)
     --delete-original    Delete the original archive after successful export to another format. (default: False)
+    --duplicates         Identify and give the option to delete duplicate pages in a directory of comics. (Experimental) (default: False)
     --version            Show the version number and exit
-
 
 Bugs/Requests
 -------------
