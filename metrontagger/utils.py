@@ -1,12 +1,11 @@
 """Some miscellaneous functions"""
 from pathlib import Path
-from typing import Optional
 from urllib.parse import quote_plus
 
 from darkseid.filename import FileNameParser
 
 
-def cleanup_string(path_name: Optional[str]) -> Optional[str]:
+def cleanup_string(path_name: str | None) -> str | None:
     """
     Function to remove some characters that don't play nicely on Windows machines filesystem
     """

@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 import questionary
 from darkseid.comic import Comic
@@ -192,7 +191,7 @@ class Runner:
     def _get_duplicate_entry_index(
         comic_path: str,
         dups_list: list[DuplicateIssue],
-    ) -> Optional[int]:
+    ) -> int | None:
         return next(
             (idx for idx, item in enumerate(dups_list) if comic_path in item.path_),
             None,

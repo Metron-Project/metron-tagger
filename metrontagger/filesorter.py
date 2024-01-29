@@ -1,7 +1,6 @@
 """Class to sort comic file based on its metadata tags"""
 from pathlib import Path
 from shutil import Error, move
-from typing import Optional
 
 import questionary
 from darkseid.comic import Comic
@@ -25,7 +24,7 @@ class FileSorter:
     @staticmethod
     def _cleanup_metadata(
         meta_data: Metadata,
-    ) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    ) -> tuple[str | None, str | None, str | None]:
         """Clean the metadata string."""
         publisher = cleanup_string(meta_data.publisher.name)
         series = cleanup_string(meta_data.series.name)

@@ -3,7 +3,6 @@ from enum import Enum, auto, unique
 from importlib.resources import as_file, files
 from io import BytesIO
 from pathlib import Path
-from typing import Optional
 
 from lxml import etree as et
 
@@ -22,7 +21,7 @@ class ValidateComicInfo:
         self.comic_info_xml = ci_xml
 
     @staticmethod
-    def _get_xsd(schema_version: SchemaVersion) -> Optional[Path]:
+    def _get_xsd(schema_version: SchemaVersion) -> Path | None:
         """Method to return path of CI Schema."""
         if schema_version == SchemaVersion.v1:
             with as_file(files("metrontagger.schema.v1").joinpath("ComicInfo.xsd")) as xsd:

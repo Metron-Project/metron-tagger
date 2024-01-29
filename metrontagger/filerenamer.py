@@ -6,7 +6,6 @@
 import datetime
 import re
 from pathlib import Path
-from typing import Optional
 
 import questionary
 from darkseid.issue_string import IssueString
@@ -20,8 +19,8 @@ from metrontagger.utils import cleanup_string
 class FileRenamer:
     """Class to rename a comic archive based on it's metadata tag"""
 
-    def __init__(self: "FileRenamer", metadata: Optional[Metadata] = None) -> None:
-        self.metadata: Optional[Metadata] = metadata
+    def __init__(self: "FileRenamer", metadata: Metadata | None = None) -> None:
+        self.metadata: Metadata | None = metadata
         self.template: str = "%series% v%volume% #%issue% (of %issuecount%) (%year%)"
         self.smart_cleanup: bool = True
         self.issue_zero_padding: int = 3
@@ -43,7 +42,7 @@ class FileRenamer:
         """
         self.template = template
 
-    def replace_token(self: "FileRenamer", text: str, value: Optional[str], token: str) -> str:
+    def replace_token(self: "FileRenamer", text: str, value: str | None, token: str) -> str:
         """Method to replace a value with another value"""
 
         # helper func
@@ -98,7 +97,7 @@ class FileRenamer:
         # remove duplicate spaces (again!)
         return " ".join(new_name.split())
 
-    def determine_name(self: "FileRenamer", filename: Path) -> Optional[str]:
+    def determine_name(self: "FileRenamer", filename: Path) -> str | None:
         """Method to create the new filename based on the files metadata"""
         md = self.metadata
         new_name = self.template
@@ -172,7 +171,7 @@ class FileRenamer:
 
         return cleanup_string(new_name)
 
-    def rename_file(self: "FileRenamer", comic: Path) -> Optional[Path]:
+    def rename_file(self: "FileRenamer", comic: Path) -> Path | None:
         # This shouldn't happen, but just in case let's make sure there is metadata.
         if self.metadata is None:
             questionary.print(
