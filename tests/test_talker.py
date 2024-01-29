@@ -1,7 +1,7 @@
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-
+from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
@@ -9,49 +9,70 @@ from darkseid.comic import Comic
 from darkseid.metadata import Basic
 from mokkari.schemas.character import BaseCharacter
 from mokkari.schemas.generic import GenericItem
-from mokkari.schemas.issue import Credit, Issue, IssueSeries, BaseIssue, BasicSeries
+from mokkari.schemas.issue import BaseIssue, BasicSeries, Credit, Issue, IssueSeries
 from mokkari.schemas.reprint import Reprint
 from mokkari.session import Session
 from pydantic import HttpUrl, TypeAdapter
 
 from metrontagger.talker import Talker
-from pathlib import Path
+
+tzinfo = timezone(timedelta(hours=-5))
 
 
 @pytest.fixture()
 def test_issue() -> Issue:
-    issue = Issue(id=31047,
-                  publisher=GenericItem(id=1, name="Marvel"),
-                  series=IssueSeries(id=2222, name="The Spectacular Spider-Man", sort_name="Spectacular Spider-Man",
-                                     volume=1, series_type=GenericItem(id=2, name="Cancelled Series")),
-                  number="47",
-                  collection_title="",
-                  story_titles=["A Night on the Prowl!"],
-                  cover_date=date(1980, 10, 1),
-                  store_date=None,
-                  price=Decimal(".5"),
-                  rating=GenericItem(id=6, name="CCA"),
-                  page_count=36,
-                  desc="Spider-Man goes on a wild goose chase to find out who is behind the Prowler impersonation.",
-                  image=HttpUrl("https://static.metron.cloud/media/issue/2021/05/22/the-spectacular-spider-man-47.jpg"),
-                  cover_hash="c0f83fe438876c1b",
-                  credits=[Credit(id=2335, creator="Al Milgrom", role=[GenericItem(id=7, name="Cover")]),
-                           Credit(id=1402, creator="Bruce Patterson",
-                                  role=[GenericItem(id=4, name="Inker"), GenericItem(id=6, name="Letterer")]),
-                           Credit(id=128, creator="Dennis O'Neil", role=[GenericItem(id=8, name="Editor")]),
-                           Credit(id=624, creator="Glynis Oliver", role=[GenericItem(id=5, name="Colorist")]),
-                           Credit(id=624, creator="Jim Shooter", role=[GenericItem(id=20, name="Editor In Chief")]),
-                           Credit(id=675, creator="Marie Severin", role=[GenericItem(id=3, name="Penciller")]),
-                           Credit(id=675, creator="Roger Stern", role=[GenericItem(id=1, name="Writer")]),
-                           ],
-                  characters=[BaseCharacter(id=6784, name="Debra Whitman", modified=datetime.now()),
-                              BaseCharacter(id=3067, name="Hobgoblin (Kingsley)", modified=datetime.now()),
-                              BaseCharacter(id=2415, name="Prowler", modified=datetime.now()),
-                              BaseCharacter(id=145, name="Spider-Man", modified=datetime.now())],
-                  cv_id=20745,
-                  resource_url=HttpUrl("https://metron.cloud/issue/the-spectacular-spider-man-1976-47/"),
-                  modified=datetime.now(),
-                  )
+    issue = Issue(
+        id=31047,
+        publisher=GenericItem(id=1, name="Marvel"),
+        series=IssueSeries(
+            id=2222,
+            name="The Spectacular Spider-Man",
+            sort_name="Spectacular Spider-Man",
+            volume=1,
+            series_type=GenericItem(id=2, name="Cancelled Series"),
+        ),
+        number="47",
+        collection_title="",
+        story_titles=["A Night on the Prowl!"],
+        cover_date=date(1980, 10, 1),
+        store_date=None,
+        price=Decimal(".5"),
+        rating=GenericItem(id=6, name="CCA"),
+        page_count=36,
+        desc="Spider-Man goes on a wild goose chase to find out who is behind the Prowler impersonation.",
+        image=HttpUrl(
+            "https://static.metron.cloud/media/issue/2021/05/22/the-spectacular-spider-man-47.jpg"
+        ),
+        cover_hash="c0f83fe438876c1b",
+        credits=[
+            Credit(id=2335, creator="Al Milgrom", role=[GenericItem(id=7, name="Cover")]),
+            Credit(
+                id=1402,
+                creator="Bruce Patterson",
+                role=[GenericItem(id=4, name="Inker"), GenericItem(id=6, name="Letterer")],
+            ),
+            Credit(id=128, creator="Dennis O'Neil", role=[GenericItem(id=8, name="Editor")]),
+            Credit(id=624, creator="Glynis Oliver", role=[GenericItem(id=5, name="Colorist")]),
+            Credit(
+                id=624,
+                creator="Jim Shooter",
+                role=[GenericItem(id=20, name="Editor In Chief")],
+            ),
+            Credit(
+                id=675, creator="Marie Severin", role=[GenericItem(id=3, name="Penciller")]
+            ),
+            Credit(id=675, creator="Roger Stern", role=[GenericItem(id=1, name="Writer")]),
+        ],
+        characters=[
+            BaseCharacter(id=6784, name="Debra Whitman", modified=datetime.now(tzinfo)),
+            BaseCharacter(id=3067, name="Hobgoblin (Kingsley)", modified=datetime.now(tzinfo)),
+            BaseCharacter(id=2415, name="Prowler", modified=datetime.now(tzinfo)),
+            BaseCharacter(id=145, name="Spider-Man", modified=datetime.now(tzinfo)),
+        ],
+        cv_id=20745,
+        resource_url=HttpUrl("https://metron.cloud/issue/the-spectacular-spider-man-1976-47/"),
+        modified=datetime.now(tzinfo),
+    )
     adapter = TypeAdapter(Issue)
     return adapter.validate_python(issue)
 
@@ -111,30 +132,42 @@ def test_map_resp_to_metadata_with_no_story_name(
 @pytest.fixture()
 def test_issue_list() -> list[BaseIssue]:
     i_list = [
-        BaseIssue(id=3634,
-                  series=BasicSeries(name="Aquaman", volume=1, year_began=1962),
-                  number="1",
-                  issue_name="Aquaman (1962) #1",
-                  cover_date=date(1962, 2, 1),
-                  image=HttpUrl("https://static.metron.cloud/media/issue/2019/07/12/aquaman-v1-1.jpg"),
-                  cover_hash="ccb2097c5b273c1b",
-                  modified=datetime.now()),
-        BaseIssue(id=2471,
-                  series=BasicSeries(name="Aquaman", volume=2, year_began=1986),
-                  number="1",
-                  issue_name="Aquaman (1986) #1",
-                  cover_date=date(1986, 2, 1),
-                  image=HttpUrl("https://static.metron.cloud/media/issue/2019/05/19/aquaman-v2-1.jpg"),
-                  cover_hash="ea97c11cb3660c79",
-                  modified=datetime.now()),
-        BaseIssue(id=2541,
-                  series=BasicSeries(name="Aquaman", volume=3, year_began=1989),
-                  number="1",
-                  issue_name="Aquaman (1989) #1",
-                  cover_date=date(1989, 6, 1),
-                  image=HttpUrl("https://static.metron.cloud/media/issue/2019/05/25/aquaman-v3-1.jpg"),
-                  cover_hash="d50df6181876276d",
-                  modified=datetime.now())
+        BaseIssue(
+            id=3634,
+            series=BasicSeries(name="Aquaman", volume=1, year_began=1962),
+            number="1",
+            issue_name="Aquaman (1962) #1",
+            cover_date=date(1962, 2, 1),
+            image=HttpUrl(
+                "https://static.metron.cloud/media/issue/2019/07/12/aquaman-v1-1.jpg"
+            ),
+            cover_hash="ccb2097c5b273c1b",
+            modified=datetime.now(tzinfo),
+        ),
+        BaseIssue(
+            id=2471,
+            series=BasicSeries(name="Aquaman", volume=2, year_began=1986),
+            number="1",
+            issue_name="Aquaman (1986) #1",
+            cover_date=date(1986, 2, 1),
+            image=HttpUrl(
+                "https://static.metron.cloud/media/issue/2019/05/19/aquaman-v2-1.jpg"
+            ),
+            cover_hash="ea97c11cb3660c79",
+            modified=datetime.now(tzinfo),
+        ),
+        BaseIssue(
+            id=2541,
+            series=BasicSeries(name="Aquaman", volume=3, year_began=1989),
+            number="1",
+            issue_name="Aquaman (1989) #1",
+            cover_date=date(1989, 6, 1),
+            image=HttpUrl(
+                "https://static.metron.cloud/media/issue/2019/05/25/aquaman-v3-1.jpg"
+            ),
+            cover_hash="d50df6181876276d",
+            modified=datetime.now(tzinfo),
+        ),
     ]
     adapter = TypeAdapter(list[BaseIssue])
     return adapter.validate_python(i_list)

@@ -1,7 +1,6 @@
 import io
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import mokkari
 import questionary
@@ -10,9 +9,9 @@ from darkseid.issue_string import IssueString
 from darkseid.metadata import Basic, Credit, Metadata, Role, Series
 from imagehash import ImageHash, hex_to_hash, phash
 from mokkari.exceptions import ApiError
-from PIL import Image
 from mokkari.schemas.generic import GenericItem
-from mokkari.schemas.issue import BaseIssue, Issue, Credit as MokkariCredit
+from mokkari.schemas.issue import BaseIssue, Credit as MokkariCredit, Issue
+from PIL import Image
 
 from metrontagger import __version__
 from metrontagger.settings import MetronTaggerSettings
@@ -67,7 +66,7 @@ class Talker:
         self: "Talker",
         fn: Path,
         match_set: list[BaseIssue],
-    ) -> Optional[int]:
+    ) -> int | None:
         """
         Function to ask user to choice which issue metadata to write,
         when there are multiple choices
@@ -81,7 +80,7 @@ class Talker:
         return questionary.select("Select an issue to match", choices=choices).ask()
 
     @staticmethod
-    def _get_comic_cover_hash(comic: Comic) -> Optional[ImageHash]:
+    def _get_comic_cover_hash(comic: Comic) -> ImageHash | None:
         with Image.open(io.BytesIO(comic.get_page(0))) as img:
             try:
                 ch = phash(img)
@@ -103,7 +102,7 @@ class Talker:
         self: "Talker",
         fn: Path,
         interactive: bool,
-    ) -> tuple[Optional[int], bool]:
+    ) -> tuple[int | None, bool]:
         ca = Comic(str(fn))
 
         if not ca.is_writable() and not ca.seems_to_be_a_comic_archive():

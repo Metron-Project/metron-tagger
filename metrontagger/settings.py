@@ -3,7 +3,6 @@ import configparser
 import platform
 from os import environ
 from pathlib import Path, PurePath
-from typing import Optional
 
 from xdg.BaseDirectory import save_config_path
 
@@ -11,7 +10,7 @@ from xdg.BaseDirectory import save_config_path
 class MetronTaggerSettings:
     """Class to handle project settings"""
 
-    def __init__(self: "MetronTaggerSettings", config_dir: Optional[str] = None) -> None:
+    def __init__(self: "MetronTaggerSettings", config_dir: str | None = None) -> None:
         # Metron credentials
         self.metron_user: str = ""
         self.metron_pass: str = ""

@@ -5,7 +5,6 @@ import io
 from dataclasses import dataclass
 from itertools import groupby
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 import questionary
@@ -30,7 +29,7 @@ class Duplicates:
 
     def __init__(self: "Duplicates", file_lst: list[Path]) -> None:
         self._file_lst = file_lst
-        self._data_frame: Optional[pd.DataFrame] = None
+        self._data_frame: pd.DataFrame | None = None
 
     def _image_hashes(self: "Duplicates") -> list[dict[str, any]]:
         """
