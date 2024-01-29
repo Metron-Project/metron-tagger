@@ -18,9 +18,9 @@ classifiers = [
     "Intended Audience :: End Users/Desktop",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Natural Language :: English",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Utilities",
     "Topic :: Other/Nonlisted Topic",
     "Operating System :: MacOS :: MacOS X",
@@ -32,14 +32,14 @@ classifiers = [
 keywords = ["comics", "comic", "metadata", "tagging", "tagger"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
-mokkari = "^2.6.0"
+python = "^3.10"
+mokkari = "^3.0.0"
 questionary = "^2.0.1"
 pyxdg = "^0.28"
 darkseid = "^3.2.2"
-lxml = "^4.9.2"
+lxml = "^5.1.0"
 imagehash = "^4.3.1"
-pandas = "^2.1.0"
+pandas = "^2.2.0"
 
 [tool.poetry.scripts]
 metron-tagger = "metrontagger.cli:main"
@@ -70,7 +70,7 @@ known_third_party = ["PIL", "darkseid", "imagehash", "lxml", "mokkari", "pandas"
 [tool.ruff]
 line-length = 95
 show-fixes = true
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = [
