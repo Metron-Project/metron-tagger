@@ -10,8 +10,9 @@ from darkseid.issue_string import IssueString
 from darkseid.metadata import Basic, Credit, Metadata, Role, Series
 from imagehash import ImageHash, hex_to_hash, phash
 from mokkari.exceptions import ApiError
-from mokkari.issue import CreditsSchema, IssueSchema, RolesSchema
 from PIL import Image
+from mokkari.schemas.generic import GenericItem
+from mokkari.schemas.issue import BaseIssue, Issue, Credit as MokkariCredit
 
 from metrontagger import __version__
 from metrontagger.settings import MetronTaggerSettings
@@ -24,7 +25,7 @@ HAMMING_DISTANCE = 10
 class MultipleMatch:
     """Class to hold information on searches with multiple matches"""
 
-    def __init__(self: "MultipleMatch", filename: Path, match_list: list[IssueSchema]) -> None:
+    def __init__(self: "MultipleMatch", filename: Path, match_list: list[BaseIssue]) -> None:
         self.filename = filename
         self.matches = match_list
 
@@ -53,7 +54,7 @@ class Talker:
         self.match_results = OnlineMatchResults()
 
     @staticmethod
-    def _create_choice_list(match_set: list[IssueSchema]) -> list[questionary.Choice]:
+    def _create_choice_list(match_set: list[BaseIssue]) -> list[questionary.Choice]:
         issue_lst = []
         for i in match_set:
             c = questionary.Choice(title=f"{i.issue_name} ({i.cover_date})", value=i.id)
@@ -65,7 +66,7 @@ class Talker:
     def _select_choice_from_matches(
         self: "Talker",
         fn: Path,
-        match_set: list[IssueSchema],
+        match_set: list[BaseIssue],
     ) -> Optional[int]:
         """
         Function to ask user to choice which issue metadata to write,
@@ -233,7 +234,7 @@ class Talker:
         self._write_issue_md(fn, id_)
 
     @staticmethod
-    def _map_resp_to_metadata(resp: IssueSchema) -> Metadata:  # C901
+    def _map_resp_to_metadata(resp: Issue) -> Metadata:  # C901
         # Helper functions
         def create_resource_list(resource: any) -> list[Basic]:
             return [Basic(r.name, r.id) for r in resource]
@@ -247,9 +248,9 @@ class Talker:
 
         def add_credits_to_metadata(
             meta_data: Metadata,
-            credits_resp: list[CreditsSchema],
+            credits_resp: list[MokkariCredit],
         ) -> Metadata:
-            def create_role_list(roles: list[RolesSchema]) -> list[Role]:
+            def create_role_list(roles: list[GenericItem]) -> list[Role]:
                 return [Role(r.name, r.id) for r in roles]
 
             for c in credits_resp:
@@ -298,6 +299,6 @@ class Talker:
         if resp.rating:
             md.age_rating = map_ratings(resp.rating.name)
         if resp.resource_url:
-            md.web_link = resp.resource_url
+            md.web_link = str(resp.resource_url)
 
         return md
