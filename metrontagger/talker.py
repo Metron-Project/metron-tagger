@@ -1,9 +1,11 @@
 import io
 from datetime import datetime
+from logging import getLogger
 from pathlib import Path
 
 import mokkari
 import questionary
+from comicfn2dict import comicfn2dict
 from darkseid.comic import Comic
 from darkseid.issue_string import IssueString
 from darkseid.metadata import Basic, Credit, Metadata, Role, Series
@@ -18,6 +20,7 @@ from metrontagger.settings import MetronTaggerSettings
 from metrontagger.styles import Styles
 from metrontagger.utils import create_query_params
 
+LOGGER = getLogger(__name__)
 HAMMING_DISTANCE = 10
 
 
@@ -89,12 +92,23 @@ class Talker:
                 ch = None
         return ch
 
-    @staticmethod
-    def _get_cover_hamming_results(cover_hash: ImageHash, lst: list) -> list[any]:
+    def _within_hamming_distance(
+        self: "Talker", comic: Comic, metron_hash: str | None = None
+    ) -> bool:
+        if metron_hash is None:
+            return False
+        comic_hash = self._get_comic_cover_hash(comic)
+        if comic_hash is None:
+            return False
+        hamming = comic_hash - hex_to_hash(metron_hash)
+        if hamming <= HAMMING_DISTANCE:
+            return True
+        return False
+
+    def _get_hamming_results(self: "Talker", comic: Comic, lst: list[BaseIssue]) -> list[any]:
         hamming_lst = []
         for item in lst:
-            hamming = cover_hash - hex_to_hash(item.cover_hash)
-            if hamming <= HAMMING_DISTANCE:
+            if self._within_hamming_distance(comic, item.cover_hash):
                 hamming_lst.append(item)
         return hamming_lst
 
@@ -103,7 +117,7 @@ class Talker:
         fn: Path,
         interactive: bool,
     ) -> tuple[int | None, bool]:
-        ca = Comic(str(fn))
+        ca = Comic(fn)
 
         if not ca.is_writable() and not ca.seems_to_be_a_comic_archive():
             questionary.print(
@@ -112,7 +126,10 @@ class Talker:
             )
             return None, False
 
-        params = create_query_params(fn)
+        # TODO: Determine if we want to use some of the other keys beyond 'series' and 'issue number'
+        metadata: dict[str, str | tuple[str, ...]] = comicfn2dict(fn, verbose=0)
+
+        params = create_query_params(metadata)
         i_list = self.api.issues_list(params=params)
         result_count = len(i_list)
 
@@ -124,10 +141,8 @@ class Talker:
             multiple_match = False
         elif result_count > 1:
             # Let's use the cover hash to try to narrow down the results
-            if hamming_lst := self._get_cover_hamming_results(
-                self._get_comic_cover_hash(ca),
-                i_list,
-            ):
+            LOGGER.debug("Check Hamming for '%s'", ca)
+            if hamming_lst := self._get_hamming_results(ca, i_list):
                 if len(hamming_lst) == 1:
                     issue_id = hamming_lst[0].id
                     self.match_results.add_good_match(fn)
@@ -139,7 +154,8 @@ class Talker:
                 self.match_results.add_multiple_match(MultipleMatch(fn, i_list))
                 multiple_match = True
         elif result_count == 1:
-            if not interactive:
+            # Let's see if the cover is correct otherwise ask for user to select issue.
+            if not interactive and self._within_hamming_distance(ca, i_list[0].cover_hash):
                 issue_id = i_list[0].id
                 self.match_results.add_good_match(fn)
             else:
@@ -189,9 +205,10 @@ class Talker:
             success = ca.write_metadata(md)
 
         if success and md is not None:
+            collection = bool(md.series.format.lower() in ["trade paperback", "hard cover"])
             questionary.print(
-                f"Using '{md.series.name} #{md.issue} ({md.cover_date.year})' metadata for "
-                f"'{filename.name}'.",
+                f"Using '{md.series.name} #{md.issue} ({md.cover_date.year})"
+                f"{' (Collection)\'' if collection else '\''} metadata for '{filename.name}'.",
                 style=Styles.SUCCESS,
             )
         else:
