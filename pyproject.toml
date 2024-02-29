@@ -40,6 +40,7 @@ darkseid = "^3.2.2"
 lxml = "^4.9.1"
 imagehash = "^4.3.1"
 pandas = "^2.2.0"
+comicfn2dict = "^0.2.0"
 
 [tool.poetry.scripts]
 metron-tagger = "metrontagger.cli:main"
@@ -61,7 +62,7 @@ multi_line_output = 3
 line_length = 95
 default_section = "THIRDPARTY"
 known_first_party = []
-known_third_party = ["PIL", "darkseid", "imagehash", "lxml", "mokkari", "pandas", "pydantic", "pytest", "questionary", "xdg"]
+known_third_party = ["PIL", "comicfn2dict", "darkseid", "imagehash", "lxml", "mokkari", "pandas", "pydantic", "pytest", "questionary", "xdg"]
 
 [tool.poetry.urls]
 "Homepage" = "https://github.com/Metron-Project/metron-tagger"
