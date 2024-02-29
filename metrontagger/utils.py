@@ -1,8 +1,5 @@
 """Some miscellaneous functions"""
-from pathlib import Path
 from urllib.parse import quote_plus
-
-from comicfn2dict import comicfn2dict
 
 
 def cleanup_string(path_name: str | None) -> str | None:
@@ -22,10 +19,7 @@ def cleanup_string(path_name: str | None) -> str | None:
     return path_name.replace("?", "")
 
 
-def create_query_params(filename: Path) -> dict[str, str]:
-    """Function to create a diction of values based on the provided filename"""
-    metadata: dict[str, str | tuple[str, ...]] = comicfn2dict(filename, verbose=0)
-
+def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str, str]:
     # TODO: Should probably check if there is a 'series' key.
     # Remove hyphen when searching for series name
     series_string: str = metadata["series"].replace(" - ", " ").strip()
@@ -40,15 +34,7 @@ def create_query_params(filename: Path) -> dict[str, str]:
     if number == ".5":
         number = "½"
 
-    params = {
+    return {
         "series_name": series_string,
         "number": number,
     }
-    # TODO: Probably want to remove these from the API call and use the info instead to find the issue
-    #       from the return results.
-    if "volume" in metadata:
-        params["series_volume"] = metadata["volume"]
-    if "year" in metadata:
-        params["cover_year"] = metadata["year"]
-
-    return params

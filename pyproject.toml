@@ -33,13 +33,13 @@ keywords = ["comics", "comic", "metadata", "tagging", "tagger"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-mokkari = "^3.0.0"
+mokkari = "^3.0.1"
 questionary = "^2.0.1"
 pyxdg = "^0.28"
-darkseid = "^3.2.2"
+darkseid = "^4.0.0"
 lxml = "^4.9.1"
 imagehash = "^4.3.1"
-pandas = "^2.2.0"
+pandas = "^2.2.1"
 comicfn2dict = "^0.2.0"
 
 [tool.poetry.scripts]

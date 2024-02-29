@@ -8,6 +8,7 @@ from darkseid.utils import get_recursive_filelist
 from metrontagger.duplicates import DuplicateIssue, Duplicates
 from metrontagger.filerenamer import FileRenamer
 from metrontagger.filesorter import FileSorter
+from metrontagger.logging import init_logging
 from metrontagger.settings import MetronTaggerSettings
 from metrontagger.styles import Styles
 from metrontagger.talker import Talker
@@ -285,6 +286,9 @@ class Runner:
         if not (file_list := get_recursive_filelist(self.config.path)):
             questionary.print("No files to process. Exiting.", style=Styles.WARNING)
             exit(0)
+
+        # Start logging
+        init_logging(self.config)
 
         if self.config.missing:
             self._comics_with_no_metadata(file_list)
