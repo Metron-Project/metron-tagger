@@ -208,7 +208,8 @@ class Talker:
             collection = bool(md.series.format.lower() in ["trade paperback", "hard cover"])
             questionary.print(
                 f"Using '{md.series.name} #{md.issue} ({md.cover_date.year})"
-                f"{' (Collection)\'' if collection else '\''} metadata for '{filename.name}'.",
+                f'{" (Collection)' " if collection else "' "}'
+                f"metadata for '{filename.name}'.",
                 style=Styles.SUCCESS,
             )
         else:
