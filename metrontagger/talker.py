@@ -206,12 +206,12 @@ class Talker:
 
         if success and md is not None:
             collection = bool(md.series.format.lower() in ["trade paperback", "hard cover"])
-            questionary.print(
+            msg = (
                 f"Using '{md.series.name} #{md.issue} ({md.cover_date.year})"
                 f'{" (Collection)' " if collection else "' "}'
-                f"metadata for '{filename.name}'.",
-                style=Styles.SUCCESS,
+                f"metadata for '{filename.name}'."
             )
+            questionary.print(msg, style=Styles.SUCCESS)
         else:
             questionary.print(
                 f"There was a problem writing metadata for '{filename.name}'.",
