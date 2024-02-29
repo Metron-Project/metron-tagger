@@ -44,14 +44,12 @@ def test_dict_with_title_hyphon(tmp_path: Path) -> None:
 def test_query_dict_without_issue_number(tmp_path: Path) -> None:
     series = "Batman"
     year = "1990"
-    volume = "2"
     # Make the tmp file
-    comic = tmp_path / f"{series} v{volume} ({year}).cbz"
+    comic = tmp_path / f"{series} ({year}).cbz"
 
     result = create_query_params(comic)
     expected = {
         "series_name": f"{series}",
-        "series_volume": f"{volume}",
         "number": "1",
         "cover_year": f"{year}",
     }
