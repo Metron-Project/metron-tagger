@@ -7,7 +7,7 @@ from zipfile import ZipFile
 import pytest
 from darkseid.comic import Comic
 from darkseid.metadata import Basic
-from mokkari.schemas.character import BaseCharacter
+from mokkari.schemas.base import BaseResource
 from mokkari.schemas.generic import GenericItem
 from mokkari.schemas.issue import BaseIssue, BasicSeries, Credit, Issue, IssueSeries
 from mokkari.schemas.reprint import Reprint
@@ -64,10 +64,10 @@ def test_issue() -> Issue:
             Credit(id=675, creator="Roger Stern", role=[GenericItem(id=1, name="Writer")]),
         ],
         characters=[
-            BaseCharacter(id=6784, name="Debra Whitman", modified=datetime.now(tzinfo)),
-            BaseCharacter(id=3067, name="Hobgoblin (Kingsley)", modified=datetime.now(tzinfo)),
-            BaseCharacter(id=2415, name="Prowler", modified=datetime.now(tzinfo)),
-            BaseCharacter(id=145, name="Spider-Man", modified=datetime.now(tzinfo)),
+            BaseResource(id=6784, name="Debra Whitman", modified=datetime.now(tzinfo)),
+            BaseResource(id=3067, name="Hobgoblin (Kingsley)", modified=datetime.now(tzinfo)),
+            BaseResource(id=2415, name="Prowler", modified=datetime.now(tzinfo)),
+            BaseResource(id=145, name="Spider-Man", modified=datetime.now(tzinfo)),
         ],
         cv_id=20745,
         resource_url=HttpUrl("https://metron.cloud/issue/the-spectacular-spider-man-1976-47/"),
