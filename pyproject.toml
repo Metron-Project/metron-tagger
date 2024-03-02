@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "metron-tagger"
-version = "2.1.0"
+version = "2.2.0"
 description = "A program to write metadata from metron.cloud to a comic archive"
 authors = ["Brian Pepple <bpepple@metron.cloud>"]
 license = "GPL-3.0-or-later"
@@ -36,7 +36,7 @@ python = "^3.10"
 mokkari = "^3.0.1"
 questionary = "^2.0.1"
 pyxdg = "^0.28"
-darkseid = "^4.0.0"
+darkseid = "^4.0.2"
 lxml = "^4.9.1"
 imagehash = "^4.3.1"
 pandas = "^2.2.1"

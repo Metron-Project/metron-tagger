@@ -220,13 +220,13 @@ toml = ["tomli"]
 
 [[package]]
 name = "darkseid"
-version = "4.0.0"
+version = "4.0.2"
 description = "A library to interact with comic archives"
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "darkseid-4.0.0-py3-none-any.whl", hash = "sha256:3e7df1d6514327bda832d751a485b0da0e8043e780970069362e63339174a213"},
-    {file = "darkseid-4.0.0.tar.gz", hash = "sha256:17150d08771064e6ab52de78931f3771de35b6e5213122c5fff2a9a75d471b49"},
+    {file = "darkseid-4.0.2-py3-none-any.whl", hash = "sha256:a486525b8ef2537498000d5c3fbe3cc5e1722623fa263216b643edef4680937a"},
+    {file = "darkseid-4.0.2.tar.gz", hash = "sha256:8b93bf8edca6730ab6770ca4ab7f9b75d90174d8f3879073f94157e5b5741f44"},
 ]
 
 [package.dependencies]
@@ -950,13 +950,13 @@ dev = ["pre-commit", "pytest-asyncio", "tox"]
 
 [[package]]
 name = "python-dateutil"
-version = "2.8.2"
+version = "2.9.0.post0"
 description = "Extensions to the standard Python datetime module"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 files = [
-    {file = "python-dateutil-2.8.2.tar.gz", hash = "sha256:0123cacc1627ae19ddf3c27a5de5bd67ee4586fbdd6440d9748f8abb483d3e86"},
-    {file = "python_dateutil-2.8.2-py2.py3-none-any.whl", hash = "sha256:961d03dc3453ebbc59dbdea9e4e11c5651520a876d0f4db161e8674aae935da9"},
+    {file = "python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3"},
+    {file = "python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427"},
 ]
 
 [package.dependencies]
@@ -1352,4 +1352,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "7547e0cab231abf6f328085426e52ce02fea97f98d1eff936535376213e9528d"
+content-hash = "b9f15de66a931fd9a2e1bd5d1d3c455584eaa424af771970a499006b5e557901"
