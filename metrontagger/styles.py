@@ -3,3 +3,4 @@ class Styles:
     SUCCESS = "fg:ansigreen"
     WARNING = "fg:ansiyellow"
     ERROR = "fg:ansired"
+    INFO = "fg:ansipurple"
