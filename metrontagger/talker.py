@@ -1,5 +1,6 @@
 import io
 from datetime import datetime
+from enum import Enum, auto, unique
 from logging import getLogger
 from pathlib import Path
 
@@ -22,6 +23,13 @@ from metrontagger.utils import create_query_params
 
 LOGGER = getLogger(__name__)
 HAMMING_DISTANCE = 10
+
+
+@unique
+class InfoSource(Enum):
+    metron = auto()
+    comic_vine = auto()
+    unknown = auto()
 
 
 class MultipleMatch:
@@ -112,6 +120,26 @@ class Talker:
                 hamming_lst.append(item)
         return hamming_lst
 
+    @staticmethod
+    def _get_source_id(md: Metadata) -> tuple[InfoSource, int | None]:
+        source: InfoSource = InfoSource.unknown
+        id_: int | None = None
+
+        lower_notes = md.notes.lower()
+        if "metrontagger" in lower_notes:
+            source = InfoSource.metron
+            id_ = int(md.notes.split("issue_id:")[1].strip("]"))
+            return source, id_
+        if "comictagger" in lower_notes:
+            if "metron" in lower_notes:
+                source = InfoSource.metron
+                id_ = int(md.notes.split("Issue ID")[1].strip(" ").strip("]"))
+            if "comic vine" in lower_notes:
+                source = InfoSource.comic_vine
+                id_ = int(md.notes.split("Issue ID")[1].strip(" ").strip("]"))
+
+        return source, id_
+
     def _process_file(
         self: "Talker",
         fn: Path,
@@ -126,6 +154,32 @@ class Talker:
             )
             return None, False
 
+        # Check if comic has a comicinfo.xml that contains either a cvid or metron id.
+        if ca.has_metadata():
+            md = ca.read_metadata()
+            source, id_ = self._get_source_id(md)
+            if source is not InfoSource.unknown or id_ is not None:
+                match source:
+                    case InfoSource.metron:
+                        questionary.print(
+                            f"Found Metron ID in '{ca}' metadata and using that to get the metadata...",
+                            style=Styles.INFO,
+                        )
+                        self.match_results.add_good_match(fn)
+                        return id_, False
+                    case InfoSource.comic_vine:
+                        questionary.print(
+                            f"Found ComicVine in '{ca}' metadata and using that to get the metadata...",
+                            style=Styles.INFO,
+                        )
+                        issues = self.api.issues_list(params={"cv_id": id_})
+                        # This should always be 1 otherwise let's do a regular search.
+                        if len(issues) == 1:
+                            return issues[0].id, False
+                    case _:
+                        pass
+
+        # Alright, if the comic doesn't have an let's do a search based on the filename.
         # TODO: Determine if we want to use some of the other keys beyond 'series' and 'issue number'
         metadata: dict[str, str | tuple[str, ...]] = comicfn2dict(fn, verbose=0)
 
