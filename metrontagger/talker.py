@@ -158,7 +158,7 @@ class Talker:
         if ca.has_metadata():
             md = ca.read_metadata()
             source, id_ = self._get_source_id(md)
-            if source is not InfoSource.unknown or id_ is not None:
+            if source is not InfoSource.unknown and id_ is not None:
                 match source:
                     case InfoSource.metron:
                         questionary.print(
