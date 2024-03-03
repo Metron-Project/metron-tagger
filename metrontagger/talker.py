@@ -128,16 +128,22 @@ class Talker:
         lower_notes = md.notes.lower()
         if "metrontagger" in lower_notes:
             source = InfoSource.metron
-            id_ = int(md.notes.split("issue_id:")[1].strip("]"))
+            try:
+                id_ = int(md.notes.split("issue_id:")[1].strip("]"))
+            except ValueError:
+                LOGGER.error("Comic has invalid id: %s #%s", md.series.name, md.issue)
             return source, id_
         if "comictagger" in lower_notes:
             if "metron" in lower_notes:
                 source = InfoSource.metron
-                id_ = int(md.notes.split("Issue ID")[1].strip(" ").strip("]"))
-            if "comic vine" in lower_notes:
+            elif "comic vine" in lower_notes:
                 source = InfoSource.comic_vine
+            else:
+                source = InfoSource.unknown
+            try:
                 id_ = int(md.notes.split("Issue ID")[1].strip(" ").strip("]"))
-
+            except ValueError:
+                LOGGER.error("Comic has invalid id: %s #%s", md.series.name, md.issue)
         return source, id_
 
     def _process_file(
