@@ -145,13 +145,13 @@ files = [
 
 [[package]]
 name = "comicfn2dict"
-version = "0.2.0"
+version = "0.2.1"
 description = "Parse common comic filenames and return a dict of metadata attributes. Includes a cli."
 optional = false
-python-versions = ">=3.10,<4.0"
+python-versions = ">=3.9,<4.0"
 files = [
-    {file = "comicfn2dict-0.2.0-py3-none-any.whl", hash = "sha256:cf2e47c6c6d3e95e59236d9b06ca7fc65844db2ec16bd68b0eecbcc5f13096ed"},
-    {file = "comicfn2dict-0.2.0.tar.gz", hash = "sha256:0635f8216a2c871ffd099927511957c7a75968c20f4a6fe0bf280e4d28b98452"},
+    {file = "comicfn2dict-0.2.1-py3-none-any.whl", hash = "sha256:738eb7b9c61f3be8fb875662195e1d7231fbd21a27d2c71f95da96a9198abdc6"},
+    {file = "comicfn2dict-0.2.1.tar.gz", hash = "sha256:0e0933d7decc043cad61f8724417c8e28e0e086892a7fb730886f6cfcb7f2b4d"},
 ]
 
 [[package]]
