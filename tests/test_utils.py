@@ -55,6 +55,15 @@ def test_query_dict_without_issue_number(tmp_path: Path) -> None:
     assert result == expected
 
 
+def test_query_dict_with_issue_number(tmp_path: Path) -> None:
+    fn = "Moon Knight - Black, White, & Blood #1.cbz"
+    comic = tmp_path / fn
+    md = comicfn2dict(comic)
+    result = create_query_params(md)
+    expected = {"series_name": "Moon Knight Black White Blood", "number": "1"}
+    assert result == expected
+
+
 test_strings = [
     pytest.param("Hashtag: Danger (2019)", "Cleanup colon space", "Hashtag - Danger (2019)"),
     pytest.param("Hashtag :Danger (2019)", "Cleanup space colon", "Hashtag -Danger (2019)"),

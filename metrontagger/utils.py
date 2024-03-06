@@ -22,7 +22,9 @@ def cleanup_string(path_name: str | None) -> str | None:
 def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str, str]:
     # TODO: Should probably check if there is a 'series' key.
     # Remove hyphen when searching for series name
-    series_string: str = metadata["series"].replace(" - ", " ").strip()
+    series_string: str = (
+        metadata["series"].replace(" - ", " ").replace(",", "").replace(" & ", " ").strip()
+    )
 
     # If there isn't an issue number, let's assume it's "1".
     number: str = quote_plus(metadata["issue"].encode("utf-8")) if "issue" in metadata else "1"
