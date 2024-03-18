@@ -1,6 +1,6 @@
 {
   "version": "0.2.0",
-  "description": "comicfn2dict linting",
+  "description": "metron-tagger linting",
   "type": "module",
   "scripts": {
     "fix": "eslint --cache --fix . && prettier --write .",
