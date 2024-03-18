@@ -1,3 +1,7 @@
+[build-system]
+requires = ["poetry-core>=1.1.0"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.poetry]
 name = "metron-tagger"
 version = "2.2.2"
@@ -6,28 +10,28 @@ authors = ["Brian Pepple <bpepple@metron.cloud>"]
 license = "GPL-3.0-or-later"
 maintainers = ["Brian Pepple <bpepple@metron.cloud>"]
 readme = "README.rst"
-packages = [
-    { include = "metrontagger" },
-]
+packages = [{ include = "metrontagger" }]
+exclude = ["*/**/*~"]
 include = [
-    { path = "tests", format = "sdist" }, { path = "CHANGELOG.md", format = "sdist" }
+  { path = "tests", format = "sdist" },
+  { path = "CHANGELOG.md", format = "sdist" },
 ]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
-    "Environment :: Console",
-    "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-    "Natural Language :: English",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Utilities",
-    "Topic :: Other/Nonlisted Topic",
-    "Operating System :: MacOS :: MacOS X",
-    "Operating System :: POSIX",
-    "Operating System :: POSIX :: BSD",
-    "Operating System :: POSIX :: Linux",
-    "Operating System :: Microsoft :: Windows",
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Natural Language :: English",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Utilities",
+  "Topic :: Other/Nonlisted Topic",
+  "Operating System :: MacOS :: MacOS X",
+  "Operating System :: POSIX",
+  "Operating System :: POSIX :: BSD",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
 ]
 keywords = ["comics", "comic", "metadata", "tagging", "tagger"]
 
@@ -37,24 +41,30 @@ mokkari = "^3.0.1"
 questionary = "^2.0.1"
 pyxdg = "^0.28"
 darkseid = "^4.0.2"
-lxml = "^4.9.1"
+lxml = "^5.1.0"
 imagehash = "^4.3.1"
 pandas = "^2.2.1"
-comicfn2dict = "^0.2.0"
+comicfn2dict = "^0.2.2"
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^3.6.2"
+tox = "^4.14.1"
+
+[tool.poetry.group.test.dependencies]
+coverage = { extras = ["toml"], version = "^7.0" }
+pytest-cov = "^4.1.0"
+pytest-mock = "^3.6.1"
+
+[tool.poetry.group.lint.dependencies]
+codespell = "^2.1.0"
+pyright = "^1.1.232"
+radon = { version = "^6.0.1", extras = ["toml"] }
+ruff = "^0.3.0"
+types-python-dateutil = "^2.8.19"
+vulture = "^2.3"
 
 [tool.poetry.scripts]
 metron-tagger = "metrontagger.cli:main"
-
-[tool.poetry.group.dev.dependencies]
-pytest-cov = "^2.12.1"
-pytest-mock = "^3.6.1"
-pre-commit = "^2.14.1"
-tox = "^3.24.3"
-ruff = "^0.1.2"
-
-[build-system]
-requires = ["poetry-core>=1.1.0"]
-build-backend = "poetry.core.masonry.api"
 
 [tool.isort]
 profile = "black"
@@ -63,78 +73,132 @@ line_length = 95
 default_section = "THIRDPARTY"
 known_first_party = []
 known_third_party = ["PIL", "comicfn2dict", "darkseid", "imagehash", "lxml", "mokkari", "pandas", "pydantic", "pytest", "questionary", "xdg"]
+  "PIL",
+  "comicfn2dict",
+  "darkseid",
+  "imagehash",
+  "lxml",
+  "mokkari",
+  "pandas",
+  "pydantic",
+  "pytest",
+  "questionary",
+  "xdg",
+]
 
 [tool.poetry.urls]
 "Homepage" = "https://github.com/Metron-Project/metron-tagger"
 "Bug Tracker" = "https://github.com/Metron-Project/metron-tagger/issues"
 
+[tool.codespell]
+skip = './cache,./dist,./test-results,.git,.mypy_cache,.pytest_cache,.venv*,node_modules,package-lock.json,poetry.lock,run.spec'
+builtin = 'clear,rare,code'
+check-hidden = true
+# Remove 'coverd' when this issue is resolved
+# https://github.com/codespell-project/codespell/issues/1212
+ignore-words-list = 'thead,ro,jupyter,coverd,searched,ws'
+
 [tool.ruff]
+extend-exclude = ["typings"]
 line-length = 95
 show-fixes = true
 target-version = "py310"
 
 [tool.ruff.lint]
-select = [
-    "A",
-    "ANN",
-    "ARG",
-    "B",
-    "BLE",
-    "C40",
-    "COM",
-    "DTZ",
-    "E",
-    "ERA",
-    "F",
-    "G",
-    "I",
-    "ICN",
-    "INP",
-    "ISC",
-    "N",
-    "NPY",
-    "PD",
-    "PGH",
-    "PIE",
-    "PLC",
-    "PLE",
-    "PLW",
-    "PT",
-    "PTH",
-    "PYI",
-    "Q",
-    "RET",
-    "RSE",
-    "RUF",
-    "S",
-    "SIM",
-    "SLF",
-    "T10",
-    "T20",
-    "TCH",
-    "TID",
-    "UP",
-    "W",
-    "YTT"
+extend-ignore = [
+  "S101",
+  "D203",
+  "D213",
+  # Format ignores
+  "W191",
+  "E501",
+  "E111",
+  "E114",
+  "E117",
+  "D206",
+  "D300",
+  "Q000",
+  "Q001",
+  "Q002",
+  "Q003",
+  "COM812",
+  "COM819",
+  "ISC001",
+  "ISC002",
 ]
-ignore = ["A001", "A003", "COM812", "COM819", "E501", "ISC001", "Q000", "Q001", "Q002", "Q003", "W191"]
-fixable = ["ALL"]
-unfixable = []
+extend-select = [
+  "A",
+  "ARG",
+  "B",
+  "B9",
+  "C",
+  "C4",
+  "C90",
+  "DJ",
+  "DTZ",
+  "E",
+  "EM",
+  "EXE",
+  "F",
+  "I",
+  "ICN",
+  "INP",
+  "ISC",
+  "PIE",
+  "PL",
+  "PT",
+  "PTH",
+  "PYI",
+  "Q",
+  "N",
+  "RET",
+  "RSE",
+  "RUF",
+  "S",
+  "SIM",
+  "SLF",
+  "T10",
+  "T20",
+  "TCH",
+  "TID",
+  "TRY",
+  "UP",
+  "W",
+  "YTT",
+  # "ANN", "ERA", "COM"
+]
+external = ["V101"]
+task-tags = ["TODO", "FIXME", "XXX", "http", "HACK"]
 
-[tool.ruff.flake8-annotations]
+[tool.ruff.lint.flake8-annotations]
 allow-star-arg-any = true
 
-[tool.ruff.flake8-tidy-imports]
+[tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
 
-[tool.ruff.isort]
+[tool.ruff.lint.isort]
 combine-as-imports = true
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/test_*.py" = ["ERA001", "S101", "SLF001"]
 
-[tool.coverage.run]
-source = ["metrontagger"]
+[tool.ruff.lint.pycodestyle]
+ignore-overlong-task-comments = true
+
+[tool.vulture]
+exclude = [
+  ".git/",
+  ".mypy_cache/",
+  ".pytest_cache/",
+  "*.venv*",
+  "*/__pycache__",
+  "dist/",
+  "node_modules/",
+  "test_results/",
+  "typings/",
+]
+min_confidence = 61
+sort_by_size = true
 
 [tool.coverage.report]
 show_missing = true
@@ -142,3 +206,56 @@ show_missing = true
 [tool.coverage.html]
 directory = "test-results/coverage"
 
+[tool.coverage.run]
+source = ["metrontagger"]
+branch = true
+concurrency = ["multiprocessing"]
+omit = [
+  ".git/*",
+  ".mypy_cache/*",
+  ".pytest_cache/*",
+  ".venv*/*",
+  "*__pycache__*",
+  "dist/*",
+  "node_modules/*",
+  "test-results/*",
+  "typings/*",
+]
+
+[tool.pyright]
+exclude = [
+  "**/__pycache__",
+  "**/node_modules",
+  ".git",
+  ".mypy_cache",
+  ".pytest_cache",
+  ".venv*",
+  "cache",
+  "dist",
+  "package-lock.json",
+  "poetry.lock",
+  "test-results",
+  "typings",
+]
+useLibraryCodeForTypes = true
+reportMissingImports = true
+reportImportCycles = true
+pythonVersion = "3.10"
+pythonPlatform = "All"
+
+[tool.pytest.ini_options]
+addopts = """
+    --junit-xml=test-results/pytest/results.xml
+    -ra
+    --strict-config
+    --strict-markers
+    --cov
+    --cov-append
+    --cov-report=html
+    --cov-report=term
+"""
+junit_family = "xunit2"
+testpaths = "tests"
+
+[tool.radon]
+exclude = "*~,.git/*,.mypy_cache/*,.pytest_cache/*,.venv*,__pycache__/*,cache/*,dist/*,node_modules/*,test-results/*,typings/*,.tox/*"
