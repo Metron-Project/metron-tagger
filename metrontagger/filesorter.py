@@ -1,4 +1,5 @@
 """Class to sort comic file based on its metadata tags"""
+
 from pathlib import Path
 from shutil import Error, move
 
@@ -35,10 +36,10 @@ class FileSorter:
     def _move_files(orig: Path, new: Path) -> bool:
         try:
             move(orig, new)
-            questionary.print(f"moved '{orig.name}' to '{new}'", style=Styles.SUCCESS)
-            return True
         except Error:
             return False
+        questionary.print(f"moved '{orig.name}' to '{new}'", style=Styles.SUCCESS)
+        return True
 
     @staticmethod
     def _overwrite_existing(new_path: Path, old_comic: Path) -> None:

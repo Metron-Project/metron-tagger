@@ -1,11 +1,10 @@
 """Some miscellaneous functions"""
+
 from urllib.parse import quote_plus
 
 
 def cleanup_string(path_name: str | None) -> str | None:
-    """
-    Function to remove some characters that don't play nicely on Windows machines filesystem
-    """
+    """Function to remove some characters that don't play nicely on Windows machines filesystem"""
     if path_name is None:
         return None
 

@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import questionary
@@ -282,10 +283,10 @@ class Runner:
         ).ask():
             self._update_ci_xml(duplicates_lst)
 
-    def run(self: "Runner") -> None:
+    def run(self: "Runner") -> None:  # noqa: C901, PLR0912
         if not (file_list := get_recursive_filelist(self.config.path)):
             questionary.print("No files to process. Exiting.", style=Styles.WARNING)
-            exit(0)
+            sys.exit(0)
 
         # Start logging
         init_logging(self.config)
@@ -305,7 +306,7 @@ class Runner:
         if self.config.id or self.config.online:
             if not self._has_credentials() and not self._get_credentials():
                 questionary.print("No credentials provided. Exiting...", style=Styles.ERROR)
-                exit(0)
+                sys.exit(0)
 
             t = Talker(self.config.metron_user, self.config.metron_pass)
             if self.config.id:
@@ -316,7 +317,7 @@ class Runner:
                         "More than one file was passed for Id processing. Exiting...",
                         style=Styles.WARNING,
                     )
-                    exit(0)
+                    sys.exit(0)
             else:
                 t.identify_comics(file_list, self.config)
 
@@ -326,7 +327,7 @@ class Runner:
         if self.config.sort:
             if not self.config.sort_dir and not self._get_sort_dir():
                 questionary.print("No sort directory given. Exiting...")
-                exit(0)
+                sys.exit(0)
             self._sort_comic_list(file_list)
 
         if self.config.validate:

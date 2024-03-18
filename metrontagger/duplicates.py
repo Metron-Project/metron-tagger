@@ -32,9 +32,7 @@ class Duplicates:
         self._data_frame: pd.DataFrame | None = None
 
     def _image_hashes(self: "Duplicates") -> list[dict[str, any]]:
-        """
-        Method to get a list of dicts containing the file path, page index, and page hashes.
-        """
+        """Method to get a list of dicts containing the file path, page index, and page hashes."""
         hashes_lst = []
         for item in self._file_lst:
             comic = Comic(str(item))

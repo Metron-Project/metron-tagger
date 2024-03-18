@@ -1,4 +1,5 @@
 """Class to handle project settings"""
+
 import configparser
 import platform
 from os import environ
@@ -51,7 +52,6 @@ class MetronTaggerSettings:
     @staticmethod
     def get_settings_folder() -> Path:
         """Method to determine where the users settings should be saved"""
-
         if platform.system() != "Windows":
             return Path(save_config_path("metron-tagger"))
 
