@@ -15,7 +15,7 @@ def test_settings(tmpdir: Path) -> None:
     assert not config.metron_user
     assert not config.metron_pass
     assert not config.sort_dir
-    assert config.rename_issue_number_padding == 3
+    assert config.rename_issue_number_padding == 3  # noqa: PLR2004
     assert config.rename_use_smart_string_cleanup is True
     assert config.rename_template == "%series% v%volume% #%issue% (%year%)"
     # Save the new values

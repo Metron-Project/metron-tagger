@@ -37,9 +37,7 @@ class FileRenamer:
         self.issue_zero_padding = count
 
     def set_template(self: "FileRenamer", template: str) -> None:
-        """
-        Method to use a user's custom file naming template.
-        """
+        """Method to use a user's custom file naming template."""
         self.template = template
 
     def replace_token(self: "FileRenamer", text: str, value: str | None, token: str) -> str:
@@ -99,6 +97,8 @@ class FileRenamer:
 
     def determine_name(self: "FileRenamer", filename: Path) -> str | None:
         """Method to create the new filename based on the files metadata"""
+        if not self.metadata:
+            return None
         md = self.metadata
         new_name = self.template
 

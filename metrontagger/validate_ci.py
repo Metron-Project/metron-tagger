@@ -1,4 +1,5 @@
 """Class to validate a comic archive ComicInfo.xml."""
+
 from enum import Enum, auto, unique
 from importlib.resources import as_file, files
 from io import BytesIO

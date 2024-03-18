@@ -196,7 +196,7 @@ def test_process_file(
     id_list = []
     for c in talker.match_results.multiple_matches:
         id_list.extend(i.id for i in c.matches)
-    assert 2471 in id_list
+    assert 2471 in id_list  # noqa: PLR2004
 
 
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")

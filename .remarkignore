@@ -1,0 +1,12 @@
+CODE_OF_CONDUCT.md
+.git
+.github
+.idea
+.mypy_cache
+/node_modules
+__pycache__
+.pytest_cache
+.ruff_cache
+/test-results
+.tox
+.venv*
