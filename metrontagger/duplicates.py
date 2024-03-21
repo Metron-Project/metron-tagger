@@ -35,7 +35,7 @@ class Duplicates:
         """Method to get a list of dicts containing the file path, page index, and page hashes."""
         hashes_lst = []
         for item in self._file_lst:
-            comic = Comic(str(item))
+            comic = Comic(item)
             if not comic.is_writable():
                 questionary.print(f"'{comic}' is not writable. Skipping...")
                 continue
@@ -44,17 +44,28 @@ class Duplicates:
                 style=Styles.WARNING,
             )
             for i in range(comic.get_number_of_pages()):
-                with Image.open(io.BytesIO(comic.get_page(i))) as img:
-                    try:
-                        img_hash = average_hash(img)
-                    except OSError:
-                        questionary.print(
-                            f"Unable to get image hash for page {i} of '{comic}'",
-                            style=Styles.ERROR,
-                        )
-                        continue
-                    image_info = {"path": str(comic.path), "index": i, "hash": str(img_hash)}
-                    hashes_lst.append(image_info)
+                try:
+                    with Image.open(io.BytesIO(comic.get_page(i))) as img:
+                        try:
+                            img_hash = average_hash(img)
+                        except OSError:
+                            questionary.print(
+                                f"Unable to get image hash for page {i} of '{comic}'",
+                                style=Styles.ERROR,
+                            )
+                            continue
+                        image_info = {
+                            "path": str(comic.path),
+                            "index": i,
+                            "hash": str(img_hash),
+                        }
+                        hashes_lst.append(image_info)
+                except UnidentifiedImageError:
+                    questionary.print(
+                        f"UnidentifiedImageError: Skipping page {i} of '{comic}'",
+                        style=Styles.ERROR,
+                    )
+                    continue
         return hashes_lst
 
     def _get_page_hashes(self: "Duplicates") -> pd.DataFrame:
