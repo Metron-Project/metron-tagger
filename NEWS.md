@@ -1,5 +1,13 @@
 # 📰 Metron-Tagger News
 
+## v2.2.x
+
+### Changes
+
+### 🐛 Bug Fixes
+
+- Fix bug in duplicate image detection when attempting to hash a bad image. (#105)
+
 ## v2.2.3
 
 ### Changes
