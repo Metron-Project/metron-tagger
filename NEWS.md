@@ -6,7 +6,8 @@
 
 ### 🐛 Bug Fixes
 
-- Fix bug in duplicate image detection when attempting to hash a bad image. (#105)
+- Fix bug in duplicate image detection when attempting to hash a bad image.
+  (#105)
 
 ## v2.2.3
 
