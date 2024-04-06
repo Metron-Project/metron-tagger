@@ -6,6 +6,5 @@ if [ "$VERSION" = "" ]; then
   poetry version | awk '{print $2};'
 else
   poetry version "$VERSION"
-  cd frontend
-  npm version --allow-same-version "$VERSION"
+  npm version --allow-same-version --no-git-tag-version "$VERSION"
 fi

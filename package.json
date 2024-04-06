@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "2.2.4",
   "description": "metron-tagger linting",
   "type": "module",
   "scripts": {
