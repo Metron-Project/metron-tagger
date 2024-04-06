@@ -14,7 +14,7 @@ packages = [{ include = "metrontagger" }]
 exclude = ["*/**/*~"]
 include = [
   { path = "tests", format = "sdist" },
-  { path = "CHANGELOG.md", format = "sdist" },
+  { path = "NEWS.md", format = "sdist" },
 ]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
