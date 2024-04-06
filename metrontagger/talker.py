@@ -124,6 +124,10 @@ class Talker:
         source: InfoSource = InfoSource.unknown
         id_: int | None = None
 
+        # If `Notes` element doesn't exist let's bail.
+        if md.notes is None:
+            return source, id_
+
         lower_notes = md.notes.lower()
         if "metrontagger" in lower_notes:
             source = InfoSource.metron
