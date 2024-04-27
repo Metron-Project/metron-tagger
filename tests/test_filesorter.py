@@ -30,6 +30,22 @@ def test_sort_comic_with_missing_metadata(
 
 
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
+def test_sort_comic_with_no_series_metadata(
+    fake_comic: ZipFile, fake_metadata: Metadata, tmp_path: Path
+) -> None:
+    test_dir = tmp_path / "sort2"
+    fake_metadata.series = None
+    comic = Comic(str(fake_comic))
+    if comic.has_metadata():
+        comic.remove_metadata()
+    comic.write_metadata(fake_metadata)
+    assert comic.has_metadata()
+    file_sorter = FileSorter(str(test_dir))
+    res = file_sorter.sort_comics(Path(str(fake_comic)))
+    assert res is False
+
+
+@pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
 def test_sort_comic(fake_comic: ZipFile, fake_metadata: Metadata, tmp_path: Path) -> None:
     test_dir = tmp_path / "sort1"
 

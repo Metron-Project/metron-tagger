@@ -27,9 +27,12 @@ class FileSorter:
         meta_data: Metadata,
     ) -> tuple[str | None, str | None, str | None]:
         """Clean the metadata string."""
-        publisher = cleanup_string(meta_data.publisher.name)
-        series = cleanup_string(meta_data.series.name)
-        volume = cleanup_string(meta_data.series.volume)
+        publisher = cleanup_string(meta_data.publisher.name) if meta_data.publisher else None
+        if meta_data.series:
+            series = cleanup_string(meta_data.series.name)
+            volume = cleanup_string(meta_data.series.volume)
+        else:
+            series = volume = None
         return publisher, series, volume
 
     @staticmethod
@@ -65,7 +68,9 @@ class FileSorter:
         series: str,
         volume: str,
     ) -> Path:
-        tpb = meta_data.series.format == "Trade Paperback"
+        tpb = (
+            False if meta_data.series is None else meta_data.series.format == "Trade Paperback"
+        )
         return (
             Path(self.sort_directory)
             / publisher
