@@ -116,7 +116,9 @@ class FileRenamer:
         new_name = self.replace_token(new_name, md.issue_count, "%issuecount%")
         new_name = self.replace_token(new_name, md.cover_date.year, "%year%")
         new_name = self.replace_token(new_name, md.publisher, "%publisher%")
-        new_name = self.replace_token(new_name, md.stories, "%title%")
+        new_name = self.replace_token(
+            new_name, ",".join(x.name for x in md.stories), "%title%"
+        )
         new_name = self.replace_token(new_name, md.cover_date.month, "%month%")
         month_name = None
         if (
@@ -137,7 +139,7 @@ class FileRenamer:
             month_name = date_time.strftime("%B")
         new_name = self.replace_token(new_name, month_name, "%month_name%")
 
-        new_name = self.replace_token(new_name, md.genres, "%genre%")
+        new_name = self.replace_token(new_name, ",".join(x.name for x in md.genres), "%genre%")
         new_name = self.replace_token(new_name, md.series.language, "%language_code%")
         new_name = self.replace_token(new_name, md.critical_rating, "%criticalrating%")
         new_name = self.replace_token(
@@ -159,7 +161,9 @@ class FileRenamer:
         else:
             new_name = self.replace_token(new_name, "", "%format%")
         new_name = self.replace_token(new_name, md.age_rating, "%maturityrating%")
-        new_name = self.replace_token(new_name, md.stories, "%storyarc%")
+        new_name = self.replace_token(
+            new_name, ",".join(x.name for x in md.stories), "%storyarc%"
+        )
         new_name = self.replace_token(new_name, md.series_group, "%seriesgroup%")
         new_name = self.replace_token(new_name, md.scan_info, "%scaninfo%")
 
