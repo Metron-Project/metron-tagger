@@ -92,7 +92,7 @@ class FileRenamer:
         new_name = self._remove_duplicate_hyphen_underscore(new_name)
 
         # remove dash or double dash at end of line
-        new_name = re.sub(r"[-]{1,2}\s*$", "", new_name)
+        new_name = re.sub(r"-{1,2}\s*$", "", new_name)
 
         # remove duplicate spaces (again!)
         return " ".join(new_name.split())
