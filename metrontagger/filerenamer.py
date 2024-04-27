@@ -17,7 +17,7 @@ from metrontagger.utils import cleanup_string
 
 
 class FileRenamer:
-    """Class to rename a comic archive based on it's metadata tag"""
+    """Class to rename a comic archive based on its metadata tag"""
 
     def __init__(self: "FileRenamer", metadata: Metadata | None = None) -> None:
         self.metadata: Metadata | None = metadata
