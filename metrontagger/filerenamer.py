@@ -122,7 +122,7 @@ class FileRenamer:
         if (
             md.cover_date.month is not None
             and (
-                (isinstance(md.cover_date.month, str) and md.cover_date.month.isdigit())
+                (isinstance(md.cover_date.month, str) and str(md.cover_date.month).isdigit())
                 or isinstance(md.cover_date.month, int)
             )
             and int(md.cover_date.month) in range(1, 13)
