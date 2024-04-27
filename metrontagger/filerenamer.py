@@ -17,7 +17,7 @@ from metrontagger.utils import cleanup_string
 
 
 class FileRenamer:
-    """Class to rename a comic archive based on it's metadata tag"""
+    """Class to rename a comic archive based on its metadata tag"""
 
     def __init__(self: "FileRenamer", metadata: Metadata | None = None) -> None:
         self.metadata: Metadata | None = metadata
@@ -40,7 +40,9 @@ class FileRenamer:
         """Method to use a user's custom file naming template."""
         self.template = template
 
-    def replace_token(self: "FileRenamer", text: str, value: str | None, token: str) -> str:
+    def replace_token(
+        self: "FileRenamer", text: str, value: int | str | None, token: str
+    ) -> str:
         """Method to replace a value with another value"""
 
         # helper func
@@ -70,8 +72,8 @@ class FileRenamer:
     @staticmethod
     def _remove_empty_separators(value: str) -> str:
         value = re.sub(r"\(\s*[-:]*\s*\)", "", value)
-        value = re.sub(r"\[\s*[-:]*\s*\]", "", value)
-        return re.sub(r"\{\s*[-:]*\s*\}", "", value)
+        value = re.sub(r"\[\s*[-:]*\s*]", "", value)
+        return re.sub(r"\{\s*[-:]*\s*}", "", value)
 
     @staticmethod
     def _remove_duplicate_hyphen_underscore(value: str) -> str:
@@ -90,20 +92,24 @@ class FileRenamer:
         new_name = self._remove_duplicate_hyphen_underscore(new_name)
 
         # remove dash or double dash at end of line
-        new_name = re.sub(r"[-]{1,2}\s*$", "", new_name)
+        new_name = re.sub(r"-{1,2}\s*$", "", new_name)
 
         # remove duplicate spaces (again!)
         return " ".join(new_name.split())
 
-    def determine_name(self: "FileRenamer", filename: Path) -> str | None:
+    def determine_name(self: "FileRenamer", filename: Path) -> str | None:  # noqa: C901
         """Method to create the new filename based on the files metadata"""
         if not self.metadata:
             return None
         md = self.metadata
         new_name = self.template
 
-        new_name = self.replace_token(new_name, md.series.name, "%series%")
-        new_name = self.replace_token(new_name, md.series.volume, "%volume%")
+        new_name = self.replace_token(
+            new_name, md.series.name if md.series is not None else "Unknown", "%series%"
+        )
+        new_name = self.replace_token(
+            new_name, md.series.volume if md.series is not None else 0, "%volume%"
+        )
 
         if md.issue is None:
             issue_str = None
@@ -114,15 +120,22 @@ class FileRenamer:
         new_name = self.replace_token(new_name, issue_str, "%issue%")
 
         new_name = self.replace_token(new_name, md.issue_count, "%issuecount%")
-        new_name = self.replace_token(new_name, md.cover_date.year, "%year%")
-        new_name = self.replace_token(new_name, md.publisher, "%publisher%")
-        new_name = self.replace_token(new_name, md.stories, "%title%")
-        new_name = self.replace_token(new_name, md.cover_date.month, "%month%")
+        new_name = self.replace_token(
+            new_name, md.cover_date.year if md.cover_date is not None else "Unknown", "%year%"
+        )
+        new_name = self.replace_token(
+            new_name, "Unknown" if md.publisher is None else md.publisher.name, "%publisher%"
+        )
+        new_name = self.replace_token(
+            new_name, ",".join(x.name for x in md.stories), "%title%"
+        )
+        if md.cover_date is not None:
+            new_name = self.replace_token(new_name, md.cover_date.month, "%month%")
         month_name = None
-        if (
+        if md.cover_date is not None and (
             md.cover_date.month is not None
             and (
-                (isinstance(md.cover_date.month, str) and md.cover_date.month.isdigit())
+                (isinstance(md.cover_date.month, str) and str(md.cover_date.month).isdigit())
                 or isinstance(md.cover_date.month, int)
             )
             and int(md.cover_date.month) in range(1, 13)
@@ -137,8 +150,9 @@ class FileRenamer:
             month_name = date_time.strftime("%B")
         new_name = self.replace_token(new_name, month_name, "%month_name%")
 
-        new_name = self.replace_token(new_name, md.genres, "%genre%")
-        new_name = self.replace_token(new_name, md.series.language, "%language_code%")
+        new_name = self.replace_token(new_name, ",".join(x.name for x in md.genres), "%genre%")
+        if md.series is not None:
+            new_name = self.replace_token(new_name, md.series.language, "%language_code%")
         new_name = self.replace_token(new_name, md.critical_rating, "%criticalrating%")
         new_name = self.replace_token(
             new_name,
@@ -152,14 +166,17 @@ class FileRenamer:
         )
         new_name = self.replace_token(new_name, md.alternate_count, "%alternatecount%")
         new_name = self.replace_token(new_name, md.imprint, "%imprint%")
-        if md.series.format == "Hard Cover":
-            new_name = self.replace_token(new_name, "HC", "%format%")
-        elif md.series.format == "Trade Paperback":
-            new_name = self.replace_token(new_name, "TPB", "%format%")
-        else:
-            new_name = self.replace_token(new_name, "", "%format%")
+        if md.series is not None:
+            if md.series.format == "Hard Cover":
+                new_name = self.replace_token(new_name, "HC", "%format%")
+            elif md.series.format == "Trade Paperback":
+                new_name = self.replace_token(new_name, "TPB", "%format%")
+            else:
+                new_name = self.replace_token(new_name, "", "%format%")
         new_name = self.replace_token(new_name, md.age_rating, "%maturityrating%")
-        new_name = self.replace_token(new_name, md.stories, "%storyarc%")
+        new_name = self.replace_token(
+            new_name, ",".join(x.name for x in md.stories), "%storyarc%"
+        )
         new_name = self.replace_token(new_name, md.series_group, "%seriesgroup%")
         new_name = self.replace_token(new_name, md.scan_info, "%scaninfo%")
 
