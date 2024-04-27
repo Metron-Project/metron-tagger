@@ -70,8 +70,8 @@ class FileRenamer:
     @staticmethod
     def _remove_empty_separators(value: str) -> str:
         value = re.sub(r"\(\s*[-:]*\s*\)", "", value)
-        value = re.sub(r"\[\s*[-:]*\s*\]", "", value)
-        return re.sub(r"\{\s*[-:]*\s*\}", "", value)
+        value = re.sub(r"\[\s*[-:]*\s*]", "", value)
+        return re.sub(r"\{\s*[-:]*\s*}", "", value)
 
     @staticmethod
     def _remove_duplicate_hyphen_underscore(value: str) -> str:
