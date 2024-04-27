@@ -40,7 +40,9 @@ class FileRenamer:
         """Method to use a user's custom file naming template."""
         self.template = template
 
-    def replace_token(self: "FileRenamer", text: str, value: str | None, token: str) -> str:
+    def replace_token(
+        self: "FileRenamer", text: str, value: int | str | None, token: str
+    ) -> str:
         """Method to replace a value with another value"""
 
         # helper func
