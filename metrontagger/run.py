@@ -115,13 +115,11 @@ class Runner:
                 )
             else:
                 questionary.print(f"'{ca.path.name}' is not valid", style=Styles.ERROR)
-                if remove_ci:
-                    res = ca.remove_metadata()
-                    if res:
-                        questionary.print(
-                            f"Removed non-valid metadata from '{ca.path.name}'.",
-                            style=Styles.WARNING,
-                        )
+                if remove_ci and ca.remove_metadata():
+                    questionary.print(
+                        f"Removed non-valid metadata from '{ca.path.name}'.",
+                        style=Styles.WARNING,
+                    )
 
     def _sort_comic_list(self: "Runner", file_list: list[Path]) -> None:
         if not self.config.sort_dir:
