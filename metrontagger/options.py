@@ -74,6 +74,12 @@ def make_parser() -> argparse.ArgumentParser:
         default=False,
     )
     parser.add_argument(
+        "--remove-non-valid",
+        help="Remove ComicInfo.xml from comic if not valid. Used with --validate option",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--delete-original",
         help="Delete the original archive after successful export to another format.",
         action="store_true",

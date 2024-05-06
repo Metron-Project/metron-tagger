@@ -91,7 +91,7 @@ class Runner:
                 )
 
     @staticmethod
-    def _validate_comic_info(file_list: list[Path]) -> None:
+    def _validate_comic_info(file_list: list[Path], remove_ci: bool = False) -> None:
         questionary.print("\nValidating ComicInfo:\n---------------------", style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(str(comic))
@@ -115,6 +115,11 @@ class Runner:
                 )
             else:
                 questionary.print(f"'{ca.path.name}' is not valid", style=Styles.ERROR)
+                if remove_ci and ca.remove_metadata():
+                    questionary.print(
+                        f"Removed non-valid metadata from '{ca.path.name}'.",
+                        style=Styles.WARNING,
+                    )
 
     def _sort_comic_list(self: "Runner", file_list: list[Path]) -> None:
         if not self.config.sort_dir:
@@ -331,4 +336,4 @@ class Runner:
             self._sort_comic_list(file_list)
 
         if self.config.validate:
-            self._validate_comic_info(file_list)
+            self._validate_comic_info(file_list, self.config.remove_non_valid)
