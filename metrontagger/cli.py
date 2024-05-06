@@ -50,6 +50,9 @@ def get_configs(opts: Namespace) -> MetronTaggerSettings:  # noqa: PLR0912, C901
     if opts.validate:
         config.validate = opts.validate
 
+    if opts.remove_non_valid:
+        config.remove_non_valid = opts.remove_non_valid
+
     if opts.duplicates:
         config.duplicates = opts.duplicates
 

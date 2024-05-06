@@ -65,6 +65,7 @@ Help
     -s, --sort           Sort files that contain metadata tags. (default: False)
     -z, --export-to-cbz  Export a CBR (rar) archive to a CBZ (zip) archive. (default: False)
     --validate           Verify that comic archive has a valid ComicInfo.xml. (default: False)
+    --remove-non-valid   Remove ComicInfo.xml from comic if not valid. Used with --validate option (default: False)
     --delete-original    Delete the original archive after successful export to another format. (default: False)
     --duplicates         Identify and give the option to delete duplicate pages in a directory of comics. (Experimental) (default: False)
     --version            Show the version number and exit
