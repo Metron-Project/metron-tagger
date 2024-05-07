@@ -97,7 +97,7 @@ class FileRenamer:
         # remove duplicate spaces (again!)
         return " ".join(new_name.split())
 
-    def determine_name(self: "FileRenamer", filename: Path) -> str | None:  # noqa: C901
+    def determine_name(self: "FileRenamer", filename: Path) -> str | None:
         """Method to create the new filename based on the files metadata"""
         if not self.metadata:
             return None
@@ -126,9 +126,6 @@ class FileRenamer:
         new_name = self.replace_token(
             new_name, "Unknown" if md.publisher is None else md.publisher.name, "%publisher%"
         )
-        new_name = self.replace_token(
-            new_name, ",".join(x.name for x in md.stories), "%title%"
-        )
         if md.cover_date is not None:
             new_name = self.replace_token(new_name, md.cover_date.month, "%month%")
         month_name = None
@@ -150,10 +147,6 @@ class FileRenamer:
             month_name = date_time.strftime("%B")
         new_name = self.replace_token(new_name, month_name, "%month_name%")
 
-        new_name = self.replace_token(new_name, ",".join(x.name for x in md.genres), "%genre%")
-        if md.series is not None:
-            new_name = self.replace_token(new_name, md.series.language, "%language_code%")
-        new_name = self.replace_token(new_name, md.critical_rating, "%criticalrating%")
         new_name = self.replace_token(
             new_name,
             md.alternate_series,
@@ -174,9 +167,6 @@ class FileRenamer:
             else:
                 new_name = self.replace_token(new_name, "", "%format%")
         new_name = self.replace_token(new_name, md.age_rating, "%maturityrating%")
-        new_name = self.replace_token(
-            new_name, ",".join(x.name for x in md.stories), "%storyarc%"
-        )
         new_name = self.replace_token(new_name, md.series_group, "%seriesgroup%")
         new_name = self.replace_token(new_name, md.scan_info, "%scaninfo%")
 
