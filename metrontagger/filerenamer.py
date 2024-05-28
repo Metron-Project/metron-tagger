@@ -97,7 +97,7 @@ class FileRenamer:
         # remove duplicate spaces (again!)
         return " ".join(new_name.split())
 
-    def determine_name(self: "FileRenamer", filename: Path) -> str | None:  # noqa: C901
+    def determine_name(self: "FileRenamer", filename: Path) -> str | None:
         """Method to create the new filename based on the files metadata"""
         if not self.metadata:
             return None
@@ -167,12 +167,15 @@ class FileRenamer:
         new_name = self.replace_token(new_name, md.alternate_count, "%alternatecount%")
         new_name = self.replace_token(new_name, md.imprint, "%imprint%")
         if md.series is not None:
-            if md.series.format == "Hard Cover":
-                new_name = self.replace_token(new_name, "HC", "%format%")
-            elif md.series.format == "Trade Paperback":
-                new_name = self.replace_token(new_name, "TPB", "%format%")
-            else:
-                new_name = self.replace_token(new_name, "", "%format%")
+            match md.series.format:
+                case "Hard Cover":
+                    new_name = self.replace_token(new_name, "HC", "%format%")
+                case "Trade Paperback":
+                    new_name = self.replace_token(new_name, "TPB", "%format%")
+                case "Digital Chapters":
+                    new_name = self.replace_token(new_name, "Digital Chapter", "%format%")
+                case _:
+                    new_name = self.replace_token(new_name, "", "%format%")
         new_name = self.replace_token(new_name, md.age_rating, "%maturityrating%")
         new_name = self.replace_token(
             new_name, ",".join(x.name for x in md.stories), "%storyarc%"
