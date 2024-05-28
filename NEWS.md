@@ -1,5 +1,19 @@
 # 📰 Metron-Tagger News
 
+## v2.3.0
+
+## 🚀 Features
+
+- Handle Renaming of Digital Comics @bpepple (#122)
+- Remove Oddball Rename Tokens @bpepple (#120)
+- Remove Non-Valid Metadata @bpepple (#119)
+
+## 🧰 Maintenance
+
+- Type Annotation Fixes @bpepple (#118)
+- Bump requests from 2.31.0 to 2.32.0 @dependabot (#121)
+- Bump idna from 3.6 to 3.7 @dependabot (#117)
+
 ## v2.2.4
 
 ### 🐛 Bug Fixes
