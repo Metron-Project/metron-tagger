@@ -160,12 +160,15 @@ class FileRenamer:
         new_name = self.replace_token(new_name, md.alternate_count, "%alternatecount%")
         new_name = self.replace_token(new_name, md.imprint, "%imprint%")
         if md.series is not None:
-            if md.series.format == "Hard Cover":
-                new_name = self.replace_token(new_name, "HC", "%format%")
-            elif md.series.format == "Trade Paperback":
-                new_name = self.replace_token(new_name, "TPB", "%format%")
-            else:
-                new_name = self.replace_token(new_name, "", "%format%")
+            match md.series.format:
+                case "Hard Cover":
+                    new_name = self.replace_token(new_name, "HC", "%format%")
+                case "Trade Paperback":
+                    new_name = self.replace_token(new_name, "TPB", "%format%")
+                case "Digital Chapters":
+                    new_name = self.replace_token(new_name, "Digital Chapter", "%format%")
+                case _:
+                    new_name = self.replace_token(new_name, "", "%format%")
         new_name = self.replace_token(new_name, md.age_rating, "%maturityrating%")
         new_name = self.replace_token(new_name, md.series_group, "%seriesgroup%")
         new_name = self.replace_token(new_name, md.scan_info, "%scaninfo%")
