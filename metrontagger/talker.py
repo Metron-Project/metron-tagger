@@ -258,7 +258,7 @@ class Talker:
             success = ca.write_metadata(md)
 
         if success and md is not None:
-            collection = bool(md.series.format.lower() in ["trade paperback", "hard cover"])
+            collection = md.series.format.lower() in ["trade paperback", "hard cover"]
             msg = (
                 f"Using '{md.series.name} #{md.issue} ({md.cover_date.year})"
                 f"""{" (Collection)' " if collection else "' "}"""
