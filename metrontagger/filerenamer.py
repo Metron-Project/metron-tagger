@@ -102,7 +102,7 @@ class FileRenamer:
         # remove duplicate spaces (again!)
         return " ".join(new_name.split())
 
-    def determine_name(self: FileRenamer, filename: Path) -> str | None:
+    def determine_name(self: FileRenamer, filename: Path) -> str | None:  # noqa: C901 RUF100
         """Method to create the new filename based on the files metadata"""
         if not self.metadata:
             return None
