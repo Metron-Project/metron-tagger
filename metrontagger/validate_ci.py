@@ -1,9 +1,14 @@
 """Class to validate a comic archive ComicInfo.xml."""
 
+from __future__ import annotations
+
 from enum import Enum, auto, unique
 from importlib.resources import as_file, files
 from io import BytesIO
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from lxml import etree as et
 
@@ -18,7 +23,7 @@ class SchemaVersion(Enum):
 class ValidateComicInfo:
     """Class to verify comic archive ComicInfo XML."""
 
-    def __init__(self: "ValidateComicInfo", ci_xml: bytes) -> None:
+    def __init__(self: ValidateComicInfo, ci_xml: bytes) -> None:
         self.comic_info_xml = ci_xml
 
     @staticmethod
@@ -33,7 +38,7 @@ class ValidateComicInfo:
         else:
             return None
 
-    def _is_valid(self: "ValidateComicInfo", schema_version: SchemaVersion) -> bool:
+    def _is_valid(self: ValidateComicInfo, schema_version: SchemaVersion) -> bool:
         """Method to validate CI XML."""
         xsd_path = self._get_xsd(schema_version)
         if xsd_path is None:
@@ -43,7 +48,7 @@ class ValidateComicInfo:
         xml_doc = et.parse(BytesIO(self.comic_info_xml))  # noqa: S320
         return xmlschema.validate(xml_doc)
 
-    def validate(self: "ValidateComicInfo") -> SchemaVersion:
+    def validate(self: ValidateComicInfo) -> SchemaVersion:
         return next(
             (
                 schema_version

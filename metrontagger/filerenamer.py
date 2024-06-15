@@ -2,14 +2,19 @@
 
 # Copyright 2012-2014 Anthony Beville
 # Copyright 2020 Brian Pepple
+from __future__ import annotations
 
 import datetime
 import re
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from darkseid.metadata import Metadata
 
 import questionary
 from darkseid.issue_string import IssueString
-from darkseid.metadata import Metadata
 from darkseid.utils import unique_file
 
 from metrontagger.styles import Styles
@@ -19,29 +24,29 @@ from metrontagger.utils import cleanup_string
 class FileRenamer:
     """Class to rename a comic archive based on its metadata tag"""
 
-    def __init__(self: "FileRenamer", metadata: Metadata | None = None) -> None:
+    def __init__(self: FileRenamer, metadata: Metadata | None = None) -> None:
         self.metadata: Metadata | None = metadata
         self.template: str = "%series% v%volume% #%issue% (of %issuecount%) (%year%)"
         self.smart_cleanup: bool = True
         self.issue_zero_padding: int = 3
 
-    def set_smart_cleanup(self: "FileRenamer", on: bool) -> None:
+    def set_smart_cleanup(self: FileRenamer, on: bool) -> None:
         self.smart_cleanup = on
 
-    def set_metadata(self: "FileRenamer", metadata: Metadata) -> None:
+    def set_metadata(self: FileRenamer, metadata: Metadata) -> None:
         """Method to set the metadata"""
         self.metadata = metadata
 
-    def set_issue_zero_padding(self: "FileRenamer", count: int) -> None:
+    def set_issue_zero_padding(self: FileRenamer, count: int) -> None:
         """Method to set the padding for the issue's number"""
         self.issue_zero_padding = count
 
-    def set_template(self: "FileRenamer", template: str) -> None:
+    def set_template(self: FileRenamer, template: str) -> None:
         """Method to use a user's custom file naming template."""
         self.template = template
 
     def replace_token(
-        self: "FileRenamer", text: str, value: int | str | None, token: str
+        self: FileRenamer, text: str, value: int | str | None, token: str
     ) -> str:
         """Method to replace a value with another value"""
 
@@ -81,7 +86,7 @@ class FileRenamer:
         value = re.sub(r"(\s--)+", " --", value)
         return re.sub(r"(\s-)+", " -", value)
 
-    def smart_cleanup_string(self: "FileRenamer", new_name: str) -> str:
+    def smart_cleanup_string(self: FileRenamer, new_name: str) -> str:
         # remove empty braces,brackets, parentheses
         new_name = self._remove_empty_separators(new_name)
 
@@ -97,7 +102,7 @@ class FileRenamer:
         # remove duplicate spaces (again!)
         return " ".join(new_name.split())
 
-    def determine_name(self: "FileRenamer", filename: Path) -> str | None:
+    def determine_name(self: FileRenamer, filename: Path) -> str | None:
         """Method to create the new filename based on the files metadata"""
         if not self.metadata:
             return None
@@ -181,7 +186,7 @@ class FileRenamer:
 
         return cleanup_string(new_name)
 
-    def rename_file(self: "FileRenamer", comic: Path) -> Path | None:
+    def rename_file(self: FileRenamer, comic: Path) -> Path | None:
         # This shouldn't happen, but just in case let's make sure there is metadata.
         if self.metadata is None:
             questionary.print(

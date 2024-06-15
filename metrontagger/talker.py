@@ -1,8 +1,18 @@
+from __future__ import annotations
+
 import io
 from datetime import datetime
 from enum import Enum, auto, unique
 from logging import getLogger
-from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from mokkari.schemas.generic import GenericItem
+    from mokkari.schemas.issue import BaseIssue, Credit as MokkariCredit, Issue
+
+    from metrontagger.settings import MetronTaggerSettings
 
 import mokkari
 import questionary
@@ -12,12 +22,9 @@ from darkseid.issue_string import IssueString
 from darkseid.metadata import Basic, Credit, Metadata, Role, Series
 from imagehash import ImageHash, hex_to_hash, phash
 from mokkari.exceptions import ApiError
-from mokkari.schemas.generic import GenericItem
-from mokkari.schemas.issue import BaseIssue, Credit as MokkariCredit, Issue
 from PIL import Image
 
 from metrontagger import __version__
-from metrontagger.settings import MetronTaggerSettings
 from metrontagger.styles import Styles
 from metrontagger.utils import create_query_params
 
@@ -35,7 +42,7 @@ class InfoSource(Enum):
 class MultipleMatch:
     """Class to hold information on searches with multiple matches"""
 
-    def __init__(self: "MultipleMatch", filename: Path, match_list: list[BaseIssue]) -> None:
+    def __init__(self: MultipleMatch, filename: Path, match_list: list[BaseIssue]) -> None:
         self.filename = filename
         self.matches = match_list
 
@@ -43,23 +50,23 @@ class MultipleMatch:
 class OnlineMatchResults:
     """Class to track online match results"""
 
-    def __init__(self: "OnlineMatchResults") -> None:
+    def __init__(self: OnlineMatchResults) -> None:
         self.good_matches: list[Path] = []
         self.no_matches: list[Path] = []
         self.multiple_matches: list[MultipleMatch] = []
 
-    def add_good_match(self: "OnlineMatchResults", file_name: Path) -> None:
+    def add_good_match(self: OnlineMatchResults, file_name: Path) -> None:
         self.good_matches.append(file_name)
 
-    def add_no_match(self: "OnlineMatchResults", file_name: Path) -> None:
+    def add_no_match(self: OnlineMatchResults, file_name: Path) -> None:
         self.no_matches.append(file_name)
 
-    def add_multiple_match(self: "OnlineMatchResults", multi_match: MultipleMatch) -> None:
+    def add_multiple_match(self: OnlineMatchResults, multi_match: MultipleMatch) -> None:
         self.multiple_matches.append(multi_match)
 
 
 class Talker:
-    def __init__(self: "Talker", username: str, password: str) -> None:
+    def __init__(self: Talker, username: str, password: str) -> None:
         self.api = mokkari.api(username, password, user_agent=f"Metron-Tagger/{__version__}")
         self.match_results = OnlineMatchResults()
 
@@ -74,7 +81,7 @@ class Talker:
         return issue_lst
 
     def _select_choice_from_matches(
-        self: "Talker",
+        self: Talker,
         fn: Path,
         match_set: list[BaseIssue],
     ) -> int | None:
@@ -100,7 +107,7 @@ class Talker:
         return ch
 
     def _within_hamming_distance(
-        self: "Talker", comic: Comic, metron_hash: str | None = None
+        self: Talker, comic: Comic, metron_hash: str | None = None
     ) -> bool:
         if metron_hash is None:
             return False
@@ -110,7 +117,7 @@ class Talker:
         hamming = comic_hash - hex_to_hash(metron_hash)
         return hamming <= HAMMING_DISTANCE
 
-    def _get_hamming_results(self: "Talker", comic: Comic, lst: list[BaseIssue]) -> list[any]:
+    def _get_hamming_results(self: Talker, comic: Comic, lst: list[BaseIssue]) -> list[any]:
         return [item for item in lst if self._within_hamming_distance(comic, item.cover_hash)]
 
     @staticmethod
@@ -143,7 +150,7 @@ class Talker:
                 LOGGER.exception("Comic has invalid id: %s #%s", md.series.name, md.issue)
         return source, id_
 
-    def _process_file(self: "Talker", fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912, C901
+    def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912, C901
         ca = Comic(fn)
 
         if not ca.is_writable() and not ca.seems_to_be_a_comic_archive():
@@ -219,7 +226,7 @@ class Talker:
 
         return issue_id, multiple_match
 
-    def _post_process_matches(self: "Talker") -> None:
+    def _post_process_matches(self: Talker) -> None:
         # Print file matching results.
         if self.match_results.good_matches:
             questionary.print("\nSuccessful matches:\n------------------", style=Styles.TITLE)
@@ -240,7 +247,7 @@ class Talker:
                 ):
                     self._write_issue_md(match_set.filename, issue_id)
 
-    def _write_issue_md(self: "Talker", filename: Path, issue_id: int) -> None:
+    def _write_issue_md(self: Talker, filename: Path, issue_id: int) -> None:
         # sourcery skip: extract-method, inline-immediately-returned-variable
         success = False
         resp = None
@@ -272,7 +279,7 @@ class Talker:
             )
 
     def identify_comics(
-        self: "Talker",
+        self: Talker,
         file_list: list[Path],
         config: MetronTaggerSettings,
     ) -> None:
@@ -300,7 +307,7 @@ class Talker:
         # Print match results
         self._post_process_matches()
 
-    def retrieve_single_issue(self: "Talker", fn: Path, id_: int) -> None:
+    def retrieve_single_issue(self: Talker, fn: Path, id_: int) -> None:
         self._write_issue_md(fn, id_)
 
     @staticmethod

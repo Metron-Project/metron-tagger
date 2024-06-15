@@ -1,5 +1,7 @@
 """Class to handle project settings"""
 
+from __future__ import annotations
+
 import configparser
 import platform
 from os import environ
@@ -11,7 +13,7 @@ from xdg.BaseDirectory import save_config_path
 class MetronTaggerSettings:
     """Class to handle project settings"""
 
-    def __init__(self: "MetronTaggerSettings", config_dir: str | None = None) -> None:
+    def __init__(self: MetronTaggerSettings, config_dir: str | None = None) -> None:
         # Metron credentials
         self.metron_user: str = ""
         self.metron_pass: str = ""
@@ -59,7 +61,7 @@ class MetronTaggerSettings:
         windows_path = PurePath(environ["APPDATA"]).joinpath("MetronTagger")
         return Path(windows_path)
 
-    def load(self: "MetronTaggerSettings") -> None:
+    def load(self: MetronTaggerSettings) -> None:
         """Method to retrieve a users settings"""
         self.config.read(self.settings_file)
 
@@ -87,7 +89,7 @@ class MetronTaggerSettings:
                 "rename_use_smart_string_cleanup",
             )
 
-    def save(self: "MetronTaggerSettings") -> None:
+    def save(self: MetronTaggerSettings) -> None:
         """Method to save a users settings"""
         if not self.config.has_section("metron"):
             self.config.add_section("metron")

@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import questionary
 from darkseid.comic import Comic
@@ -10,7 +13,9 @@ from metrontagger.duplicates import DuplicateIssue, Duplicates
 from metrontagger.filerenamer import FileRenamer
 from metrontagger.filesorter import FileSorter
 from metrontagger.logging import init_logging
-from metrontagger.settings import MetronTaggerSettings
+
+if TYPE_CHECKING:
+    from metrontagger.settings import MetronTaggerSettings
 from metrontagger.styles import Styles
 from metrontagger.talker import Talker
 from metrontagger.validate_ci import SchemaVersion, ValidateComicInfo
@@ -19,10 +24,10 @@ from metrontagger.validate_ci import SchemaVersion, ValidateComicInfo
 class Runner:
     """Main runner"""
 
-    def __init__(self: "Runner", config: MetronTaggerSettings) -> None:
+    def __init__(self: Runner, config: MetronTaggerSettings) -> None:
         self.config = config
 
-    def rename_comics(self: "Runner", file_list: list[Path]) -> list[Path]:
+    def rename_comics(self: Runner, file_list: list[Path]) -> list[Path]:
         questionary.print(
             "\nStarting comic archive renaming:\n-------------------------------",
             style=Styles.TITLE,
@@ -68,7 +73,7 @@ class Runner:
         file_list.extend(iter(new_file_names))
         return file_list
 
-    def _export_to_zip(self: "Runner", file_list: list[Path]) -> None:
+    def _export_to_zip(self: Runner, file_list: list[Path]) -> None:
         questionary.print("\nExporting to cbz:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(str(comic))
@@ -121,7 +126,7 @@ class Runner:
                         style=Styles.WARNING,
                     )
 
-    def _sort_comic_list(self: "Runner", file_list: list[Path]) -> None:
+    def _sort_comic_list(self: Runner, file_list: list[Path]) -> None:
         if not self.config.sort_dir:
             questionary.print(
                 "\nUnable to sort files. No destination directory was provided.",
@@ -165,10 +170,10 @@ class Runner:
             else:
                 questionary.print(f"no metadata in '{comic.name}'", style=Styles.WARNING)
 
-    def _has_credentials(self: "Runner") -> bool:
+    def _has_credentials(self: Runner) -> bool:
         return bool(self.config.metron_user and self.config.metron_pass)
 
-    def _get_credentials(self: "Runner") -> bool:
+    def _get_credentials(self: Runner) -> bool:
         answers = questionary.form(
             user=questionary.text("What is your Metron username?"),
             passwd=questionary.text("What is your Metron password?"),
@@ -182,7 +187,7 @@ class Runner:
             return True
         return False
 
-    def _get_sort_dir(self: "Runner") -> bool:
+    def _get_sort_dir(self: Runner) -> bool:
         answers = questionary.form(
             dir=questionary.path("What directory should comics be sorted to?"),
             save=questionary.confirm("Would you like to save this location for future use?"),
@@ -227,7 +232,7 @@ class Runner:
             # No metadata
             questionary.print(f"No metadata in {comic}. Skipping...")
 
-    def _remove_duplicates(self: "Runner", file_list: list[Path]) -> None:
+    def _remove_duplicates(self: Runner, file_list: list[Path]) -> None:
         dups_obj = Duplicates(file_list)
         distinct_hashes = dups_obj.get_distinct_hashes()
         if not questionary.confirm(
@@ -288,7 +293,7 @@ class Runner:
         ).ask():
             self._update_ci_xml(duplicates_lst)
 
-    def run(self: "Runner") -> None:  # noqa: C901, PLR0912
+    def run(self: Runner) -> None:  # noqa: C901, PLR0912
         if not (file_list := get_recursive_filelist(self.config.path)):
             questionary.print("No files to process. Exiting.", style=Styles.WARNING)
             sys.exit(0)
