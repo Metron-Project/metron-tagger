@@ -108,9 +108,7 @@ class Talker:
         if comic_hash is None:
             return False
         hamming = comic_hash - hex_to_hash(metron_hash)
-        if hamming <= HAMMING_DISTANCE:
-            return True
-        return False
+        return hamming <= HAMMING_DISTANCE
 
     def _get_hamming_results(self: "Talker", comic: Comic, lst: list[BaseIssue]) -> list[any]:
         hamming_lst = []
