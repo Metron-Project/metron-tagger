@@ -1,11 +1,16 @@
 """Class to sort comic file based on its metadata tags"""
 
+from __future__ import annotations
+
 from pathlib import Path
 from shutil import Error, move
+from typing import TYPE_CHECKING
 
 import questionary
 from darkseid.comic import Comic
-from darkseid.metadata import Metadata
+
+if TYPE_CHECKING:
+    from darkseid.metadata import Metadata
 
 from metrontagger.styles import Styles
 from metrontagger.utils import cleanup_string
@@ -19,7 +24,7 @@ def get_file_size(fn: Path) -> float:
 class FileSorter:
     """Class to move comic files based on its metadata tags"""
 
-    def __init__(self: "FileSorter", directory: str) -> None:
+    def __init__(self: FileSorter, directory: str) -> None:
         self.sort_directory = directory
 
     @staticmethod
@@ -62,7 +67,7 @@ class FileSorter:
                 existing_comic.unlink()
 
     def _get_new_path(
-        self: "FileSorter",
+        self: FileSorter,
         meta_data: Metadata,
         publisher: str,
         series: str,
@@ -90,7 +95,7 @@ class FileSorter:
             return False
         return True
 
-    def sort_comics(self: "FileSorter", comic: Path) -> bool:
+    def sort_comics(self: FileSorter, comic: Path) -> bool:
         """Method to move the comic file based on its metadata tag"""
         try:
             comic_archive = Comic(str(comic))

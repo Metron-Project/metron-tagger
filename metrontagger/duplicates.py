@@ -1,5 +1,7 @@
 """Module to find and remove any duplicate pages from a directory of comics."""
+
 # Copyright 2023 Brian Pepple
+from __future__ import annotations
 
 import io
 from dataclasses import dataclass
@@ -20,18 +22,18 @@ class DuplicateIssue:
     path_: str
     pages_index: list[int]
 
-    def __repr__(self: "DuplicateIssue") -> str:
+    def __repr__(self: DuplicateIssue) -> str:
         return f"{self.__class__.__name__}(name={Path(self.path_).name})"
 
 
 class Duplicates:
     """Class to find and remove any duplicate pages."""
 
-    def __init__(self: "Duplicates", file_lst: list[Path]) -> None:
+    def __init__(self: Duplicates, file_lst: list[Path]) -> None:
         self._file_lst = file_lst
         self._data_frame: pd.DataFrame | None = None
 
-    def _image_hashes(self: "Duplicates") -> list[dict[str, any]]:
+    def _image_hashes(self: Duplicates) -> list[dict[str, any]]:
         """Method to get a list of dicts containing the file path, page index, and page hashes."""
         hashes_lst = []
         for item in self._file_lst:
@@ -68,25 +70,25 @@ class Duplicates:
                     continue
         return hashes_lst
 
-    def _get_page_hashes(self: "Duplicates") -> pd.DataFrame:
+    def _get_page_hashes(self: Duplicates) -> pd.DataFrame:
         """Method to get a dataframe of comics with duplicate pages."""
         comic_hashes = self._image_hashes()
         self._data_frame = pd.DataFrame(comic_hashes)
         hashes = self._data_frame["hash"]
         return self._data_frame[hashes.isin(hashes[hashes.duplicated()])].sort_values("hash")
 
-    def get_distinct_hashes(self: "Duplicates") -> list[str]:
+    def get_distinct_hashes(self: Duplicates) -> list[str]:
         """Method to get distinct hash values."""
         page_hashes = self._get_page_hashes()
         return [key for key, _group in groupby(page_hashes["hash"])]
 
-    def get_comic_info_for_distinct_hash(self: "Duplicates", img_hash: str) -> DuplicateIssue:
+    def get_comic_info_for_distinct_hash(self: Duplicates, img_hash: str) -> DuplicateIssue:
         """Method to retrieve first comic instance's path and page index from a hash value."""
         idx = self._data_frame.loc[self._data_frame["hash"] == img_hash].index[0]
         row = self._data_frame.iloc[idx]
         return DuplicateIssue(row["path"], row["index"])
 
-    def get_comic_list_from_hash(self: "Duplicates", img_hash: str) -> list[DuplicateIssue]:
+    def get_comic_list_from_hash(self: Duplicates, img_hash: str) -> list[DuplicateIssue]:
         comic_lst = []
         for i in self._data_frame.loc[self._data_frame["hash"] == img_hash].index:
             row = self._data_frame.iloc[i]
