@@ -111,11 +111,7 @@ class Talker:
         return hamming <= HAMMING_DISTANCE
 
     def _get_hamming_results(self: "Talker", comic: Comic, lst: list[BaseIssue]) -> list[any]:
-        hamming_lst = []
-        for item in lst:
-            if self._within_hamming_distance(comic, item.cover_hash):
-                hamming_lst.append(item)
-        return hamming_lst
+        return [item for item in lst if self._within_hamming_distance(comic, item.cover_hash)]
 
     @staticmethod
     def _get_source_id(md: Metadata) -> tuple[InfoSource, int | None]:
