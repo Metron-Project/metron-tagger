@@ -12,7 +12,7 @@ def get_args() -> Namespace:
     return parser.parse_args()
 
 
-def get_configs(opts: Namespace) -> MetronTaggerSettings:  # noqa: PLR0912, C901
+def get_configs(opts: Namespace) -> MetronTaggerSettings:  # noqa: PLR0912
     config = MetronTaggerSettings()
     if opts.path:
         config.path = opts.path

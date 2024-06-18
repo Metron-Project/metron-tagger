@@ -293,7 +293,7 @@ class Runner:
         ).ask():
             self._update_ci_xml(duplicates_lst)
 
-    def run(self: Runner) -> None:  # noqa: C901, PLR0912
+    def run(self: Runner) -> None:  # noqa: PLR0912
         if not (file_list := get_recursive_filelist(self.config.path)):
             questionary.print("No files to process. Exiting.", style=Styles.WARNING)
             sys.exit(0)

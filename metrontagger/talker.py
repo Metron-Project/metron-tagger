@@ -150,7 +150,7 @@ class Talker:
                 LOGGER.exception("Comic has invalid id: %s #%s", md.series.name, md.issue)
         return source, id_
 
-    def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912, C901
+    def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912
         ca = Comic(fn)
 
         if not ca.is_writable() and not ca.seems_to_be_a_comic_archive():
@@ -311,7 +311,7 @@ class Talker:
         self._write_issue_md(fn, id_)
 
     @staticmethod
-    def _map_resp_to_metadata(resp: Issue) -> Metadata:  # noqa: C901
+    def _map_resp_to_metadata(resp: Issue) -> Metadata:
         # Helper functions
         def create_resource_list(resource: any) -> list[Basic]:
             return [Basic(r.name, r.id) for r in resource]
