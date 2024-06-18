@@ -8,11 +8,31 @@ from metrontagger.settings import MetronTaggerSettings
 
 
 def get_args() -> Namespace:
+    """Parse command line arguments.
+
+    This function parses the command line arguments using the configured argument parser and returns the parsed
+    arguments.
+
+    Returns:
+        Namespace: The parsed command line arguments.
+    """
+
     parser = make_parser()
     return parser.parse_args()
 
 
 def get_configs(opts: Namespace) -> MetronTaggerSettings:  # noqa: PLR0912
+    """Get MetronTaggerSettings from command line options.
+
+    This function creates a MetronTaggerSettings object based on the provided command line options.
+
+    Args:
+        opts (Namespace): The parsed command line options.
+
+    Returns:
+        MetronTaggerSettings: The MetronTaggerSettings object with configurations based on the command line options.
+    """
+
     config = MetronTaggerSettings()
     if opts.path:
         config.path = opts.path
@@ -60,6 +80,15 @@ def get_configs(opts: Namespace) -> MetronTaggerSettings:  # noqa: PLR0912
 
 
 def main() -> None:
+    """Execute the Metron Tagger application.
+
+    This function parses command line arguments, creates MetronTaggerSettings based on the arguments, initializes a
+    Runner with the settings, and runs the main operations of the application.
+
+    Returns:
+        None
+    """
+
     args = get_args()
     config = get_configs(args)
 
