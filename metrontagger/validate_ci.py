@@ -15,20 +15,51 @@ from lxml import etree as et
 
 @unique
 class SchemaVersion(Enum):
+    """Enumeration of schema versions.
+
+    This class defines different schema versions for ComicInfo XML validation.
+    """
+
     v1 = auto()
     v2 = auto()
     Unknown = auto()
 
 
 class ValidateComicInfo:
-    """Class to verify comic archive ComicInfo XML."""
+    """Class for validating ComicInfo XML.
+
+    This class provides methods to validate ComicInfo XML against different schema versions and determine the valid
+    schema version.
+
+    Args:
+        ci_xml: bytes: The ComicInfo XML content to validate.
+
+    Returns:
+        None
+    """
 
     def __init__(self: ValidateComicInfo, ci_xml: bytes) -> None:
+        """Initialize the ValidateComicInfo object with ComicInfo XML content.
+
+        This method sets the ComicInfo XML content for validation.
+        """
+
         self.comic_info_xml = ci_xml
 
     @staticmethod
     def _get_xsd(schema_version: SchemaVersion) -> Path | None:
-        """Method to return path of CI Schema."""
+        """Get the path of the ComicInfo schema based on the schema version.
+
+        This static method returns the path of the ComicInfo schema file corresponding to the provided schema version.
+
+
+        Args:
+            schema_version: SchemaVersion: The version of the schema to retrieve.
+
+        Returns:
+            Path | None: The path of the schema file or None if the schema version is unknown.
+        """
+
         if schema_version == SchemaVersion.v1:
             with as_file(files("metrontagger.schema.v1").joinpath("ComicInfo.xsd")) as xsd:
                 return xsd
@@ -39,7 +70,17 @@ class ValidateComicInfo:
             return None
 
     def _is_valid(self: ValidateComicInfo, schema_version: SchemaVersion) -> bool:
-        """Method to validate CI XML."""
+        """Validate the ComicInfo XML against a specific schema version.
+
+        This method validates the ComicInfo XML content against the schema corresponding to the provided schema version.
+
+        Args:
+            schema_version: SchemaVersion: The version of the schema to validate against.
+
+        Returns:
+            bool: True if the XML is valid according to the schema, False otherwise.
+        """
+
         xsd_path = self._get_xsd(schema_version)
         if xsd_path is None:
             return False
