@@ -34,13 +34,21 @@ HAMMING_DISTANCE = 10
 
 @unique
 class InfoSource(Enum):
+    """An enumeration of information sources.
+
+    This class defines different sources of information, including Metron, Comic Vine, and Unknown.
+    """
+
     metron = auto()
     comic_vine = auto()
     unknown = auto()
 
 
 class MultipleMatch:
-    """Class to hold information on searches with multiple matches"""
+    """Class to store multiple matches for a filename.
+
+    This class initializes with a filename and a list of BaseIssue matches.
+    """
 
     def __init__(self: MultipleMatch, filename: Path, match_list: list[BaseIssue]) -> None:
         self.filename = filename
@@ -48,30 +56,70 @@ class MultipleMatch:
 
 
 class OnlineMatchResults:
-    """Class to track online match results"""
+    """Class to store online match results.
+
+    This class stores good matches, no matches, and multiple matches for online search results.
+    """
 
     def __init__(self: OnlineMatchResults) -> None:
+        """Initialize the OnlineMatchResults class.
+
+        This method initializes lists to store good matches, no matches, and multiple matches.
+        """
         self.good_matches: list[Path] = []
         self.no_matches: list[Path] = []
         self.multiple_matches: list[MultipleMatch] = []
 
     def add_good_match(self: OnlineMatchResults, file_name: Path) -> None:
+        """Add a good match to the list.
+
+        This method appends a file name to the list of good matches.
+        """
         self.good_matches.append(file_name)
 
     def add_no_match(self: OnlineMatchResults, file_name: Path) -> None:
+        """Add a no match to the list.
+
+        This method appends a file name to the list of no matches.
+        """
         self.no_matches.append(file_name)
 
     def add_multiple_match(self: OnlineMatchResults, multi_match: MultipleMatch) -> None:
+        """Add a multiple match to the list.
+
+        This method appends a MultipleMatch object to the list of multiple matches.
+        """
         self.multiple_matches.append(multi_match)
 
 
 class Talker:
+    """Class for handling online search and tagging of comic files.
+
+    This class provides methods for identifying comics, retrieving single issues, and processing match results.
+    """
+
     def __init__(self: Talker, username: str, password: str) -> None:
+        """Initialize the Talker class with API credentials.
+
+        This method sets up the API connection using the provided username and password, and initializes match
+        results storage.
+        """
         self.api = mokkari.api(username, password, user_agent=f"Metron-Tagger/{__version__}")
         self.match_results = OnlineMatchResults()
 
     @staticmethod
     def _create_choice_list(match_set: list[BaseIssue]) -> list[questionary.Choice]:
+        """Create a list of choices for selecting issues.
+
+        This static method generates a list of choices based on the provided list of BaseIssue objects, including
+        issue names and cover dates.
+
+        Args:
+            match_set: list[BaseIssue]: The list of BaseIssue objects to create choices from.
+
+        Returns:
+            list[questionary.Choice]: A list of choices for selecting issues, including a 'Skip' option.
+        """
         issue_lst = []
         for i in match_set:
             c = questionary.Choice(title=f"{i.issue_name} ({i.cover_date})", value=i.id)
@@ -85,8 +133,17 @@ class Talker:
         fn: Path,
         match_set: list[BaseIssue],
     ) -> int | None:
-        """Function to ask user to choice which issue metadata to write,
-        when there are multiple choices
+        """Select an issue from a list of matches.
+
+        This method displays the results found for a file, sorts the match list by cover date, and prompts the user
+        to select an issue to match.
+
+        Args:
+            fn: Path: The file path for which matches are being selected.
+            match_set: list[BaseIssue]: The list of BaseIssue objects to choose from.
+
+        Returns:
+            int | None: The selected issue ID or None if no selection is made.
         """
         questionary.print(f"\n{fn.name} - Results found:", style=Styles.TITLE)
 
@@ -98,6 +155,16 @@ class Talker:
 
     @staticmethod
     def _get_comic_cover_hash(comic: Comic) -> ImageHash | None:
+        """Get the image hash of a comic cover.
+
+        This static method calculates the image hash of the comic cover image using pHash algorithm.
+
+        Args:
+            comic: Comic: The Comic object representing the comic.
+
+        Returns:
+            ImageHash | None: The image hash of the comic cover, or None if unable to calculate.
+        """
         with Image.open(io.BytesIO(comic.get_page(0))) as img:
             try:
                 ch = phash(img)
@@ -109,6 +176,11 @@ class Talker:
     def _within_hamming_distance(
         self: Talker, comic: Comic, metron_hash: str | None = None
     ) -> bool:
+        """Check if the comic cover hash is within the specified Hamming distance.
+
+        This method compares the comic cover hash with a provided hash to determine if they are within the specified
+        Hamming distance.
+        """
         if metron_hash is None:
             return False
         comic_hash = self._get_comic_cover_hash(comic)
@@ -118,10 +190,20 @@ class Talker:
         return hamming <= HAMMING_DISTANCE
 
     def _get_hamming_results(self: Talker, comic: Comic, lst: list[BaseIssue]) -> list[any]:
+        """Get the list of BaseIssue objects within the specified Hamming distance.
+
+        This method filters the list of BaseIssue objects based on the Hamming distance between the comic cover hash
+        and the cover hash of each item.
+        """
         return [item for item in lst if self._within_hamming_distance(comic, item.cover_hash)]
 
     @staticmethod
     def _get_source_id(md: Metadata) -> tuple[InfoSource, int | None]:
+        """Get the information source and ID from metadata.
+
+        This static method extracts the information source and ID from the metadata notes field, returning a tuple of
+        InfoSource and ID.
+        """
         source: InfoSource = InfoSource.unknown
         id_: int | None = None
 
@@ -151,6 +233,18 @@ class Talker:
         return source, id_
 
     def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912
+        """Process a comic file for metadata.
+
+        This method processes a comic file to extract metadata, including checking for existing metadata, extracting
+        source and ID information, and handling multiple matches.
+
+        Args:
+            fn: Path: The file path of the comic to process.
+            interactive: bool: A flag indicating if the process should be interactive.
+
+        Returns: tuple[int | None, bool]: A tuple containing the issue ID and a flag indicating if multiple matches
+        were found.
+        """
         ca = Comic(fn)
 
         if not ca.is_writable() and not ca.seems_to_be_a_comic_archive():
@@ -227,6 +321,11 @@ class Talker:
         return issue_id, multiple_match
 
     def _post_process_matches(self: Talker) -> None:
+        """Post-process the match results.
+
+        This method prints the successful matches and no matches, and handles files with multiple matches by
+        selecting an issue to write metadata for.
+        """
         # Print file matching results.
         if self.match_results.good_matches:
             questionary.print("\nSuccessful matches:\n------------------", style=Styles.TITLE)
@@ -248,6 +347,10 @@ class Talker:
                     self._write_issue_md(match_set.filename, issue_id)
 
     def _write_issue_md(self: Talker, filename: Path, issue_id: int) -> None:
+        """Write metadata for an issue.
+
+        This method retrieves issue data, overlays it with existing metadata, and writes the metadata to the comic file.
+        """
         # sourcery skip: extract-method, inline-immediately-returned-variable
         success = False
         resp = None
@@ -283,6 +386,18 @@ class Talker:
         file_list: list[Path],
         config: MetronTaggerSettings,
     ) -> None:
+        """Identify and tag comics from a list of files.
+
+        This method initiates an online search and tagging process for each file in the provided list, skipping files
+        with existing metadata and handling multiple matches.
+
+        Args:
+            file_list: list[Path]: A list of file paths to process.
+            config: MetronTaggerSettings: The configuration settings for the tagging process.
+
+        Returns:
+            None
+        """
         questionary.print(
             "\nStarting online search and tagging:\n----------------------------------",
             style=Styles.TITLE,
@@ -308,15 +423,34 @@ class Talker:
         self._post_process_matches()
 
     def retrieve_single_issue(self: Talker, fn: Path, id_: int) -> None:
+        """Retrieve and write metadata for a single issue.
+
+        This method retrieves metadata for a single issue using the provided ID and writes the metadata to the
+        corresponding file.
+        """
         self._write_issue_md(fn, id_)
 
     @staticmethod
     def _map_resp_to_metadata(resp: Issue) -> Metadata:
+        """Map response data to metadata.
+
+        This static method maps the response data from an Issue object to a Metadata object, including information
+        such as series, issue number, publisher, cover date, and additional metadata details.
+        """
+
         # Helper functions
         def create_resource_list(resource: any) -> list[Basic]:
+            """Create a list of Basic objects from a given resource.
+
+            This function takes a resource and generates a list of Basic objects with name and ID attributes.
+            """
             return [Basic(r.name, r.id) for r in resource]
 
         def create_note(issue_id: int) -> str:
+            """Create a note for an issue.
+
+            This function generates a note string including tagging information from MetronTagger and the issue ID.
+            """
             now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # noqa: DTZ005
             return (
                 f"Tagged with MetronTagger-{__version__} using info from Metron on "
@@ -327,7 +461,24 @@ class Talker:
             meta_data: Metadata,
             credits_resp: list[MokkariCredit],
         ) -> Metadata:
+            """Add credits to metadata.
+
+            This function adds credits information to the metadata object based on the provided credits response.
+
+            Args:
+                meta_data: Metadata: The metadata object to add credits to.
+                credits_resp: list[MokkariCredit]: The list of credits information to add.
+
+            Returns:
+                Metadata: The updated metadata object with added credits.
+            """
+
             def create_role_list(roles: list[GenericItem]) -> list[Role]:
+                """Create a list of Role objects from a list of GenericItem objects.
+
+                This function converts a list of GenericItem objects representing roles into a list of Role objects
+                with name and ID attributes.
+                """
                 return [Role(r.name, r.id) for r in roles]
 
             for c in credits_resp:
@@ -338,6 +489,17 @@ class Talker:
             return meta_data
 
         def map_ratings(rating: str) -> str:
+            """Map a rating string to a standardized format.
+
+            This function maps a given rating string to a standardized format ('Everyone', 'Teen', 'Mature 17+',
+            or 'Unknown').
+
+            Args:
+                rating: str: The rating string to map.
+
+            Returns:
+                str: The standardized rating.
+            """
             age_rating = rating.lower()
             if age_rating in {"everyone", "cca"}:
                 return "Everyone"
