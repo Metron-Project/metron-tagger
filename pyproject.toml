@@ -107,6 +107,7 @@ target-version = "py310"
 [tool.ruff.lint]
 extend-ignore = [
   "S101",
+  "C901",
   "D203",
   "D213",
   # Format ignores

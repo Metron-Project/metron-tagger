@@ -22,36 +22,121 @@ from metrontagger.utils import cleanup_string
 
 
 class FileRenamer:
-    """Class to rename a comic archive based on its metadata tag"""
+    """A class for renaming comic book files based on metadata.
+
+    This class provides methods for setting metadata, customizing file naming templates, and renaming files according
+    to the specified rules.
+
+    Args:
+        metadata: Metadata | None: Optional metadata object to be used for file renaming.
+
+    Returns:
+        None
+    """
 
     def __init__(self: FileRenamer, metadata: Metadata | None = None) -> None:
+        """Initialize the FileRenamer class with optional metadata and default settings.
+
+        This method sets the metadata, file naming template, smart cleanup option, and issue number zero padding.
+
+        Args:
+            metadata: Metadata | None: Optional metadata object for file renaming.
+
+        Returns:
+            None
+        """
+
         self.metadata: Metadata | None = metadata
         self.template: str = "%series% v%volume% #%issue% (of %issuecount%) (%year%)"
         self.smart_cleanup: bool = True
         self.issue_zero_padding: int = 3
 
     def set_smart_cleanup(self: FileRenamer, on: bool) -> None:
+        """Set the smart cleanup option for file renaming.
+
+        This method toggles the smart cleanup feature based on the provided boolean value.
+
+        Args:
+            on: bool: A boolean value to enable or disable smart cleanup.
+
+        Returns:
+            None
+        """
+
         self.smart_cleanup = on
 
     def set_metadata(self: FileRenamer, metadata: Metadata) -> None:
-        """Method to set the metadata"""
+        """Set the metadata for file renaming.
+
+        This method updates the metadata used for file renaming to the provided Metadata object.
+
+        Args:
+            metadata: Metadata: The Metadata object to be set for file renaming.
+
+        Returns:
+            None
+        """
+
         self.metadata = metadata
 
     def set_issue_zero_padding(self: FileRenamer, count: int) -> None:
-        """Method to set the padding for the issue's number"""
+        """Set the padding for the issue number in file renaming.
+
+        This method updates the padding count used for formatting issue numbers in file names.
+
+        Args:
+            count: int: The number of digits to pad the issue number with.
+
+        Returns:
+            None
+        """
+
         self.issue_zero_padding = count
 
     def set_template(self: FileRenamer, template: str) -> None:
-        """Method to use a user's custom file naming template."""
+        """Set a custom file naming template.
+
+        This method updates the file naming template used for renaming files to the provided string.
+
+
+        Args:
+            template: str: The custom file naming template to be used.
+
+        Returns:
+            None
+        """
+
         self.template = template
 
     def replace_token(
         self: FileRenamer, text: str, value: int | str | None, token: str
     ) -> str:
-        """Method to replace a value with another value"""
+        """Replace a token in the text with a value.
+
+        This method replaces a token in the text with the provided value, handling smart cleanup if enabled.
+
+        Args:
+            text: str: The text containing the token to be replaced.
+            value: int | str | None: The value to replace the token with.
+            token: str: The token to be replaced in the text.
+
+        Returns:
+            str: The text with the token replaced by the value.
+        """
 
         # helper func
         def is_token(txt: str) -> bool:
+            """Check if a string is a token.
+
+            This function determines if a string is a token by checking if it starts and ends with '%'.
+
+            Args:
+                txt: str: The string to check if it is a token.
+
+            Returns:
+                bool: True if the string is a token, False otherwise.
+            """
+
             return txt[0] == "%" and txt.endswith("%")
 
         if value is not None:
@@ -76,17 +161,52 @@ class FileRenamer:
 
     @staticmethod
     def _remove_empty_separators(value: str) -> str:
+        """Remove empty separators from the provided value.
+
+        This static method removes empty parentheses, brackets, and braces from the input string.
+
+        Args:
+            value: str: The input string containing separators to be removed.
+
+        Returns:
+            str: The string with empty separators removed.
+        """
+
         value = re.sub(r"\(\s*[-:]*\s*\)", "", value)
         value = re.sub(r"\[\s*[-:]*\s*]", "", value)
         return re.sub(r"\{\s*[-:]*\s*}", "", value)
 
     @staticmethod
     def _remove_duplicate_hyphen_underscore(value: str) -> str:
+        """Remove duplicate hyphens and underscores from the provided value.
+
+        This static method cleans up the input string by replacing multiple hyphens and underscores with a single
+        instance.
+
+        Args:
+            value: str: The string to remove duplicate hyphens and underscores from.
+
+        Returns:
+            str: The string with duplicate hyphens and underscores cleaned up.
+        """
+
         value = re.sub(r"[-_]{2,}\s+", "-- ", value)
         value = re.sub(r"(\s--)+", " --", value)
         return re.sub(r"(\s-)+", " -", value)
 
     def smart_cleanup_string(self: FileRenamer, new_name: str) -> str:
+        """Perform smart cleanup on the provided new name string.
+
+        This method applies various cleanup operations to the input string, including removing empty separators,
+        duplicate spaces, duplicate hyphens and underscores, trailing dashes, and extra spaces.
+
+        Args:
+            new_name: str: The input string to be cleaned up.
+
+        Returns:
+            str: The cleaned up string after applying smart cleanup operations.
+        """
+
         # remove empty braces,brackets, parentheses
         new_name = self._remove_empty_separators(new_name)
 
@@ -102,8 +222,19 @@ class FileRenamer:
         # remove duplicate spaces (again!)
         return " ".join(new_name.split())
 
-    def determine_name(self: FileRenamer, filename: Path) -> str | None:  # noqa: C901 RUF100
-        """Method to create the new filename based on the files metadata"""
+    def determine_name(self: FileRenamer, filename: Path) -> str | None:
+        """Determine the new filename based on metadata.
+
+        This method constructs a new filename using the provided metadata and the file naming template,
+        applying various replacements and cleanup operations.
+
+        Args:
+            filename: Path: The original filename path.
+
+        Returns:
+            str | None: The new filename generated based on the metadata, or None if metadata is not set.
+        """
+
         if not self.metadata:
             return None
         md = self.metadata
@@ -187,6 +318,18 @@ class FileRenamer:
         return cleanup_string(new_name)
 
     def rename_file(self: FileRenamer, comic: Path) -> Path | None:
+        """Rename a comic file based on metadata.
+
+        This method renames the comic file using the metadata and file naming template, ensuring a unique filename.
+        If metadata is not set, the function will skip the renaming process.
+
+        Args:
+            comic: Path: The path to the comic file to be renamed.
+
+        Returns:
+            Path | None: The path to the renamed comic file, or None if the renaming process is skipped.
+        """
+
         # This shouldn't happen, but just in case let's make sure there is metadata.
         if self.metadata is None:
             questionary.print(
