@@ -11,9 +11,25 @@ from xdg.BaseDirectory import save_config_path
 
 
 class MetronTaggerSettings:
-    """Class to handle project settings"""
+    """Class for managing Metron Tagger settings.
+
+    This class handles the loading and saving of user settings for Metron Tagger, including Metron credentials,
+    file paths, sorting options, renaming settings, and more.
+
+    Args:
+        config_dir: str | None: The directory path for the configuration files.
+
+    Returns:
+        None
+    """
 
     def __init__(self: MetronTaggerSettings, config_dir: str | None = None) -> None:
+        """Initialize MetronTaggerSettings with default values or load from configuration file.
+
+        This method sets up the MetronTaggerSettings object with default values or loads settings from a
+        configuration file.
+        """
+
         # Metron credentials
         self.metron_user: str = ""
         self.metron_pass: str = ""
@@ -54,7 +70,15 @@ class MetronTaggerSettings:
 
     @staticmethod
     def get_settings_folder() -> Path:
-        """Method to determine where the users settings should be saved"""
+        """Get the folder path for saving user settings.
+
+        This static method determines the appropriate folder path for saving user settings based on the operating
+        system.
+
+        Returns:
+            Path: The folder path for saving user settings.
+        """
+
         if platform.system() != "Windows":
             return Path(save_config_path("metron-tagger"))
 
@@ -62,7 +86,12 @@ class MetronTaggerSettings:
         return Path(windows_path)
 
     def load(self: MetronTaggerSettings) -> None:
-        """Method to retrieve a users settings"""
+        """Load user settings from the configuration file.
+
+        This method reads and loads user settings from the specified configuration file, updating the settings
+        attributes accordingly.
+        """
+
         self.config.read(self.settings_file)
 
         if self.config.has_option("metron", "user"):
@@ -90,7 +119,12 @@ class MetronTaggerSettings:
             )
 
     def save(self: MetronTaggerSettings) -> None:
-        """Method to save a users settings"""
+        """Save user settings to the configuration file.
+
+        This method updates the configuration file with the current user settings, including Metron credentials,
+        sorting directory, and renaming settings.
+        """
+
         if not self.config.has_section("metron"):
             self.config.add_section("metron")
 

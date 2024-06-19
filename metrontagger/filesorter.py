@@ -17,21 +17,49 @@ from metrontagger.utils import cleanup_string
 
 
 def get_file_size(fn: Path) -> float:
+    """
+    Returns the size of the file in megabytes.
+
+    Args:
+        fn (Path): The path to the file.
+
+    Returns:
+        float: The size of the file in megabytes.
+    """
+
     megabyte = 1048576
     return fn.stat().st_size / megabyte
 
 
 class FileSorter:
-    """Class to move comic files based on its metadata tags"""
+    """
+    Method to move the comic file based on its metadata tag.
+    """
 
     def __init__(self: FileSorter, directory: str) -> None:
+        """
+        Initializes the FileSorter object with the specified directory.
+
+        Args:
+            directory (str): The directory path for sorting files.
+        """
+
         self.sort_directory = directory
 
     @staticmethod
     def _cleanup_metadata(
         meta_data: Metadata,
     ) -> tuple[str | None, str | None, str | None]:
-        """Clean the metadata string."""
+        """
+        Clean the metadata string.
+
+        Args:
+            meta_data (Metadata): The metadata to clean.
+
+        Returns:
+            tuple[str | None, str | None, str | None]: Cleaned publisher, series, and volume strings.
+        """
+
         publisher = cleanup_string(meta_data.publisher.name) if meta_data.publisher else None
         if meta_data.series:
             series = cleanup_string(meta_data.series.name)
@@ -42,6 +70,17 @@ class FileSorter:
 
     @staticmethod
     def _move_files(orig: Path, new: Path) -> bool:
+        """
+        Move files from the original path to the new path.
+
+        Args:
+            orig (Path): The original path of the file.
+            new (Path): The new path to move the file to.
+
+        Returns:
+            bool: True if the file is successfully moved, False otherwise.
+        """
+
         try:
             move(orig, new)
         except Error:
@@ -51,6 +90,17 @@ class FileSorter:
 
     @staticmethod
     def _overwrite_existing(new_path: Path, old_comic: Path) -> None:
+        """
+        Check and overwrite an existing comic if needed.
+
+        Args:
+            new_path (Path): The path to the new comic location.
+            old_comic (Path): The path to the old comic file.
+
+        Returns:
+            None
+        """
+
         existing_comic = new_path / old_comic.name
         if existing_comic.exists():
             existing_size = get_file_size(existing_comic)
@@ -73,6 +123,19 @@ class FileSorter:
         series: str,
         volume: str,
     ) -> Path:
+        """
+        Generate the new path for sorting the comic file based on metadata.
+
+        Args:
+            meta_data (Metadata): The metadata of the comic.
+            publisher (str): The publisher of the comic.
+            series (str): The series of the comic.
+            volume (str): The volume of the comic.
+
+        Returns:
+            Path: The new path for sorting the comic file.
+        """
+
         tpb = (
             False if meta_data.series is None else meta_data.series.format == "Trade Paperback"
         )
@@ -85,6 +148,16 @@ class FileSorter:
 
     @staticmethod
     def _create_new_path(new_sort_path: Path) -> bool:
+        """
+        Create a new directory path.
+
+        Args:
+            new_sort_path (Path): The path to create the new directory.
+
+        Returns:
+            bool: True if the directory is successfully created, False otherwise.
+        """
+
         try:
             new_sort_path.mkdir(parents=True)
         except PermissionError:
@@ -96,7 +169,16 @@ class FileSorter:
         return True
 
     def sort_comics(self: FileSorter, comic: Path) -> bool:
-        """Method to move the comic file based on its metadata tag"""
+        """
+        Method to sort the comic file based on its metadata tag.
+
+        Args:
+            comic (Path): The path to the comic file.
+
+        Returns:
+            bool: True if the comic file is successfully sorted, False otherwise.
+        """
+
         try:
             comic_archive = Comic(str(comic))
         except FileNotFoundError:

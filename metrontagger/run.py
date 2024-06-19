@@ -22,12 +22,33 @@ from metrontagger.validate_ci import SchemaVersion, ValidateComicInfo
 
 
 class Runner:
-    """Main runner"""
+    """Class for running Metron Tagger operations.
+
+    This class handles the execution of various operations such as renaming comics, exporting to cbz,
+    removing duplicates, validating ComicInfo, and more based on the provided settings.
+    """
 
     def __init__(self: Runner, config: MetronTaggerSettings) -> None:
+        """Initialize the Runner with MetronTaggerSettings.
+
+        This method sets up the Runner object with the provided MetronTaggerSettings configuration.
+        """
+
         self.config = config
 
     def rename_comics(self: Runner, file_list: list[Path]) -> list[Path]:
+        """Rename comic archives based on metadata.
+
+        This method renames comic archives in the provided file list according to the metadata information,
+        using the specified renaming template and settings.
+
+        Args:
+            file_list: list[Path]: The list of comic archive file paths to rename.
+
+        Returns:
+            list[Path]: The updated list of file paths after renaming.
+        """
+
         questionary.print(
             "\nStarting comic archive renaming:\n-------------------------------",
             style=Styles.TITLE,
@@ -74,6 +95,18 @@ class Runner:
         return file_list
 
     def _export_to_zip(self: Runner, file_list: list[Path]) -> None:
+        """Export comic archives to cbz format.
+
+        This method exports the comic archives in the provided file list to cbz format, and optionally deletes the
+        original archives based on the configuration settings.
+
+        Args:
+            file_list: list[Path]: The list of comic archive file paths to export.
+
+        Returns:
+            None
+        """
+
         questionary.print("\nExporting to cbz:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(str(comic))
@@ -97,6 +130,19 @@ class Runner:
 
     @staticmethod
     def _validate_comic_info(file_list: list[Path], remove_ci: bool = False) -> None:
+        """Validate ComicInfo metadata in comic archives.
+
+        This static method validates the ComicInfo metadata in the provided list of comic archives, displaying the
+        validation results and optionally removing non-valid metadata based on the 'remove_ci' flag.
+
+        Args:
+            file_list: list[Path]: The list of comic archive file paths to validate.
+            remove_ci: bool, optional: A flag indicating whether to remove non-valid metadata. Defaults to False.
+
+        Returns:
+            None
+        """
+
         questionary.print("\nValidating ComicInfo:\n---------------------", style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(str(comic))
@@ -127,6 +173,18 @@ class Runner:
                     )
 
     def _sort_comic_list(self: Runner, file_list: list[Path]) -> None:
+        """Sort comic archives in the provided list.
+
+        This method sorts the comic archives in the file list based on the specified destination directory,
+        using the configured sorting settings.
+
+        Args:
+            file_list: list[Path]: The list of comic archive file paths to sort.
+
+        Returns:
+            None
+        """
+
         if not self.config.sort_dir:
             questionary.print(
                 "\nUnable to sort files. No destination directory was provided.",
@@ -146,6 +204,17 @@ class Runner:
 
     @staticmethod
     def _comics_with_no_metadata(file_list: list[Path]) -> None:
+        """Display files without metadata.
+
+        This static method prints out the files in the provided list that do not have associated metadata.
+
+        Args:
+            file_list: list[Path]: The list of comic archive file paths to check for metadata.
+
+        Returns:
+            None
+        """
+
         questionary.print(
             "\nShowing files without metadata:\n-------------------------------",
             style=Styles.TITLE,
@@ -158,6 +227,17 @@ class Runner:
 
     @staticmethod
     def _delete_metadata(file_list: list[Path]) -> None:
+        """Remove metadata from comic archives.
+
+        This static method removes metadata from the comic archives in the provided list, if metadata exists.
+
+        Args:
+            file_list: list[Path]: The list of comic archive file paths to remove metadata from.
+
+        Returns:
+            None
+        """
+
         questionary.print("\nRemoving metadata:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
             comic_archive = Comic(str(comic))
@@ -171,9 +251,26 @@ class Runner:
                 questionary.print(f"no metadata in '{comic.name}'", style=Styles.WARNING)
 
     def _has_credentials(self: Runner) -> bool:
+        """Check if Metron credentials are present.
+
+        This method returns True if Metron credentials are provided in the configuration settings, otherwise False.
+
+        Returns:
+            bool: True if Metron credentials are present, False otherwise.
+        """
+
         return bool(self.config.metron_user and self.config.metron_pass)
 
     def _get_credentials(self: Runner) -> bool:
+        """Prompt the user to enter Metron credentials.
+
+        This method asks the user to input their Metron username and password, and provides an option to save the
+        credentials based on the user's choice.
+
+        Returns:
+            bool: True if the user entered both username and password, False otherwise.
+        """
+
         answers = questionary.form(
             user=questionary.text("What is your Metron username?"),
             passwd=questionary.text("What is your Metron password?"),
@@ -188,6 +285,15 @@ class Runner:
         return False
 
     def _get_sort_dir(self: Runner) -> bool:
+        """Prompt the user to specify the directory for sorting comics.
+
+        This method asks the user to input the directory path where the comics should be sorted to, and provides an
+        option to save this location for future use.
+
+        Returns:
+            bool: True if a directory path is provided, False otherwise.
+        """
+
         answers = questionary.form(
             dir=questionary.path("What directory should comics be sorted to?"),
             save=questionary.confirm("Would you like to save this location for future use?"),
@@ -204,6 +310,19 @@ class Runner:
         comic_path: str,
         dups_list: list[DuplicateIssue],
     ) -> int | None:
+        """Get the index of a duplicate entry in the list.
+
+        This static method searches for the index of a duplicate entry in the list of DuplicateIssue objects based on
+        the provided comic path.
+
+        Args:
+            comic_path: str: The path of the comic to search for.
+            dups_list: list[DuplicateIssue]: The list of DuplicateIssue objects to search within.
+
+        Returns:
+            int | None: The index of the duplicate entry if found, otherwise None.
+        """
+
         return next(
             (idx for idx, item in enumerate(dups_list) if comic_path in item.path_),
             None,
@@ -211,6 +330,18 @@ class Runner:
 
     @staticmethod
     def _update_ci_xml(file_list: list[DuplicateIssue]) -> None:
+        """Update ComicInfo metadata in comic archives.
+
+        This static method updates the ComicInfo metadata in the provided list of comic archives with default page
+        list information, if metadata exists.
+
+        Args:
+            file_list: list[DuplicateIssue]: The list of DuplicateIssue objects representing comic archives.
+
+        Returns:
+            None
+        """
+
         for item in file_list:
             comic = Comic(item.path_)
             if comic.has_metadata():
@@ -233,6 +364,18 @@ class Runner:
             questionary.print(f"No metadata in {comic}. Skipping...")
 
     def _remove_duplicates(self: Runner, file_list: list[Path]) -> None:
+        """Remove duplicate images from comic archives.
+
+        This method identifies and allows the user to review and remove duplicate images from the provided list of
+        comic archives, with options to delete pages per book and update the ComicInfo metadata.
+
+        Args:
+            file_list: list[Path]: The list of comic archive file paths to check for duplicates.
+
+        Returns:
+            None
+        """
+
         dups_obj = Duplicates(file_list)
         distinct_hashes = dups_obj.get_distinct_hashes()
         if not questionary.confirm(
@@ -293,7 +436,17 @@ class Runner:
         ).ask():
             self._update_ci_xml(duplicates_lst)
 
-    def run(self: Runner) -> None:  # noqa: C901, PLR0912
+    def run(self: Runner) -> None:  # noqa: PLR0912
+        """Run Metron Tagger operations based on the provided settings.
+
+        This method orchestrates various operations such as handling missing metadata, exporting to cbz,
+        deleting metadata, removing duplicates, processing Ids or online, renaming comics, sorting, and validating
+        comic information.
+
+        Returns:
+            None
+        """
+
         if not (file_list := get_recursive_filelist(self.config.path)):
             questionary.print("No files to process. Exiting.", style=Styles.WARNING)
             sys.exit(0)

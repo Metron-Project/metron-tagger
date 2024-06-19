@@ -4,7 +4,19 @@ from urllib.parse import quote_plus
 
 
 def cleanup_string(path_name: int | str | None) -> str | None:
-    """Function to remove some characters that don't play nicely on Windows machines filesystem"""
+    """Clean up and sanitize a string for use as a path name.
+
+    This function takes an input string, converts integers to strings, and removes or replaces characters to ensure
+    the string is suitable for use as a path name.
+
+
+    Args:
+        path_name: int | str | None: The input string to clean up.
+
+    Returns:
+        str | None: The cleaned up string or None if the input was None.
+    """
+
     if path_name is None:
         return None
 
@@ -19,6 +31,18 @@ def cleanup_string(path_name: int | str | None) -> str | None:
 
 
 def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str, str]:
+    """Create query parameters for searching based on metadata.
+
+    This function prepares query parameters for searching based on the series name and issue number extracted from
+    the metadata dictionary.
+
+    Args:
+        metadata: dict[str, str | tuple[str, ...]: A dictionary containing metadata information.
+
+    Returns:
+        dict[str, str]: The query parameters for searching.
+    """
+
     # TODO: Should probably check if there is a 'series' key.
     # Remove hyphen when searching for series name
     series_string: str = (
