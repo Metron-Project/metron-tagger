@@ -90,6 +90,13 @@ class ValidateComicInfo:
         return xmlschema.validate(xml_doc)
 
     def validate(self: ValidateComicInfo) -> SchemaVersion:
+        """
+        Returns the highest valid schema version based on the given ValidateComicInfo instance.
+
+        Returns:
+            SchemaVersion: The highest valid schema version found.
+        """
+
         return next(
             (
                 schema_version
