@@ -1,5 +1,13 @@
 # 📰 Metron-Tagger News
 
+## v2.3.1
+
+## 🧰 Maintenance
+
+- Bump minimum version of comicfn2dict.
+- Add Tests \& Docstrings @bpepple (#126)
+- Refactoring @bpepple (#124)
+
 ## v2.3.0
 
 ## 🚀 Features
