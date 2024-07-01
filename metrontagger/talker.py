@@ -204,6 +204,21 @@ class Talker:
         This static method extracts the information source and ID from the metadata notes field, returning a tuple of
         InfoSource and ID.
         """
+
+        def extract_id_str(notes: str, keyword: str) -> str:
+            """
+            Extracts and returns a specific string segment from the given notes based on the provided keyword.
+
+            Args:
+                notes (str): The notes string from which to extract the segment.
+                keyword (str): The keyword used to identify the segment to extract.
+
+            Returns:
+                str: The extracted string segment.
+            """
+
+            return notes.split(keyword)[1].split("]")[0].strip()
+
         source: InfoSource = InfoSource.unknown
         id_: int | None = None
 
@@ -212,24 +227,27 @@ class Talker:
             return source, id_
 
         lower_notes = md.notes.lower()
+
+        id_str = ""
         if "metrontagger" in lower_notes:
             source = InfoSource.metron
-            try:
-                id_ = int(md.notes.split("issue_id:")[1].strip("]"))
-            except ValueError:
-                LOGGER.exception("Comic has invalid id: %s #%s", md.series.name, md.issue)
-            return source, id_
-        if "comictagger" in lower_notes:
+            id_str = extract_id_str(md.notes, "issue_id:")
+        elif "comictagger" in lower_notes:
             if "metron" in lower_notes:
                 source = InfoSource.metron
             elif "comic vine" in lower_notes:
                 source = InfoSource.comic_vine
             else:
                 source = InfoSource.unknown
-            try:
-                id_ = int(md.notes.split("Issue ID")[1].strip(" ").strip("]"))
-            except ValueError:
-                LOGGER.exception("Comic has invalid id: %s #%s", md.series.name, md.issue)
+                id_str = extract_id_str(md.notes, "Issue ID")
+        else:
+            return source, id_
+
+        try:
+            id_ = int(id_str)
+        except ValueError:
+            LOGGER.exception("Comic has invalid id: %s #%s", md.series.name, md.issue)
+
         return source, id_
 
     def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912
