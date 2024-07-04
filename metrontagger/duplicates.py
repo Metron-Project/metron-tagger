@@ -120,8 +120,9 @@ class Duplicates:
 
         comic_hashes = self._image_hashes()
         self._data_frame = pd.DataFrame(comic_hashes)
-        hashes = self._data_frame["hash"]
-        return self._data_frame[hashes.isin(hashes[hashes.duplicated()])].sort_values("hash")
+        return self._data_frame[self._data_frame["hash"].duplicated(keep=False)].sort_values(
+            "hash"
+        )
 
     def get_distinct_hashes(self: Duplicates) -> list[str]:
         """Method to get distinct hash values.
