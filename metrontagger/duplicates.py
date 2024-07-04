@@ -178,26 +178,23 @@ class Duplicates:
         This method iterates over a list of DuplicateIssue objects, attempts to remove the specified pages from each
         comic, and provides feedback on the success of the operation.
 
-
         Args:
             dups_lst: list[DuplicateIssue]: A list of DuplicateIssue objects representing duplicate pages to be removed.
 
         Returns:
             None
         """
+        results = [
+            (comic, comic.remove_pages(item.pages_index))
+            for item in dups_lst
+            for comic in [Comic(item.path_)]
+        ]
 
-        for item in dups_lst:
-            comic = Comic(item.path_)
-            if comic.remove_pages(item.pages_index):
-                questionary.print(
-                    f"Removed duplicate pages from {comic}",
-                    style=Styles.SUCCESS,
-                )
-            else:
-                questionary.print(
-                    f"Failed to remove duplicate pages from {comic}",
-                    style=Styles.WARNING,
-                )
+        for comic, success in results:
+            questionary.print(
+                f"{'Removed' if success else 'Failed to remove'} duplicate pages from {comic}",
+                style=Styles.SUCCESS if success else Styles.WARNING,
+            )
 
     @staticmethod
     def show_image(first_comic: DuplicateIssue) -> None:
