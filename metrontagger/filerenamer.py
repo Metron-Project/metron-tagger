@@ -202,20 +202,17 @@ class FileRenamer:
             str: The cleaned up string after applying smart cleanup operations.
         """
 
-        # remove empty braces,brackets, parentheses
+        # remove empty braces, brackets, parentheses
         new_name = self._remove_empty_separators(new_name)
 
-        # remove duplicate spaces
-        new_name = " ".join(new_name.split())
-
-        # remove remove duplicate -, _,
+        # remove duplicate spaces, duplicate hyphens and underscores, and trailing dashes
+        new_name = re.sub(r"\s+", " ", new_name)  # remove duplicate spaces
         new_name = self._remove_duplicate_hyphen_underscore(new_name)
+        new_name = re.sub(
+            r"-{1,2}\s*$", "", new_name
+        )  # remove dash or double dash at end of line
 
-        # remove dash or double dash at end of line
-        new_name = re.sub(r"-{1,2}\s*$", "", new_name)
-
-        # remove duplicate spaces (again!)
-        return " ".join(new_name.split())
+        return new_name.strip()
 
     def determine_name(self: FileRenamer, filename: Path) -> str | None:
         """Determine the new filename based on metadata.
