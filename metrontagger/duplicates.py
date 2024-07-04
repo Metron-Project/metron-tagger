@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import io
 from dataclasses import dataclass
-from itertools import groupby
 from pathlib import Path
 
 import pandas as pd
@@ -129,13 +128,12 @@ class Duplicates:
 
         This method retrieves page hashes, identifies distinct hash values, and returns a list of unique hash values.
 
-
         Returns:
             list[str]: A list of distinct hash values.
         """
 
         page_hashes = self._get_page_hashes()
-        return [key for key, _group in groupby(page_hashes["hash"])]
+        return list(set(page_hashes["hash"]))
 
     def get_comic_info_for_distinct_hash(self: Duplicates, img_hash: str) -> DuplicateIssue:  # noqa: ARG002
         """Method to retrieve comic information for a distinct hash value.
