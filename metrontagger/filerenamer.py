@@ -232,12 +232,10 @@ class FileRenamer:
         md = self.metadata
         new_name = self.template
 
-        new_name = self.replace_token(
-            new_name, md.series.name if md.series is not None else "Unknown", "%series%"
-        )
-        new_name = self.replace_token(
-            new_name, md.series.volume if md.series is not None else 0, "%volume%"
-        )
+        series_name = md.series.name if md.series else "Unknown"
+        series_volume = md.series.volume if md.series else 0
+        new_name = self.replace_token(new_name, series_name, "%series%")
+        new_name = self.replace_token(new_name, series_volume, "%volume%")
 
         if md.issue is None:
             issue_str = None
@@ -249,54 +247,39 @@ class FileRenamer:
 
         new_name = self.replace_token(new_name, md.issue_count, "%issuecount%")
         new_name = self.replace_token(
-            new_name, md.cover_date.year if md.cover_date is not None else "Unknown", "%year%"
+            new_name, md.cover_date.year if md.cover_date else "Unknown", "%year%"
         )
         new_name = self.replace_token(
             new_name, "Unknown" if md.publisher is None else md.publisher.name, "%publisher%"
         )
-        if md.cover_date is not None:
-            new_name = self.replace_token(new_name, md.cover_date.month, "%month%")
-        month_name = None
-        if md.cover_date is not None and (
-            md.cover_date.month is not None
-            and (
-                (isinstance(md.cover_date.month, str) and str(md.cover_date.month).isdigit())
-                or isinstance(md.cover_date.month, int)
-            )
-            and int(md.cover_date.month) in range(1, 13)
-        ):
-            date_time = datetime.datetime(  # noqa: DTZ001
-                1970,
-                int(md.cover_date.month),
-                1,
-                0,
-                0,
-            )
-            month_name = date_time.strftime("%B")
-        new_name = self.replace_token(new_name, month_name, "%month_name%")
 
-        new_name = self.replace_token(
-            new_name,
-            md.alternate_series,
-            "%alternateseries%",
-        )
-        new_name = self.replace_token(
-            new_name,
-            md.alternate_number,
-            "%alternatenumber%",
-        )
+        if md.cover_date:
+            new_name = self.replace_token(new_name, md.cover_date.month, "%month%")
+            if (
+                isinstance(md.cover_date.month, str | int)
+                and 1 <= int(md.cover_date.month) <= 12  # noqa: PLR2004
+            ):
+                month_name = datetime.datetime(1970, int(md.cover_date.month), 1).strftime(  # noqa: DTZ001
+                    "%B"
+                )
+            else:
+                month_name = None
+            new_name = self.replace_token(new_name, month_name, "%month_name%")
+
+        new_name = self.replace_token(new_name, md.alternate_series, "%alternateseries%")
+        new_name = self.replace_token(new_name, md.alternate_number, "%alternatenumber%")
         new_name = self.replace_token(new_name, md.alternate_count, "%alternatecount%")
         new_name = self.replace_token(new_name, md.imprint, "%imprint%")
-        if md.series is not None:
-            match md.series.format:
-                case "Hard Cover":
-                    new_name = self.replace_token(new_name, "HC", "%format%")
-                case "Trade Paperback":
-                    new_name = self.replace_token(new_name, "TPB", "%format%")
-                case "Digital Chapters":
-                    new_name = self.replace_token(new_name, "Digital Chapter", "%format%")
-                case _:
-                    new_name = self.replace_token(new_name, "", "%format%")
+
+        if md.series:
+            format_mapping = {
+                "Hard Cover": "HC",
+                "Trade Paperback": "TPB",
+                "Digital Chapters": "Digital Chapter",
+            }
+            format_value = format_mapping.get(md.series.format, "")
+            new_name = self.replace_token(new_name, format_value, "%format%")
+
         new_name = self.replace_token(new_name, md.age_rating, "%maturityrating%")
         new_name = self.replace_token(new_name, md.series_group, "%seriesgroup%")
         new_name = self.replace_token(new_name, md.scan_info, "%scaninfo%")
