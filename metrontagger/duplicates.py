@@ -87,29 +87,25 @@ class Duplicates:
                 f"Attempting to get page hashes for '{comic}'.",
                 style=Styles.WARNING,
             )
-            for i in range(comic.get_number_of_pages()):
+            pages = [comic.get_page(i) for i in range(comic.get_number_of_pages())]
+            for i, page in enumerate(pages):
                 try:
-                    with Image.open(io.BytesIO(comic.get_page(i))) as img:
-                        try:
-                            img_hash = average_hash(img)
-                        except OSError:
-                            questionary.print(
-                                f"Unable to get image hash for page {i} of '{comic}'",
-                                style=Styles.ERROR,
-                            )
-                            continue
+                    with Image.open(io.BytesIO(page)) as img:
+                        img_hash = average_hash(img)
                         image_info = {
                             "path": str(comic.path),
                             "index": i,
                             "hash": str(img_hash),
                         }
                         hashes_lst.append(image_info)
-                except UnidentifiedImageError:
-                    questionary.print(
-                        f"UnidentifiedImageError: Skipping page {i} of '{comic}'",
-                        style=Styles.ERROR,
+                except (UnidentifiedImageError, OSError) as e:
+                    error_message = (
+                        f"UnidentifiedImageError: Skipping page {i} of '{comic}'"
+                        if isinstance(e, UnidentifiedImageError)
+                        else f"Unable to get image hash for page {i} of '{comic}'"
                     )
-                    continue
+                    questionary.print(error_message, style=Styles.ERROR)
+
         return hashes_lst
 
     def _get_page_hashes(self: Duplicates) -> pd.DataFrame:
