@@ -387,9 +387,9 @@ class Talker:
 
         if success and md is not None:
             collection = md.series.format.lower() in ["trade paperback", "hard cover"]
+            collection_text = " (Collection)" if collection else ""
             msg = (
-                f"Using '{md.series.name} #{md.issue} ({md.cover_date.year})"
-                f"""{" (Collection)' " if collection else "' "}"""
+                f"Using '{md.series.name} #{md.issue} ({md.cover_date.year}){collection_text}' "
                 f"metadata for '{filename.name}'."
             )
             questionary.print(msg, style=Styles.SUCCESS)
