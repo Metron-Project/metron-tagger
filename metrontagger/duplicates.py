@@ -136,12 +136,11 @@ class Duplicates:
         page_hashes = self._get_page_hashes()
         return [key for key, _group in groupby(page_hashes["hash"])]
 
-    def get_comic_info_for_distinct_hash(self: Duplicates, img_hash: str) -> DuplicateIssue:
+    def get_comic_info_for_distinct_hash(self: Duplicates, img_hash: str) -> DuplicateIssue:  # noqa: ARG002
         """Method to retrieve comic information for a distinct hash value.
 
         This method takes a hash value, finds the corresponding comic information in the data frame, and returns a
         DuplicateIssue object with the comic's path and page index.
-
 
         Args:
             img_hash: str: The hash value to search for in the data frame.
@@ -150,8 +149,7 @@ class Duplicates:
             DuplicateIssue: A DuplicateIssue object representing the comic information.
         """
 
-        idx = self._data_frame.loc[self._data_frame["hash"] == img_hash].index[0]
-        row = self._data_frame.iloc[idx]
+        row = self._data_frame.query("hash == @img_hash").iloc[0]
         return DuplicateIssue(row["path"], row["index"])
 
     def get_comic_list_from_hash(self: Duplicates, img_hash: str) -> list[DuplicateIssue]:
