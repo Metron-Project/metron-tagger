@@ -205,7 +205,7 @@ class Talker:
         InfoSource and ID.
         """
 
-        def extract_id_str(notes: str, keyword: str) -> str:
+        def _extract_id_str(notes: str, keyword: str) -> str:
             """
             Extracts and returns a specific string segment from the given notes based on the provided keyword.
 
@@ -231,7 +231,7 @@ class Talker:
         id_str = ""
         if "metrontagger" in lower_notes:
             source = InfoSource.metron
-            id_str = extract_id_str(md.notes, "issue_id:")
+            id_str = _extract_id_str(md.notes, "issue_id:")
         elif "comictagger" in lower_notes:
             if "metron" in lower_notes:
                 source = InfoSource.metron
@@ -239,7 +239,7 @@ class Talker:
                 source = InfoSource.comic_vine
             else:
                 source = InfoSource.unknown
-                id_str = extract_id_str(md.notes, "Issue ID")
+                id_str = _extract_id_str(md.notes, "Issue ID")
         else:
             return source, id_
 
