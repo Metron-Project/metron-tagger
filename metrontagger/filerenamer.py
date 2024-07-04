@@ -187,10 +187,7 @@ class FileRenamer:
         Returns:
             str: The string with duplicate hyphens and underscores cleaned up.
         """
-
-        value = re.sub(r"[-_]{2,}\s+", "-- ", value)
-        value = re.sub(r"(\s--)+", " --", value)
-        return re.sub(r"(\s-)+", " -", value)
+        return re.sub(r"([-_]){2,}", r"\1", value)
 
     def smart_cleanup_string(self: FileRenamer, new_name: str) -> str:
         """Perform smart cleanup on the provided new name string.
