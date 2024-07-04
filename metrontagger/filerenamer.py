@@ -171,10 +171,8 @@ class FileRenamer:
         Returns:
             str: The string with empty separators removed.
         """
-
-        value = re.sub(r"\(\s*[-:]*\s*\)", "", value)
-        value = re.sub(r"\[\s*[-:]*\s*]", "", value)
-        return re.sub(r"\{\s*[-:]*\s*}", "", value)
+        pattern = r"(\(\s*[-:]*\s*\)|\[\s*[-:]*\s*]|\{\s*[-:]*\s*})"
+        return re.sub(pattern, "", value)
 
     @staticmethod
     def _remove_duplicate_hyphen_underscore(value: str) -> str:
