@@ -81,12 +81,14 @@ class ValidateComicInfo:
         Returns:
             bool: True if the XML is valid according to the schema, False otherwise.
         """
-
         xsd_path = self._get_xsd(schema_version)
         if xsd_path is None:
             return False
-        xmlschema_doc = et.parse(xsd_path)  # noqa: S320
-        xmlschema = et.XMLSchema(xmlschema_doc)
+
+        # Parse the XML schema once
+        xmlschema = et.XMLSchema(et.parse(xsd_path))  # noqa: S320
+
+        # Parse the XML document and validate
         xml_doc = et.parse(BytesIO(self.comic_info_xml))  # noqa: S320
         return xmlschema.validate(xml_doc)
 
