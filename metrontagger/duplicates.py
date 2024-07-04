@@ -160,19 +160,16 @@ class Duplicates:
         This method retrieves comic information from the data frame based on the hash value and returns a list of
         DuplicateIssue objects.
 
-
         Args:
             img_hash: str: The hash value to search for in the data frame.
 
         Returns:
             list[DuplicateIssue]: A list of DuplicateIssue objects representing comics with the specified hash value.
         """
-
-        comic_lst = []
-        for i in self._data_frame.loc[self._data_frame["hash"] == img_hash].index:
-            row = self._data_frame.iloc[i]
-            comic_lst.append(DuplicateIssue(row["path"], [row["index"]]))
-        return comic_lst
+        filtered_df = self._data_frame[self._data_frame["hash"] == img_hash]
+        return [
+            DuplicateIssue(row["path"], [row["index"]]) for _, row in filtered_df.iterrows()
+        ]
 
     @staticmethod
     def delete_comic_pages(dups_lst: list[DuplicateIssue]) -> None:
