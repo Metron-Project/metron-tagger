@@ -250,7 +250,7 @@ class Talker:
 
         return source, id_
 
-    def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912
+    def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912 PLR0915
         """Process a comic file for metadata.
 
         This method processes a comic file to extract metadata, including checking for existing metadata, extracting
