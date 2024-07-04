@@ -199,7 +199,6 @@ class Duplicates:
 
         This method takes a DuplicateIssue object, retrieves the image data, and displays the image to the user.
 
-
         Args:
             first_comic: DuplicateIssue: The DuplicateIssue object representing the comic to display.
 
@@ -211,11 +210,11 @@ class Duplicates:
         # noinspection PyTypeChecker
         img_data = comic.get_page(first_comic.pages_index)
         try:
-            image = Image.open(io.BytesIO(img_data))
+            with io.BytesIO(img_data) as img_io:
+                image = Image.open(img_io)
+                image.show()
         except UnidentifiedImageError:
             questionary.print(
                 f"Unable to show image from {comic}.",
                 style=Styles.WARNING,
             )
-            return
-        image.show()
