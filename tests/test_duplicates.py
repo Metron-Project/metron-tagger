@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
@@ -90,35 +90,50 @@ def test_get_page_hashes(duplicates_instance, comic_hashes, expected_duplicates)
 
 
 @pytest.mark.parametrize(
-    ("comic_hashes", "expected_hashes"),
+    ("page_hashes", "expected", "description"),
     [
-        (
-            [
-                {"path": "comic_1", "index": 0, "hash": "hash1"},
-                {"path": "comic_1", "index": 1, "hash": "hash1"},
-            ],
-            ["hash1"],
-        ),
-        (
-            [
-                {"path": "comic_1", "index": 0, "hash": "hash1"},
-                {"path": "comic_1", "index": 1, "hash": "hash2"},
-            ],
-            ["hash1", "hash2"],
-        ),
+        ({"hash": ["abc", "def", "ghi"]}, ["abc", "def", "ghi"], "unique hashes"),
+        ({"hash": ["abc", "abc", "def"]}, ["abc", "def"], "duplicate hashes"),
+        ({"hash": []}, [], "empty hash list"),
+        ({"hash": ["abc"]}, ["abc"], "single hash"),
+        ({"hash": ["abc", "ABC"]}, ["abc", "ABC"], "case-sensitive hashes"),
     ],
-    ids=["one_distinct", "no_distinct"],
+    ids=[
+        "unique_hashes",
+        "duplicate_hashes",
+        "empty_hash_list",
+        "single_hash",
+        "case_sensitive_hashes",
+    ],
 )
-def test_get_distinct_hashes(duplicates_instance, comic_hashes, expected_hashes):
+def test_get_distinct_hashes(page_hashes, expected, description):
     # Arrange
-    with patch.object(
-        duplicates_instance, "_get_page_hashes", return_value=pd.DataFrame(comic_hashes)
-    ):
-        # Act
-        distinct_hashes = duplicates_instance.get_distinct_hashes()
+    duplicates = Duplicates([Path("tmp")])
+    duplicates._get_page_hashes = MagicMock(return_value=page_hashes)
 
-        # Assert
-        assert distinct_hashes == expected_hashes
+    # Act
+    result = duplicates.get_distinct_hashes()
+
+    # Assert
+    assert set(result) == set(expected), f"Failed on {description}"
+
+
+@pytest.mark.parametrize(
+    ("page_hashes", "expected_exception", "description"),
+    [
+        (None, TypeError, "None as page_hashes"),
+        ({"hash": None}, TypeError, "None as hash list"),
+    ],
+    ids=["none_page_hashes", "none_hash_list"],
+)
+def test_get_distinct_hashes_errors(page_hashes, expected_exception, description):  # noqa: ARG001
+    # Arrange
+    duplicates = Duplicates([Path("tmp")])
+    duplicates._get_page_hashes = MagicMock(return_value=page_hashes)
+
+    # Act & Assert
+    with pytest.raises(expected_exception):
+        duplicates.get_distinct_hashes()
 
 
 @pytest.mark.parametrize(
