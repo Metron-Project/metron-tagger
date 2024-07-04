@@ -277,19 +277,25 @@ class Talker:
             md = ca.read_metadata()
             source, id_ = self._get_source_id(md)
             if source is not InfoSource.unknown and id_ is not None:
-                match source:
-                    case InfoSource.metron:
+
+                def _print_metadata_message(src: InfoSource, comic: Comic) -> None:
+                    source_messages = {
+                        InfoSource.metron: "Metron ID",
+                        InfoSource.comic_vine: "ComicVine",
+                    }
+                    if src in source_messages:
                         questionary.print(
-                            f"Found Metron ID in '{ca}' metadata and using that to get the metadata...",
+                            f"Found {source_messages[src]} in '{comic}' metadata and using that to get the metadata...",
                             style=Styles.INFO,
                         )
+
+                _print_metadata_message(source, ca)
+
+                match source:
+                    case InfoSource.metron:
                         self.match_results.add_good_match(fn)
                         return id_, False
                     case InfoSource.comic_vine:
-                        questionary.print(
-                            f"Found ComicVine in '{ca}' metadata and using that to get the metadata...",
-                            style=Styles.INFO,
-                        )
                         issues = self.api.issues_list(params={"cv_id": id_})
                         # This should always be 1 otherwise let's do a regular search.
                         if len(issues) == 1:
