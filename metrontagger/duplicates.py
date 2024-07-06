@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import io
 from dataclasses import dataclass
+from logging import getLogger
 from pathlib import Path
 
 import pandas as pd
@@ -12,8 +13,11 @@ import questionary
 from darkseid.comic import Comic
 from imagehash import average_hash
 from PIL import Image, UnidentifiedImageError
+from tqdm import tqdm
 
 from metrontagger.styles import Styles
+
+LOGGER = getLogger(__name__)
 
 
 @dataclass
@@ -77,15 +81,12 @@ class Duplicates:
         """
 
         hashes_lst = []
-        for item in self._file_lst:
+        questionary.print("Getting page hashes.", style=Styles.INFO)
+        for item in tqdm(self._file_lst):
             comic = Comic(item)
             if not comic.is_writable():
-                questionary.print(f"'{comic}' is not writable. Skipping...")
+                LOGGER.error(f"{comic} is not writable.")
                 continue
-            questionary.print(
-                f"Attempting to get page hashes for '{comic}'.",
-                style=Styles.WARNING,
-            )
             pages = [comic.get_page(i) for i in range(comic.get_number_of_pages())]
             for i, page in enumerate(pages):
                 try:
@@ -103,7 +104,7 @@ class Duplicates:
                         if isinstance(e, UnidentifiedImageError)
                         else f"Unable to get image hash for page {i} of '{comic}'"
                     )
-                    questionary.print(error_message, style=Styles.ERROR)
+                    LOGGER.exception("%s", error_message)
 
         return hashes_lst
 
@@ -183,7 +184,7 @@ class Duplicates:
         """
         results = [
             (comic, comic.remove_pages(item.pages_index))
-            for item in dups_lst
+            for item in tqdm(dups_lst)
             for comic in [Comic(item.path_)]
         ]
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -8,6 +9,7 @@ import questionary
 from darkseid.comic import Comic
 from darkseid.metadata import Metadata
 from darkseid.utils import get_recursive_filelist
+from tqdm import tqdm
 
 from metrontagger.duplicates import DuplicateIssue, Duplicates
 from metrontagger.filerenamer import FileRenamer
@@ -19,6 +21,8 @@ if TYPE_CHECKING:
 from metrontagger.styles import Styles
 from metrontagger.talker import Talker
 from metrontagger.validate_ci import SchemaVersion, ValidateComicInfo
+
+LOGGER = getLogger(__name__)
 
 
 class Runner:
@@ -342,26 +346,15 @@ class Runner:
             None
         """
 
-        for item in file_list:
+        for item in tqdm(file_list):
             comic = Comic(item.path_)
             if comic.has_metadata():
                 md = comic.read_metadata()
                 new_md = Metadata()
                 new_md.set_default_page_list(comic.get_number_of_pages())
                 md.overlay(new_md)
-                if comic.write_metadata(md):
-                    questionary.print(
-                        f"Wrote updated metadata to '{comic}'",
-                        style=Styles.SUCCESS,
-                    )
-                else:
-                    questionary.print(
-                        f"Failed to updated metadata for {comic}",
-                        style=Styles.WARNING,
-                    )
-                continue
-            # No metadata
-            questionary.print(f"No metadata in {comic}. Skipping...")
+                if not comic.write_metadata(md):
+                    LOGGER.error("Could not write metadata to %s", comic)
 
     def _remove_duplicates(self: Runner, file_list: list[Path]) -> None:
         """Remove duplicate images from comic archives.
