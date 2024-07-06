@@ -1,5 +1,12 @@
 # 📰 Metron-Tagger News
 
+## v2.3.2
+
+## 🧰 Maintenance
+
+- Performance Refactoring @bpepple (#128)
+- Bump certifi from 2024.6.2 to 2024.7.4 @dependabot (#129)
+
 ## v2.3.1
 
 ## 🧰 Maintenance
