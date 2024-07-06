@@ -59,12 +59,13 @@ class ValidateComicInfo:
         Returns:
             Path | None: The path of the schema file or None if the schema version is unknown.
         """
+        schema_paths = {
+            SchemaVersion.v1: "metrontagger.schema.v1",
+            SchemaVersion.v2: "metrontagger.schema.v2",
+        }
 
-        if schema_version == SchemaVersion.v1:
-            with as_file(files("metrontagger.schema.v1").joinpath("ComicInfo.xsd")) as xsd:
-                return xsd
-        elif schema_version == SchemaVersion.v2:
-            with as_file(files("metrontagger.schema.v2").joinpath("ComicInfo.xsd")) as xsd:
+        if schema_path := schema_paths.get(schema_version):
+            with as_file(files(schema_path).joinpath("ComicInfo.xsd")) as xsd:
                 return xsd
         else:
             return None
@@ -80,12 +81,14 @@ class ValidateComicInfo:
         Returns:
             bool: True if the XML is valid according to the schema, False otherwise.
         """
-
         xsd_path = self._get_xsd(schema_version)
         if xsd_path is None:
             return False
-        xmlschema_doc = et.parse(xsd_path)  # noqa: S320
-        xmlschema = et.XMLSchema(xmlschema_doc)
+
+        # Parse the XML schema once
+        xmlschema = et.XMLSchema(et.parse(xsd_path))  # noqa: S320
+
+        # Parse the XML document and validate
         xml_doc = et.parse(BytesIO(self.comic_info_xml))  # noqa: S320
         return xmlschema.validate(xml_doc)
 

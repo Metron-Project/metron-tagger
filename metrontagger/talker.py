@@ -204,6 +204,21 @@ class Talker:
         This static method extracts the information source and ID from the metadata notes field, returning a tuple of
         InfoSource and ID.
         """
+
+        def _extract_id_str(notes: str, keyword: str) -> str:
+            """
+            Extracts and returns a specific string segment from the given notes based on the provided keyword.
+
+            Args:
+                notes (str): The notes string from which to extract the segment.
+                keyword (str): The keyword used to identify the segment to extract.
+
+            Returns:
+                str: The extracted string segment.
+            """
+
+            return notes.split(keyword)[1].split("]")[0].strip()
+
         source: InfoSource = InfoSource.unknown
         id_: int | None = None
 
@@ -212,27 +227,30 @@ class Talker:
             return source, id_
 
         lower_notes = md.notes.lower()
+
+        id_str = ""
         if "metrontagger" in lower_notes:
             source = InfoSource.metron
-            try:
-                id_ = int(md.notes.split("issue_id:")[1].strip("]"))
-            except ValueError:
-                LOGGER.exception("Comic has invalid id: %s #%s", md.series.name, md.issue)
-            return source, id_
-        if "comictagger" in lower_notes:
+            id_str = _extract_id_str(md.notes, "issue_id:")
+        elif "comictagger" in lower_notes:
             if "metron" in lower_notes:
                 source = InfoSource.metron
             elif "comic vine" in lower_notes:
                 source = InfoSource.comic_vine
             else:
                 source = InfoSource.unknown
-            try:
-                id_ = int(md.notes.split("Issue ID")[1].strip(" ").strip("]"))
-            except ValueError:
-                LOGGER.exception("Comic has invalid id: %s #%s", md.series.name, md.issue)
+                id_str = _extract_id_str(md.notes, "Issue ID")
+        else:
+            return source, id_
+
+        try:
+            id_ = int(id_str)
+        except ValueError:
+            LOGGER.exception("Comic has invalid id: %s #%s", md.series.name, md.issue)
+
         return source, id_
 
-    def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912
+    def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912 PLR0915
         """Process a comic file for metadata.
 
         This method processes a comic file to extract metadata, including checking for existing metadata, extracting
@@ -259,19 +277,25 @@ class Talker:
             md = ca.read_metadata()
             source, id_ = self._get_source_id(md)
             if source is not InfoSource.unknown and id_ is not None:
-                match source:
-                    case InfoSource.metron:
+
+                def _print_metadata_message(src: InfoSource, comic: Comic) -> None:
+                    source_messages = {
+                        InfoSource.metron: "Metron ID",
+                        InfoSource.comic_vine: "ComicVine",
+                    }
+                    if src in source_messages:
                         questionary.print(
-                            f"Found Metron ID in '{ca}' metadata and using that to get the metadata...",
+                            f"Found {source_messages[src]} in '{comic}' metadata and using that to get the metadata...",
                             style=Styles.INFO,
                         )
+
+                _print_metadata_message(source, ca)
+
+                match source:
+                    case InfoSource.metron:
                         self.match_results.add_good_match(fn)
                         return id_, False
                     case InfoSource.comic_vine:
-                        questionary.print(
-                            f"Found ComicVine in '{ca}' metadata and using that to get the metadata...",
-                            style=Styles.INFO,
-                        )
                         issues = self.api.issues_list(params={"cv_id": id_})
                         # This should always be 1 otherwise let's do a regular search.
                         if len(issues) == 1:
@@ -369,9 +393,9 @@ class Talker:
 
         if success and md is not None:
             collection = md.series.format.lower() in ["trade paperback", "hard cover"]
+            collection_text = " (Collection)" if collection else ""
             msg = (
-                f"Using '{md.series.name} #{md.issue} ({md.cover_date.year})"
-                f"""{" (Collection)' " if collection else "' "}"""
+                f"Using '{md.series.name} #{md.issue} ({md.cover_date.year}){collection_text}' "
                 f"metadata for '{filename.name}'."
             )
             questionary.print(msg, style=Styles.SUCCESS)

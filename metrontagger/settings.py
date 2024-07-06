@@ -29,6 +29,7 @@ class MetronTaggerSettings:
         This method sets up the MetronTaggerSettings object with default values or loads settings from a
         configuration file.
         """
+        self.config = configparser.RawConfigParser()
 
         # Metron credentials
         self.metron_user: str = ""
@@ -53,8 +54,6 @@ class MetronTaggerSettings:
         self.rename_template = "%series% v%volume% #%issue% (%year%)"
         self.rename_issue_number_padding = 3
         self.rename_use_smart_string_cleanup = True
-
-        self.config = configparser.RawConfigParser()
 
         folder = Path(config_dir) if config_dir else MetronTaggerSettings.get_settings_folder()
         self.settings_file = folder / "settings.ini"
