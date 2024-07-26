@@ -172,7 +172,7 @@ class FileRenamer:
             str: The string with empty separators removed.
         """
         pattern = r"(\(\s*[-:]*\s*\)|\[\s*[-:]*\s*]|\{\s*[-:]*\s*})"
-        return re.sub(pattern, "", value)
+        return re.sub(pattern, "", value).strip()
 
     @staticmethod
     def _remove_duplicate_hyphen_underscore(value: str) -> str:
@@ -273,7 +273,8 @@ class FileRenamer:
 
         if md.series:
             format_mapping = {
-                "Hard Cover": "HC",
+                "Hard Cover": "HC",  # Old Metron Value
+                "Hardcover": "HC",
                 "Trade Paperback": "TPB",
                 "Digital Chapters": "Digital Chapter",
             }
