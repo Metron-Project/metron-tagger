@@ -1,80 +1,206 @@
-from datetime import date
-from zipfile import ZipFile
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
 
-from darkseid.metadata import Metadata, Series
+import pytest
 
 from metrontagger.filerenamer import FileRenamer
 
 
-def test_determine_name(fake_comic: ZipFile, fake_metadata: Metadata) -> None:
-    expected_result = "Aquaman v2 #001 (2011).cbz"
-
-    renamer = FileRenamer(fake_metadata)
-    new_file_name = renamer.determine_name(fake_comic)
-    assert new_file_name == expected_result
-
-
-def test_rename_file(fake_comic: ZipFile) -> None:
-    md = Metadata()
-    md.series = Series("Batman", volume=2)
-    md.issue = "100"
-    md.cover_date = date(2020, 9, 1)
-
-    # Verify what the original name of the file is.
-    assert fake_comic.name == "Aquaman v1 #001 (of 08) (1994).cbz"
-
-    renamer = FileRenamer(md)
-    renamed_file = renamer.rename_file(fake_comic)
-    assert renamed_file is not None
-
-    expected_result = (
-        f"{md.series.name} v{md.series.volume} #{md.issue} ({md.cover_date.year}).cbz"
-    )
-    assert expected_result == renamed_file.name
+@pytest.fixture()
+def metadata():
+    mock_metadata = Mock()
+    mock_metadata.series.name = "Test Series"
+    mock_metadata.series.volume = 1
+    mock_metadata.issue = "1"
+    mock_metadata.issue_count = 5
+    mock_metadata.cover_date.year = 2021
+    mock_metadata.cover_date.month = 5
+    mock_metadata.publisher.name = "Test Publisher"
+    mock_metadata.alternate_series = "Alt Series"
+    mock_metadata.alternate_number = "Alt Number"
+    mock_metadata.alternate_count = "Alt Count"
+    mock_metadata.imprint = "Test Imprint"
+    mock_metadata.series.format = "Hardcover"
+    mock_metadata.age_rating = "PG-13"
+    mock_metadata.series_group = "Group A"
+    mock_metadata.scan_info = "Scan Info"
+    return mock_metadata
 
 
-def test_rename_tpb(fake_tpb: ZipFile, fake_tpb_metadata: Metadata) -> None:
-    fn = (
-        "Batman - The Adventures Continue Season One (2021) "
-        "(digital) (Son of Ultron-Empire).cbz"
-    )
-    assert fake_tpb.name == fn
-    renamer = FileRenamer(fake_tpb_metadata)
-    renamer.set_template("%series% %format% v%volume% #%issue% (%year%)")
+@pytest.mark.parametrize(
+    ("template", "expected_name"),
+    [
+        ("%series% v%volume% #%issue% (%year%)", "Test Series v1 #001 (2021).cbz"),
+        ("%series% #%issue% (%year%)", "Test Series #001 (2021).cbz"),
+        ("%series% #%issue% (%month_name%)", "Test Series #001 (May).cbz"),
+    ],
+    ids=["default_template", "no_volume", "month_name"],
+)
+def test_determine_name_happy_path(template, expected_name, metadata):
+    # Arrange
+    renamer = FileRenamer(metadata)
+    renamer.set_template(template)
+    filename = Path("test.cbz")
+
+    # Act
+    new_name = renamer.determine_name(filename)
+
+    # Assert
+    assert new_name == expected_name
+
+
+@pytest.mark.parametrize(
+    ("issue", "expected_issue_str"),
+    [
+        ("1", "001"),
+        ("½", "000.5"),
+        (None, None),
+    ],
+    ids=["normal_issue", "half_issue", "no_issue"],
+)
+def test_replace_token_issue(issue, expected_issue_str, metadata):
+    # Arrange
+    renamer = FileRenamer(metadata)
     renamer.set_issue_zero_padding(3)
+    metadata.issue = issue
+    text = "%issue%"
+
+    # Act
+    result = renamer.replace_token(text, expected_issue_str, "%issue%")
+
+    # Assert
+    assert result == (expected_issue_str or "")
+
+
+@pytest.mark.parametrize(
+    ("text", "value", "token", "expected"),
+    [
+        ("Test %token%", "value", "%token%", "Test value"),
+        ("Test %token%", None, "%token%", "Test"),
+    ],
+    ids=["replace_with_value", "replace_with_none"],
+)
+def test_replace_token(text, value, token, expected):
+    # Arrange
+    renamer = FileRenamer()
     renamer.set_smart_cleanup(True)
-    renamed_file = renamer.rename_file(fake_tpb)
-    assert renamed_file is not None
-    expected_result = (
-        f"{fake_tpb_metadata.series.name} "
-        "TPB "
-        f"v{fake_tpb_metadata.series.volume} "
-        f"#00{fake_tpb_metadata.issue} "
-        f"({fake_tpb_metadata.cover_date.year}).cbz"
-    )
-    assert expected_result == renamed_file.name
+
+    # Act
+    result = renamer.replace_token(text, value, token)
+
+    # Assert
+    assert result == expected
 
 
-def test_half_issues_rename(fake_comic: ZipFile) -> None:
-    md = Metadata()
-    md.series = Series("Batman", volume=2)
-    md.issue = "½"
-    md.cover_date = date(2023, 9, 1)
+@pytest.mark.parametrize(
+    ("new_name", "expected"),
+    [
+        ("Test ()", "Test"),
+        ("Test []", "Test"),
+        ("Test {}", "Test"),
+    ],
+    ids=["empty_parentheses", "empty_brackets", "empty_braces"],
+)
+def test_remove_empty_separators(new_name, expected):
+    # Act
+    result = FileRenamer._remove_empty_separators(new_name)
 
-    # Verify what the original name of the file is.
-    assert fake_comic.name == "Aquaman v1 #001 (of 08) (1994).cbz"
-
-    renamer = FileRenamer(md)
-    renamed_file = renamer.rename_file(fake_comic)
-    assert renamed_file is not None
-
-    expected_result = f"{md.series.name} v{md.series.volume} #000.5 ({md.cover_date.year}).cbz"
-    assert expected_result == renamed_file.name
+    # Assert
+    assert result == expected
 
 
-def test_empty_parenthesis(fake_metadata: Metadata) -> None:
-    test_str = "Aquaman #1()"
+@pytest.mark.parametrize(
+    ("new_name", "expected"),
+    [
+        ("Test--Name", "Test-Name"),
+        ("Test__Name", "Test_Name"),
+    ],
+    ids=["duplicate_hyphens", "duplicate_underscores"],
+)
+def test_remove_duplicate_hyphen_underscore(new_name, expected):
+    # Act
+    result = FileRenamer._remove_duplicate_hyphen_underscore(new_name)
 
-    rn = FileRenamer(fake_metadata)
-    res = rn._remove_empty_separators(test_str)
-    assert res == "Aquaman #1"
+    # Assert
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("new_name", "expected"),
+    [
+        ("Test ()", "Test"),
+        ("Test--Name", "Test-Name"),
+        ("Test__Name", "Test_Name"),
+        ("Test  Name", "Test Name"),
+        ("Test-", "Test"),
+    ],
+    ids=[
+        "empty_separators",
+        "duplicate_hyphens",
+        "duplicate_underscores",
+        "duplicate_spaces",
+        "trailing_dash",
+    ],
+)
+def test_smart_cleanup_string(new_name, expected):
+    # Arrange
+    renamer = FileRenamer()
+
+    # Act
+    result = renamer.smart_cleanup_string(new_name)
+
+    # Assert
+    assert result == expected
+
+
+# TODO: Need to add tests for mocking of questionary print results.
+@pytest.mark.parametrize(
+    (
+        "metadata",
+        "comic_name",
+        "new_name",
+        "expected_result",
+        "print_called",
+        "print_message",
+        "print_style",
+    ),
+    [
+        # Happy path
+        ({"title": "Comic1"}, "comic1.cbz", "Comic1.cbz", "Comic1.cbz", False, None, None),
+        # Edge case: new_name is None
+        ({"title": "Comic3"}, "comic3.cbz", None, None, False, None, None),
+    ],
+    ids=["happy_path", "new_name_none"],
+)
+def test_rename_file(  # noqa: PLR0913
+    metadata, comic_name, new_name, expected_result, print_called, print_message, print_style
+):
+    # Arrange
+    comic_path = Path(comic_name)
+    file_renamer = FileRenamer()
+    file_renamer.metadata = metadata
+    file_renamer.determine_name = MagicMock(return_value=new_name)
+
+    # Act
+    with (
+        patch("questionary.print") as mock_print,
+        patch(
+            "darkseid.utils.unique_file",
+            return_value=Path(expected_result) if expected_result else None,
+        ),
+        patch(
+            "pathlib.Path.rename",
+            return_value=Path(expected_result) if expected_result else None,
+        ),
+    ):
+        result = file_renamer.rename_file(comic_path)
+
+    # Assert
+    if print_called:
+        mock_print.assert_called_once_with(print_message, style=print_style)
+    else:
+        mock_print.assert_not_called()
+    if expected_result:
+        assert result == Path(expected_result)
+    else:
+        assert result is None
