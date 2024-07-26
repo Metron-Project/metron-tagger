@@ -189,7 +189,7 @@ def test_rename_file(  # noqa: PLR0913
             return_value=Path(expected_result) if expected_result else None,
         ),
         patch(
-            "os.rename",
+            "pathlib.Path.rename",
             return_value=Path(expected_result) if expected_result else None,
         ),
     ):
