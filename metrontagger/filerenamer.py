@@ -276,7 +276,8 @@ class FileRenamer:
                 "Hard Cover": "HC",  # Old Metron Value
                 "Hardcover": "HC",
                 "Trade Paperback": "TPB",
-                "Digital Chapters": "Digital Chapter",
+                "Digital Chapters": "Digital Chapter",  # Old Metron Value
+                "Digital Chapter": "Digital Chapter",
             }
             format_value = format_mapping.get(md.series.format, "")
             new_name = self.replace_token(new_name, format_value, "%format%")
