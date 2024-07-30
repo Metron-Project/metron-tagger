@@ -29,7 +29,7 @@ def test_issue() -> Issue:
             name="The Spectacular Spider-Man",
             sort_name="Spectacular Spider-Man",
             volume=1,
-            series_type=GenericItem(id=2, name="Cancelled Series"),
+            series_type=GenericItem(id=2, name="Single Issue"),
         ),
         number="47",
         collection_title="",
@@ -38,6 +38,9 @@ def test_issue() -> Issue:
         store_date=None,
         price=Decimal(".5"),
         rating=GenericItem(id=6, name="CCA"),
+        upc="",
+        isbn="",
+        sku="",
         page_count=36,
         desc="Spider-Man goes on a wild goose chase to find out who is behind the Prowler impersonation.",
         image=HttpUrl(
