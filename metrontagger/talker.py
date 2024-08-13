@@ -540,9 +540,12 @@ class Talker:
             resp.series.volume,
             resp.series.series_type.name,
         )
-        md.issue = IssueString(resp.number).as_string()
-        md.publisher = Basic(resp.publisher.name, resp.publisher.id)
-        md.cover_date = resp.cover_date
+        md.issue = IssueString(resp.number).as_string() if resp.number else None
+        md.publisher = (
+            Basic(resp.publisher.name, resp.publisher.id) if resp.publisher else None
+        )
+        md.imprint = Basic(resp.imprint.name, resp.imprint.id) if resp.imprint else None
+        md.cover_date = resp.cover_date or None
         md.comments = resp.desc
         md.notes = create_note(md.info_source.id_)
         if resp.story_titles:

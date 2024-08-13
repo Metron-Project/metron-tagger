@@ -59,8 +59,13 @@ class FileSorter:
         Returns:
             tuple[str | None, str | None, str | None]: Cleaned publisher, series, and volume strings.
         """
-
-        publisher = cleanup_string(meta_data.publisher.name) if meta_data.publisher else None
+        # If there is an imprint, let's use that as the publisher.
+        if meta_data.imprint:
+            publisher = cleanup_string(meta_data.imprint.name)
+        else:
+            publisher = (
+                cleanup_string(meta_data.publisher.name) if meta_data.publisher else None
+            )
         if meta_data.series:
             series = cleanup_string(meta_data.series.name)
             volume = cleanup_string(meta_data.series.volume)
