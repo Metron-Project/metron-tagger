@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import io
+import warnings
 from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
@@ -18,6 +19,10 @@ from tqdm import tqdm
 from metrontagger.styles import Styles
 
 LOGGER = getLogger(__name__)
+
+warnings.filterwarnings(
+    "ignore", category=UserWarning
+)  # Ignore 'UserWarning: Corrupt EXIF data' warnings
 
 
 @dataclass
