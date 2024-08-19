@@ -256,7 +256,7 @@ class Talker:
 
         return source, id_
 
-    def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912 PLR0915
+    def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912 PLR0911
         """Process a comic file for metadata.
 
         This method processes a comic file to extract metadata, including checking for existing metadata, extracting
@@ -317,38 +317,43 @@ class Talker:
         i_list = self.api.issues_list(params=params)
         result_count = len(i_list)
 
-        issue_id = None
-        multiple_match = False
+        # No matches
         if result_count <= 0:
-            issue_id = None
             self.match_results.add_no_match(fn)
-            multiple_match = False
-        elif result_count > 1:
-            # Let's use the cover hash to try to narrow down the results
+            return None, False
+
+        # Multiple matches
+        if result_count > 1:
             LOGGER.debug("Check Hamming for '%s'", ca)
-            if hamming_lst := self._get_hamming_results(ca, i_list):
+            hamming_lst = self._get_hamming_results(ca, i_list)
+            if hamming_lst:
                 if len(hamming_lst) == 1:
-                    issue_id = hamming_lst[0].id
                     self.match_results.add_good_match(fn)
-                # TODO: Need to handle situation where *None* of the choices match.
-                elif issue_id := self._select_choice_from_matches(fn, hamming_lst):
-                    self.match_results.add_good_match(fn)
-            else:
-                issue_id = None
-                self.match_results.add_multiple_match(MultipleMatch(fn, i_list))
-                multiple_match = True
-        elif result_count == 1:
-            # Let's see if the cover is correct otherwise ask for user to select issue.
-            if not interactive and self._within_hamming_distance(ca, i_list[0].cover_hash):
-                issue_id = i_list[0].id
-                self.match_results.add_good_match(fn)
-            else:
-                issue_id = self._select_choice_from_matches(fn, i_list)
+                    return hamming_lst[0].id, False
+                issue_id = self._select_choice_from_matches(fn, hamming_lst)
                 if issue_id:
                     self.match_results.add_good_match(fn)
-            multiple_match = False
+                    return issue_id, False
+            self.match_results.add_multiple_match(MultipleMatch(fn, i_list))
+            return None, True
 
-        return issue_id, multiple_match
+        # Ask for user interaction for each comic.
+        if interactive:
+            issue_id = self._select_choice_from_matches(fn, i_list)
+            if issue_id:
+                self.match_results.add_good_match(fn)
+                return issue_id, False
+            self.match_results.add_multiple_match(MultipleMatch(fn, i_list))
+            return None, True
+
+        # Single match within the hamming distance
+        if self._within_hamming_distance(ca, i_list[0].cover_hash):
+            self.match_results.add_good_match(fn)
+            return i_list[0].id, False
+
+        # Single match not withing the hamming distance. We'll ask if the single choice is correct.
+        self.match_results.add_multiple_match(MultipleMatch(fn, i_list))
+        return None, True
 
     def _post_process_matches(self: Talker) -> None:
         """Post-process the match results.
