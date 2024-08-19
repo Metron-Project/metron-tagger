@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import warnings
 from datetime import datetime
 from enum import Enum, auto, unique
 from logging import getLogger
@@ -29,6 +30,11 @@ from metrontagger.styles import Styles
 from metrontagger.utils import create_query_params
 
 LOGGER = getLogger(__name__)
+
+warnings.filterwarnings(
+    "ignore", category=UserWarning
+)  # Ignore 'UserWarning: Corrupt EXIF data' warnings
+
 HAMMING_DISTANCE = 10
 
 
