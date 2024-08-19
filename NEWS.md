@@ -1,5 +1,37 @@
 # 📰 Metron-Tagger News
 
+## v2.5.1
+
+## 🚀 Features
+
+- Fix User Matching Interaction @bpepple (#138)
+
+## 🐛 Bug Fixes
+
+- Ignore `Corrupt EXIF data` warnings @bpepple (#137)
+
+## v2.5.0
+
+## 🚀 Features
+
+- Add imprint support @bpepple (#135)
+
+## 🧰 Maintenance
+
+- v2.5.0 @bpepple (#136)
+
+## v2.4.0
+
+## 🚀 Features
+
+- Add New Format Name to mapping in FileRenamer class @bpepple (#132)
+- Update for Hardcover Naming Change @bpepple (#131)
+
+## 🧰 Maintenance
+
+- v2.4.0 @bpepple (#134)
+- Update Project Dependencies @bpepple (#133)
+
 ## v2.3.2
 
 ## 🧰 Maintenance
