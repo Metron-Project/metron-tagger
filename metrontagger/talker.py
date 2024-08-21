@@ -326,14 +326,11 @@ class Talker:
         if result_count > 1:
             LOGGER.debug("Check Hamming for '%s'", ca)
             hamming_lst = self._get_hamming_results(ca, i_list)
-            if hamming_lst:
-                if len(hamming_lst) == 1:
-                    self.match_results.add_good_match(fn)
-                    return hamming_lst[0].id, False
-                issue_id = self._select_choice_from_matches(fn, hamming_lst)
-                if issue_id:
-                    self.match_results.add_good_match(fn)
-                    return issue_id, False
+            # Matched single cover within hamming distance from multiple results
+            if hamming_lst and len(hamming_lst) == 1:
+                self.match_results.add_good_match(fn)
+                return hamming_lst[0].id, False
+            # No hamming match, let's ask the user later.
             self.match_results.add_multiple_match(MultipleMatch(fn, i_list))
             return None, True
 
