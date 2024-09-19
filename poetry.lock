@@ -282,13 +282,12 @@ toml = ["tomli"]
 
 [[package]]
 name = "darkseid"
-version = "4.4.0"
+version = "5.0.0"
 description = "A library to interact with comic archives"
 optional = false
-python-versions = "<4.0,>=3.10"
+python-versions = ">=3.10,<4.0"
 files = [
-    {file = "darkseid-4.4.0-py3-none-any.whl", hash = "sha256:8cf2b0b73f2f3bf1e9311dddc272b44808ede047804d95f8da83e92a15585c7b"},
-    {file = "darkseid-4.4.0.tar.gz", hash = "sha256:04ba727e1e34d726e7ac5aa8187bf0228f52c474e7a77ae174b449598c81ff11"},
+    {file = "darkseid-5.0.0-py3-none-any.whl", hash = "sha256:52d64c6c690b59b812e62ca3390a00c70904d53c405ba1788ec00aa9d8ee5cea"},
 ]
 
 [package.dependencies]
@@ -297,6 +296,10 @@ natsort = ">=8.0.0,<9.0.0"
 Pillow = ">=10.0.1,<11.0.0"
 pycountry = ">=24.6.1,<25.0.0"
 rarfile = ">=4.0,<5.0"
+
+[package.source]
+type = "file"
+url = "../darkseid/dist/darkseid-5.0.0-py3-none-any.whl"
 
 [[package]]
 name = "defusedxml"
@@ -729,9 +732,9 @@ files = [
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
     {version = ">=1.22.4", markers = "python_version < \"3.11\""},
     {version = ">=1.23.2", markers = "python_version == \"3.11\""},
+    {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -948,8 +951,8 @@ files = [
 annotated-types = ">=0.6.0"
 pydantic-core = "2.23.3"
 typing-extensions = [
-    {version = ">=4.12.2", markers = "python_version >= \"3.13\""},
     {version = ">=4.6.1", markers = "python_version < \"3.13\""},
+    {version = ">=4.12.2", markers = "python_version >= \"3.13\""},
 ]
 
 [package.extras]
@@ -1618,4 +1621,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "3ad9c05691a7493bb9316b262fab015613281939d9f4ac7ed74dea91b2ffc197"
+content-hash = "6e0d5951c4c619a4928c216666c4e30d51a2ae4158a87d0e6ed1d09ba108047b"
