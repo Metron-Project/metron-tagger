@@ -5,7 +5,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
-from darkseid.comic import Comic
+from darkseid.comic import Comic, MetadataFormat
 from darkseid.metadata import Basic
 from mokkari.schemas.base import BaseResource
 from mokkari.schemas.generic import GenericItem
@@ -184,8 +184,8 @@ def test_process_file(
 ) -> None:
     # Remove any existing metadata from comic fixture
     ca = Comic(str(fake_comic))
-    if ca.has_metadata():
-        ca.remove_metadata()
+    if ca.has_metadata(MetadataFormat.COMIC_RACK):
+        ca.remove_metadata(MetadataFormat.COMIC_RACK)
 
     # Mock the call to Metron
     mocker.patch.object(Session, "issues_list", return_value=test_issue_list)
@@ -211,8 +211,8 @@ def test_write_issue_md(
 ) -> None:
     # Remove any existing metadata from comic fixture
     ca = Comic(str(fake_comic))
-    if ca.has_metadata():
-        ca.remove_metadata()
+    if ca.has_metadata(MetadataFormat.COMIC_RACK):
+        ca.remove_metadata(MetadataFormat.COMIC_RACK)
 
     # Mock the call to Metron
     mocker.patch.object(Session, "issue", return_value=test_issue)
@@ -221,8 +221,8 @@ def test_write_issue_md(
     # Now let's test writing the metadata to file
     talker._write_issue_md(Path(str(fake_comic)), 1)
     ca = Comic(str(fake_comic))
-    assert ca.has_metadata()
-    ca_md = ca.read_metadata()
+    assert ca.has_metadata(MetadataFormat.COMIC_RACK)
+    ca_md = ca.read_metadata(MetadataFormat.COMIC_RACK)
     assert ca_md.stories == create_read_md_story(test_issue.story_titles)
     assert ca_md.series.name == test_issue.series.name
     assert ca_md.series.volume == test_issue.series.volume
@@ -245,8 +245,8 @@ def test_retrieve_single_issue(
 ) -> None:
     # Remove any existing metadata from comic fixture
     ca = Comic(str(fake_comic))
-    if ca.has_metadata():
-        ca.remove_metadata()
+    if ca.has_metadata(MetadataFormat.COMIC_RACK):
+        ca.remove_metadata(MetadataFormat.COMIC_RACK)
 
     # Mock the call to Metron
     mocker.patch.object(Session, "issue", return_value=test_issue)
@@ -254,8 +254,8 @@ def test_retrieve_single_issue(
 
     # Now let's test the metadata
     ca = Comic(str(fake_comic))
-    assert ca.has_metadata()
-    ca_md = ca.read_metadata()
+    assert ca.has_metadata(MetadataFormat.COMIC_RACK)
+    ca_md = ca.read_metadata(MetadataFormat.COMIC_RACK)
     assert ca_md.stories == create_read_md_story(test_issue.story_titles)
     assert ca_md.series.name == test_issue.series.name
     assert ca_md.series.volume == test_issue.series.volume

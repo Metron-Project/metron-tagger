@@ -6,7 +6,7 @@ from pathlib import Path
 from random import randint
 
 import pytest
-from darkseid.metadata import Basic, Credit, Metadata, Role, Series
+from darkseid.metadata import Credit, Metadata, Publisher, Role, Series
 from PIL import Image
 
 from metrontagger.options import make_parser
@@ -41,7 +41,7 @@ def talker() -> Talker:
 @pytest.fixture()
 def fake_tpb_metadata() -> Metadata:
     meta_data = Metadata()
-    meta_data.publisher = Basic("DC Comics")
+    meta_data.publisher = Publisher("DC Comics")
     meta_data.series = Series("Batman", volume=1, format="Trade Paperback")
     meta_data.issue = "1"
     meta_data.cover_date = date(2021, 9, 1)
@@ -54,7 +54,7 @@ def fake_tpb_metadata() -> Metadata:
 @pytest.fixture()
 def fake_metadata() -> Metadata:
     meta_data = Metadata()
-    meta_data.publisher = Basic("DC Comics")
+    meta_data.publisher = Publisher("DC Comics")
     meta_data.series = Series("Aquaman", volume=2)
     meta_data.issue = "1"
     meta_data.cover_date = date(2011, 9, 1)

@@ -12,7 +12,7 @@ from metrontagger.talker import Talker
 
 
 def test_create_metron_talker(tmp_path: Path) -> None:
-    s = MetronTaggerSettings(tmp_path)
+    s = MetronTaggerSettings(str(tmp_path))
     s.metron_user = "test"
     s.metron_pass = "test_password"  # noqa: S105
     talker = Talker(s.metron_user, s.metron_pass)

@@ -7,7 +7,7 @@ from shutil import Error, move
 from typing import TYPE_CHECKING
 
 import questionary
-from darkseid.comic import Comic
+from darkseid.comic import Comic, MetadataFormat
 
 if TYPE_CHECKING:
     from darkseid.metadata import Metadata
@@ -60,8 +60,8 @@ class FileSorter:
             tuple[str | None, str | None, str | None]: Cleaned publisher, series, and volume strings.
         """
         # If there is an imprint, let's use that as the publisher.
-        if meta_data.imprint:
-            publisher = cleanup_string(meta_data.imprint.name)
+        if meta_data.publisher.imprint:
+            publisher = cleanup_string(meta_data.publisher.imprint.name)
         else:
             publisher = (
                 cleanup_string(meta_data.publisher.name) if meta_data.publisher else None
@@ -189,10 +189,10 @@ class FileSorter:
         except FileNotFoundError:
             return False
 
-        if not comic_archive.has_metadata():
+        if not comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
             return False
 
-        meta_data = comic_archive.read_metadata()
+        meta_data = comic_archive.read_metadata(MetadataFormat.COMIC_RACK)
         publisher, series, volume = self._cleanup_metadata(meta_data)
 
         if not publisher or not series or not volume:

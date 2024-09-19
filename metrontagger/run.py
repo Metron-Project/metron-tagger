@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import questionary
-from darkseid.comic import Comic
+from darkseid.comic import Comic, MetadataFormat
 from darkseid.metadata import Metadata
 from darkseid.utils import get_recursive_filelist
 from tqdm import tqdm
@@ -64,14 +64,14 @@ class Runner:
         renamer = FileRenamer()
         for comic in file_list:
             comic_archive = Comic(str(comic))
-            if not comic_archive.has_metadata():
+            if not comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
                 questionary.print(
                     f"skipping '{comic.name}'. no metadata available.",
                     style=Styles.WARNING,
                 )
                 continue
 
-            meta_data = comic_archive.read_metadata()
+            meta_data = comic_archive.read_metadata(MetadataFormat.COMIC_RACK)
             renamer.set_metadata(meta_data)
             renamer.set_template(self.config.rename_template)
             renamer.set_issue_zero_padding(self.config.rename_issue_number_padding)
@@ -150,7 +150,7 @@ class Runner:
         questionary.print("\nValidating ComicInfo:\n---------------------", style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(str(comic))
-            if not ca.has_metadata():
+            if not ca.has_metadata(MetadataFormat.COMIC_RACK):
                 questionary.print(
                     f"'{ca.path.name}' doesn't have a ComicInfo.xml file.",
                     style=Styles.WARNING,
@@ -170,7 +170,7 @@ class Runner:
                 )
             else:
                 questionary.print(f"'{ca.path.name}' is not valid", style=Styles.ERROR)
-                if remove_ci and ca.remove_metadata():
+                if remove_ci and ca.remove_metadata(MetadataFormat.COMIC_RACK):
                     questionary.print(
                         f"Removed non-valid metadata from '{ca.path.name}'.",
                         style=Styles.WARNING,
@@ -225,7 +225,7 @@ class Runner:
         )
         for comic in file_list:
             comic_archive = Comic(str(comic))
-            if comic_archive.has_metadata():
+            if comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
                 continue
             questionary.print(f"{comic}", style=Styles.SUCCESS)
 
@@ -245,8 +245,8 @@ class Runner:
         questionary.print("\nRemoving metadata:\n-----------------", style=Styles.TITLE)
         for comic in file_list:
             comic_archive = Comic(str(comic))
-            if comic_archive.has_metadata():
-                comic_archive.remove_metadata()
+            if comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
+                comic_archive.remove_metadata(MetadataFormat.COMIC_RACK)
                 questionary.print(
                     f"removed metadata from '{comic.name}'",
                     style=Styles.SUCCESS,
@@ -348,12 +348,12 @@ class Runner:
 
         for item in tqdm(file_list):
             comic = Comic(item.path_)
-            if comic.has_metadata():
-                md = comic.read_metadata()
+            if comic.has_metadata(MetadataFormat.COMIC_RACK):
+                md = comic.read_metadata(MetadataFormat.COMIC_RACK)
                 new_md = Metadata()
                 new_md.set_default_page_list(comic.get_number_of_pages())
                 md.overlay(new_md)
-                if not comic.write_metadata(md):
+                if not comic.write_metadata(md, MetadataFormat.COMIC_RACK):
                     LOGGER.error("Could not write metadata to %s", comic)
 
     def _remove_duplicates(self: Runner, file_list: list[Path]) -> None:

@@ -10,7 +10,7 @@ def test_settings(tmpdir: Path) -> None:
     cleanup = False
     file_template = "%series% v%volume% #%issue% (of %issuecount%) (%year%)"
 
-    config = MetronTaggerSettings(config_dir=tmpdir)
+    config = MetronTaggerSettings(config_dir=str(tmpdir))
     # Make sure initial values are correct
     assert not config.metron_user
     assert not config.metron_pass
@@ -26,7 +26,7 @@ def test_settings(tmpdir: Path) -> None:
     config.rename_template = file_template
     config.save()
     # Now load that file and verify the contents
-    new_config = MetronTaggerSettings(config_dir=tmpdir)
+    new_config = MetronTaggerSettings(config_dir=str(tmpdir))
     assert new_config.metron_user == user
     assert new_config.metron_pass == dummy
     assert not new_config.sort_dir

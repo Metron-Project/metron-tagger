@@ -18,9 +18,9 @@ if TYPE_CHECKING:
 import mokkari
 import questionary
 from comicfn2dict import comicfn2dict
-from darkseid.comic import Comic
+from darkseid.comic import Comic, MetadataFormat
 from darkseid.issue_string import IssueString
-from darkseid.metadata import Basic, Credit, Metadata, Role, Series
+from darkseid.metadata import Basic, Credit, Metadata, Publisher, Role, Series
 from imagehash import ImageHash, hex_to_hash, phash
 from mokkari.exceptions import ApiError
 from PIL import Image
@@ -279,8 +279,8 @@ class Talker:
             return None, False
 
         # Check if comic has a comicinfo.xml that contains either a cvid or metron id.
-        if ca.has_metadata():
-            md = ca.read_metadata()
+        if ca.has_metadata(MetadataFormat.COMIC_RACK):
+            md = ca.read_metadata(MetadataFormat.COMIC_RACK)
             source, id_ = self._get_source_id(md)
             if source is not InfoSource.unknown and id_ is not None:
 
@@ -397,7 +397,7 @@ class Talker:
             meta_data.set_default_page_list(ca.get_number_of_pages())
             md = self._map_resp_to_metadata(resp)
             md.overlay(meta_data)
-            success = ca.write_metadata(md)
+            success = ca.write_metadata(md, MetadataFormat.COMIC_RACK)
 
         if success and md is not None:
             collection = md.series.format.lower() in ["trade paperback", "hard cover"]
@@ -438,7 +438,7 @@ class Talker:
         for fn in file_list:
             if config.ignore_existing:
                 comic_archive = Comic(str(fn))
-                if comic_archive.has_metadata():
+                if comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
                     questionary.print(
                         f"{fn.name} has metadata. Skipping...",
                         style=Styles.WARNING,
@@ -550,12 +550,17 @@ class Talker:
         )
         md.issue = IssueString(resp.number).as_string() if resp.number else None
         md.publisher = (
-            Basic(resp.publisher.name, resp.publisher.id) if resp.publisher else None
+            Publisher(resp.publisher.name, resp.publisher.id) if resp.publisher else None
         )
-        md.imprint = Basic(resp.imprint.name, resp.imprint.id) if resp.imprint else None
+        md.publisher.imprint = (
+            Basic(resp.imprint.name, resp.imprint.id) if resp.imprint else None
+        )
         md.cover_date = resp.cover_date or None
         md.comments = resp.desc
-        md.notes = create_note(md.info_source.id_)
+        md.notes = create_note(
+            md.info_source.id_
+        )  # TODO: Only set this for ComicRack metadata.
+        md.modified = resp.modified
         if resp.story_titles:
             md.stories = [Basic(story) for story in resp.story_titles]
         if resp.characters:

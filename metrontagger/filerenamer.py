@@ -269,7 +269,8 @@ class FileRenamer:
         new_name = self.replace_token(new_name, md.alternate_series, "%alternateseries%")
         new_name = self.replace_token(new_name, md.alternate_number, "%alternatenumber%")
         new_name = self.replace_token(new_name, md.alternate_count, "%alternatecount%")
-        new_name = self.replace_token(new_name, md.imprint, "%imprint%")
+        if md.publisher and md.publisher.imprint:
+            new_name = self.replace_token(new_name, md.publisher.imprint.name, "%imprint%")
 
         if md.series:
             format_mapping = {
