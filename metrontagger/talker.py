@@ -20,7 +20,18 @@ import questionary
 from comicfn2dict import comicfn2dict
 from darkseid.comic import Comic, MetadataFormat
 from darkseid.issue_string import IssueString
-from darkseid.metadata import Basic, Credit, Metadata, Publisher, Role, Series
+from darkseid.metadata import (
+    URLS,
+    Arc,
+    Basic,
+    Credit,
+    InfoSources,
+    Metadata,
+    Publisher,
+    Role,
+    Series,
+    WebsiteInfo,
+)
 from imagehash import ImageHash, hex_to_hash, phash
 from mokkari.exceptions import ApiError
 from PIL import Image
@@ -478,6 +489,21 @@ class Talker:
             """
             return [Basic(r.name, r.id) for r in resource]
 
+        def create_arc_list(resource: any) -> list[Arc]:
+            """Create a list of Arc objects from a given resource.
+
+            This function takes a resource containing items and constructs a list of Arc
+            objects using the attributes of each item. It ensures that the 'number' attribute
+            is set to None if it is not provided.
+
+            Args:
+                resource (any): An iterable containing items with 'name', 'id', and 'number' attributes.
+
+            Returns:
+                list[Arc]: A list of Arc objects created from the provided resource.
+            """
+            return [Arc(item.name, item.id) for item in resource]
+
         def create_note(issue_id: int) -> str:
             """Create a note for an issue.
 
@@ -540,7 +566,8 @@ class Talker:
             return "Mature 17+" if age_rating == "mature" else "Unknown"
 
         md = Metadata()
-        md.info_source = Basic("Metron", resp.id)
+        alt_info_source = [WebsiteInfo("Comic Vine", resp.cv_id)] if resp.cv_id else []
+        md.info_source = InfoSources(WebsiteInfo("Metron", resp.id), alt_info_source)
         md.series = Series(
             resp.series.name,
             resp.series.id,
@@ -558,7 +585,7 @@ class Talker:
         md.cover_date = resp.cover_date or None
         md.comments = resp.desc
         md.notes = create_note(
-            md.info_source.id_
+            md.info_source.primary.id_
         )  # TODO: Only set this for ComicRack metadata.
         md.modified = resp.modified
         if resp.story_titles:
@@ -568,7 +595,7 @@ class Talker:
         if resp.teams:
             md.teams = create_resource_list(resp.teams)
         if resp.arcs:
-            md.story_arcs = create_resource_list(resp.arcs)
+            md.story_arcs = create_arc_list(resp.arcs)
         if resp.series.genres:
             md.genres = create_resource_list(resp.series.genres)
         if resp.reprints:
@@ -578,6 +605,6 @@ class Talker:
         if resp.rating:
             md.age_rating = map_ratings(resp.rating.name)
         if resp.resource_url:
-            md.web_link = str(resp.resource_url)
+            md.web_link = URLS(str(resp.resource_url), [])
 
         return md
