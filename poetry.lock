@@ -282,12 +282,12 @@ toml = ["tomli"]
 
 [[package]]
 name = "darkseid"
-version = "5.0.0"
+version = "5.0.1"
 description = "A library to interact with comic archives"
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "darkseid-5.0.0-py3-none-any.whl", hash = "sha256:52d64c6c690b59b812e62ca3390a00c70904d53c405ba1788ec00aa9d8ee5cea"},
+    {file = "darkseid-5.0.1-py3-none-any.whl", hash = "sha256:8f5312fc8e3cf02291e56d762c8fe7ad489dd3f33b9c16af42a1b1ff56401732"},
 ]
 
 [package.dependencies]
@@ -299,7 +299,7 @@ rarfile = ">=4.0,<5.0"
 
 [package.source]
 type = "file"
-url = "../darkseid/dist/darkseid-5.0.0-py3-none-any.whl"
+url = "../darkseid/dist/darkseid-5.0.1-py3-none-any.whl"
 
 [[package]]
 name = "defusedxml"
@@ -1621,4 +1621,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "6e0d5951c4c619a4928c216666c4e30d51a2ae4158a87d0e6ed1d09ba108047b"
+content-hash = "59975ccc98f73ca36efb6acaadd664ca660f6c9af8194c9b97aca6c08066e215"
