@@ -18,12 +18,17 @@ def test_settings(tmpdir: Path) -> None:
     assert config.rename_issue_number_padding == 3  # noqa: PLR2004
     assert config.rename_use_smart_string_cleanup is True
     assert config.rename_template == "%series% v%volume% #%issue% (%year%)"
+    assert config.use_metron_info is True
+    assert config.use_comic_info is True
+
     # Save the new values
     config.metron_user = user
     config.metron_pass = dummy
     config.rename_issue_number_padding = padding
     config.rename_use_smart_string_cleanup = cleanup
     config.rename_template = file_template
+    config.use_metron_info = False
+    config.use_comic_info = True
     config.save()
     # Now load that file and verify the contents
     new_config = MetronTaggerSettings(config_dir=str(tmpdir))
@@ -33,3 +38,5 @@ def test_settings(tmpdir: Path) -> None:
     assert new_config.rename_issue_number_padding == padding
     assert new_config.rename_use_smart_string_cleanup == cleanup
     assert new_config.rename_template == file_template
+    assert new_config.use_metron_info is False
+    assert new_config.use_comic_info is True
