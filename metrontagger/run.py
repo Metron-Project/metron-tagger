@@ -206,8 +206,7 @@ class Runner:
             if not result:
                 questionary.print(f"Unable to move '{comic.name}'.", style=Styles.ERROR)
 
-    @staticmethod
-    def _comics_with_no_metadata(file_list: list[Path]) -> None:
+    def _comics_with_no_metadata(self: Runner, file_list: list[Path]) -> None:
         """Display files without metadata.
 
         This static method prints out the files in the provided list that do not have associated metadata.
@@ -223,11 +222,20 @@ class Runner:
             "\nShowing files without metadata:\n-------------------------------",
             style=Styles.TITLE,
         )
+
+        if not (self.config.use_comic_info or self.config.use_metron_info):
+            return
+
         for comic in file_list:
             comic_archive = Comic(str(comic))
-            if comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
-                continue
-            questionary.print(f"{comic}", style=Styles.SUCCESS)
+            if (
+                self.config.use_comic_info
+                and not comic_archive.has_metadata(MetadataFormat.COMIC_RACK)
+            ) or (
+                self.config.use_metron_info
+                and not comic_archive.has_metadata(MetadataFormat.METRON_INFO)
+            ):
+                questionary.print(f"{comic}", style=Styles.SUCCESS)
 
     @staticmethod
     def _delete_metadata(file_list: list[Path]) -> None:
