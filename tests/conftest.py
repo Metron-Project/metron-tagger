@@ -35,7 +35,7 @@ def parser() -> ArgumentParser:
 def talker() -> Talker:
     username = "Foo"
     password = "Bar"  # noqa: S105
-    return Talker(username, password)
+    return Talker(username, password, True, True)
 
 
 @pytest.fixture()
