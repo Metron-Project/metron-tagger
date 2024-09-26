@@ -464,7 +464,12 @@ class Runner:
                 questionary.print("No credentials provided. Exiting...", style=Styles.ERROR)
                 sys.exit(0)
 
-            t = Talker(self.config.metron_user, self.config.metron_pass)
+            t = Talker(
+                self.config.metron_user,
+                self.config.metron_pass,
+                self.config.use_metron_info,
+                self.config.use_comic_info,
+            )
             if self.config.id:
                 if len(file_list) == 1:
                     t.retrieve_single_issue(file_list[0], self.config.id)

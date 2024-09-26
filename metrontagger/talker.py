@@ -115,13 +115,17 @@ class Talker:
     This class provides methods for identifying comics, retrieving single issues, and processing match results.
     """
 
-    def __init__(self: Talker, username: str, password: str) -> None:
+    def __init__(
+        self: Talker, username: str, password: str, metron_info: bool, comic_info: bool
+    ) -> None:
         """Initialize the Talker class with API credentials.
 
         This method sets up the API connection using the provided username and password, and initializes match
         results storage.
         """
         self.api = mokkari.api(username, password, user_agent=f"Metron-Tagger/{__version__}")
+        self.metron_info = metron_info
+        self.comic_info = comic_info
         self.match_results = OnlineMatchResults()
 
     @staticmethod
@@ -389,33 +393,54 @@ class Talker:
                 ):
                     self._write_issue_md(match_set.filename, issue_id)
 
-    def _write_issue_md(self: Talker, filename: Path, issue_id: int) -> None:
-        """Write metadata for an issue.
+    def _write_issue_md(self, filename: Path, issue_id: int) -> None:
+        """Write metadata for a comic issue.
 
-        This method retrieves issue data, overlays it with existing metadata, and writes the metadata to the comic file.
+        This method retrieves issue data from an API, overlays it with existing metadata, and writes the metadata to
+        the specified comic file. It handles potential errors during data retrieval and provides feedback on the
+        success or failure of the metadata writing process.
+
+        Args:
+            filename (Path): The path to the comic file where metadata will be written.
+            issue_id (int): The identifier for the comic issue to retrieve metadata for.
+
+        Returns:
+            None
+
+        Raises:
+            ApiError: If there is an error retrieving data from the API.
+
+        Examples:
+            # Example usage:
+            # talker_instance._write_issue_md(Path("comic.cbz"), 123)
         """
-        # sourcery skip: extract-method, inline-immediately-returned-variable
-        success = False
-        resp = None
-        md = None
+
         try:
             resp = self.api.issue(issue_id)
         except ApiError as e:
             questionary.print(f"Failed to retrieve data: {e!r}", style=Styles.ERROR)
-        if resp is not None:
-            ca = Comic(str(filename))
-            meta_data = Metadata()
-            meta_data.set_default_page_list(ca.get_number_of_pages())
-            md = self._map_resp_to_metadata(resp)
-            md.overlay(meta_data)
-            success = ca.write_metadata(md, MetadataFormat.COMIC_RACK)
+            return
 
-        if success and md is not None:
+        ca = Comic(filename)
+        meta_data = Metadata()
+        meta_data.set_default_page_list(ca.get_number_of_pages())
+        md = self._map_resp_to_metadata(resp)
+        md.overlay(meta_data)
+
+        md_fmt = []
+        if self.comic_info and ca.write_metadata(md, MetadataFormat.COMIC_RACK):
+            md_fmt.append("'ComicInfo.xml'")
+        if self.metron_info and ca.write_metadata(md, MetadataFormat.METRON_INFO):
+            md_fmt.append("'MetronInfo.xml'")
+
+        if md_fmt:
             collection = md.series.format.lower() in ["trade paperback", "hard cover"]
             collection_text = " (Collection)" if collection else ""
+            fmt = " and ".join(md_fmt)
             msg = (
-                f"Using '{md.series.name} #{md.issue} ({md.cover_date.year}){collection_text}' "
-                f"metadata for '{filename.name}'."
+                f"Writing {fmt} metadata using "
+                f"'{md.series.name} #{md.issue} ({md.cover_date.year}){collection_text}' "
+                f"for '{filename.name}'."
             )
             questionary.print(msg, style=Styles.SUCCESS)
         else:
