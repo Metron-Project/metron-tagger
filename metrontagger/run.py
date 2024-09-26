@@ -442,10 +442,13 @@ class Runner:
         else:
             questionary.print("No duplicate page changes to write.", style=Styles.SUCCESS)
 
-        # Ask user if they want to update ComicInfo.xml for changes.
-        if questionary.confirm(
-            "Do you want to update the comic's 'comicinfo.xml' for the changes?",
-        ).ask():
+        # Ask user if they want to update ComicInfo.xml pages for changes. Not necessary for MetronInfo.xml
+        if (
+            self.config.use_comic_info
+            and questionary.confirm(
+                "Do you want to update the comic's 'comicinfo.xml' for the changes?",
+            ).ask()
+        ):
             self._update_ci_xml(duplicates_lst)
 
     def run(self: Runner) -> None:  # noqa: PLR0912
