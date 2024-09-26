@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from metrontagger.settings import MetronTaggerSettings
 from metrontagger.styles import Styles
 from metrontagger.talker import Talker
-from metrontagger.validate_ci import SchemaVersion, ValidateComicInfo
+from metrontagger.validate import SchemaVersion, ValidateMetadata
 
 LOGGER = getLogger(__name__)
 
@@ -132,49 +132,59 @@ class Runner:
                     style=Styles.WARNING,
                 )
 
-    @staticmethod
-    def _validate_comic_info(file_list: list[Path], remove_ci: bool = False) -> None:
-        """Validate ComicInfo metadata in comic archives.
-
-        This static method validates the ComicInfo metadata in the provided list of comic archives, displaying the
-        validation results and optionally removing non-valid metadata based on the 'remove_ci' flag.
-
-        Args:
-            file_list: list[Path]: The list of comic archive file paths to validate.
-            remove_ci: bool, optional: A flag indicating whether to remove non-valid metadata. Defaults to False.
-
-        Returns:
-            None
-        """
+    def _validate_comic_info(
+        self: Runner, file_list: list[Path], remove_ci: bool = False
+    ) -> None:
+        """Validate ComicInfo metadata in comic archives."""
 
         questionary.print("\nValidating ComicInfo:\n---------------------", style=Styles.TITLE)
         for comic in file_list:
-            ca = Comic(str(comic))
-            if not ca.has_metadata(MetadataFormat.COMIC_RACK):
+            ca = Comic(comic)
+            has_comic_rack = ca.has_metadata(MetadataFormat.COMIC_RACK)
+            has_metron_info = ca.has_metadata(MetadataFormat.METRON_INFO)
+
+            if not has_comic_rack and not has_metron_info:
                 questionary.print(
-                    f"'{ca.path.name}' doesn't have a ComicInfo.xml file.",
+                    f"'{ca.path.name}' doesn't have any metadata files.",
                     style=Styles.WARNING,
                 )
                 continue
-            xml = ca.archiver.read_file("ComicInfo.xml")
-            result = ValidateComicInfo(xml).validate()
-            if result == SchemaVersion.v2:
+
+            if self.config.use_comic_info and has_comic_rack:
+                xml = ca.archiver.read_file("ComicInfo.xml")
+                self._check_if_xml_is_valid(ca, xml, MetadataFormat.COMIC_RACK, remove_ci)
+
+            if self.config.use_metron_info and has_metron_info:
+                xml = ca.archiver.read_file("MetronInfo.xml")
+                self._check_if_xml_is_valid(ca, xml, MetadataFormat.METRON_INFO, remove_ci)
+
+    def _check_if_xml_is_valid(
+        self,
+        comic: Comic,
+        xml: bytes,
+        fmt: MetadataFormat,
+        remove_metadata: bool,
+    ) -> None:
+        result = ValidateMetadata(xml).validate()
+        if result == SchemaVersion.ci_v2:
+            questionary.print(
+                f"'{comic.path.name}' has a valid ComicInfo Version 2", style=Styles.SUCCESS
+            )
+        elif result == SchemaVersion.ci_v1:
+            questionary.print(
+                f"'{comic.path.name}' has a valid ComicInfo Version 1", style=Styles.SUCCESS
+            )
+        elif result == SchemaVersion.mi_v1:
+            questionary.print(
+                f"'{comic.path.name}' has a valid MetronInfo Version 1", style=Styles.SUCCESS
+            )
+        else:
+            questionary.print(f"'{comic.path.name}' is not valid", style=Styles.ERROR)
+            if remove_metadata and comic.remove_metadata(fmt):
                 questionary.print(
-                    f"'{ca.path.name}' is a valid ComicInfo Version 2",
-                    style=Styles.SUCCESS,
+                    f"Removed non-valid metadata from '{comic.path.name}'.",
+                    style=Styles.WARNING,
                 )
-            elif result == SchemaVersion.v1:
-                questionary.print(
-                    f"'{ca.path.name}' is a valid ComicInfo Version 1",
-                    style=Styles.SUCCESS,
-                )
-            else:
-                questionary.print(f"'{ca.path.name}' is not valid", style=Styles.ERROR)
-                if remove_ci and ca.remove_metadata(MetadataFormat.COMIC_RACK):
-                    questionary.print(
-                        f"Removed non-valid metadata from '{ca.path.name}'.",
-                        style=Styles.WARNING,
-                    )
 
     def _sort_comic_list(self: Runner, file_list: list[Path]) -> None:
         """Sort comic archives in the provided list.
