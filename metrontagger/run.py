@@ -237,8 +237,7 @@ class Runner:
             ):
                 questionary.print(f"{comic}", style=Styles.SUCCESS)
 
-    @staticmethod
-    def _delete_metadata(file_list: list[Path]) -> None:
+    def _delete_metadata(self: Runner, file_list: list[Path]) -> None:
         """Remove metadata from comic archives.
 
         This static method removes metadata from the comic archives in the provided list, if metadata exists.
@@ -251,16 +250,28 @@ class Runner:
         """
 
         questionary.print("\nRemoving metadata:\n-----------------", style=Styles.TITLE)
-        for comic in file_list:
-            comic_archive = Comic(str(comic))
-            if comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
+        for item in file_list:
+            comic_archive = Comic(item)
+            formats_removed = []
+
+            if self.config.use_comic_info and comic_archive.has_metadata(
+                MetadataFormat.COMIC_RACK
+            ):
                 comic_archive.remove_metadata(MetadataFormat.COMIC_RACK)
-                questionary.print(
-                    f"removed metadata from '{comic.name}'",
-                    style=Styles.SUCCESS,
-                )
+                formats_removed.append("'ComicInfo.xml'")
+
+            if self.config.use_metron_info and comic_archive.has_metadata(
+                MetadataFormat.METRON_INFO
+            ):
+                comic_archive.remove_metadata(MetadataFormat.METRON_INFO)
+                formats_removed.append("'MetronInfo.xml'")
+
+            if formats_removed:
+                fmt = " and ".join(formats_removed)
+                msg = f"Removed {fmt} metadata from '{item.name}'."
+                questionary.print(msg, style=Styles.SUCCESS)
             else:
-                questionary.print(f"no metadata in '{comic.name}'", style=Styles.WARNING)
+                questionary.print(f"no metadata in '{item.name}'", style=Styles.WARNING)
 
     def _has_credentials(self: Runner) -> bool:
         """Check if Metron credentials are present.
