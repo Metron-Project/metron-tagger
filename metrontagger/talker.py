@@ -594,11 +594,12 @@ class Talker:
         alt_info_source = [WebsiteInfo("Comic Vine", resp.cv_id)] if resp.cv_id else []
         md.info_source = InfoSources(WebsiteInfo("Metron", resp.id), alt_info_source)
         md.series = Series(
-            resp.series.name,
-            resp.series.id,
-            resp.series.sort_name,
-            resp.series.volume,
-            resp.series.series_type.name,
+            name=resp.series.name,
+            id_=resp.series.id,
+            sort_name=resp.series.sort_name,
+            volume=resp.series.volume,
+            format=resp.series.series_type.name,
+            start_year=resp.series.year_began,
         )
         md.issue = IssueString(resp.number).as_string() if resp.number else None
         md.publisher = (

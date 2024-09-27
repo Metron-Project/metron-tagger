@@ -30,6 +30,7 @@ def test_issue() -> Issue:
             sort_name="Spectacular Spider-Man",
             volume=1,
             series_type=GenericItem(id=2, name="Single Issue"),
+            year_began=1978,
         ),
         number="47",
         collection_title="",
@@ -129,6 +130,7 @@ def test_map_resp_to_metadata_with_no_story_name(
     assert len(meta_data.stories) == 0
     assert meta_data.series.name == test_issue.series.name
     assert meta_data.series.volume == test_issue.series.volume
+    assert meta_data.series.start_year == test_issue.series.year_began
     assert meta_data.publisher.name == test_issue.publisher.name
     assert meta_data.issue == test_issue.number
     assert meta_data.cover_date.year == test_issue.cover_date.year
