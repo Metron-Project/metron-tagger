@@ -27,6 +27,7 @@ from darkseid.metadata import (
     Credit,
     InfoSources,
     Metadata,
+    Notes,
     Publisher,
     Role,
     Series,
@@ -499,7 +500,7 @@ class Talker:
         self._write_issue_md(fn, id_)
 
     @staticmethod
-    def _map_resp_to_metadata(resp: Issue) -> Metadata:
+    def _map_resp_to_metadata(resp: Issue) -> Metadata:  # noqa: PLR0915
         """Map response data to metadata.
 
         This static method maps the response data from an Issue object to a Metadata object, including information
@@ -529,16 +530,17 @@ class Talker:
             """
             return [Arc(item.name, item.id) for item in resource]
 
-        def create_note(issue_id: int) -> str:
+        def create_notes(issue_id: int) -> Notes:
             """Create a note for an issue.
 
             This function generates a note string including tagging information from MetronTagger and the issue ID.
             """
             now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # noqa: DTZ005
-            return (
-                f"Tagged with MetronTagger-{__version__} using info from Metron on "
-                f"{now_date}. [issue_id:{issue_id}]"
+            metron_info_note = (
+                f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}."
             )
+            comic_rack_note = f"{metron_info_note} [issue_id:{issue_id}]"
+            return Notes(metron_info=metron_info_note, comic_rack=comic_rack_note)
 
         def add_credits_to_metadata(
             meta_data: Metadata,
@@ -610,9 +612,7 @@ class Talker:
         )
         md.cover_date = resp.cover_date or None
         md.comments = resp.desc
-        md.notes = create_note(
-            md.info_source.primary.id_
-        )  # TODO: Only set this for ComicRack metadata.
+        md.notes = create_notes(md.info_source.primary.id_)
         md.modified = resp.modified
         if resp.story_titles:
             md.stories = [Basic(story) for story in resp.story_titles]
