@@ -189,11 +189,14 @@ class FileSorter:
         except FileNotFoundError:
             return False
 
-        if not comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
+        if comic_archive.has_metadata(MetadataFormat.METRON_INFO):
+            md = comic_archive.read_metadata(MetadataFormat.METRON_INFO)
+        elif comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
+            md = comic_archive.read_metadata(MetadataFormat.COMIC_RACK)
+        else:
             return False
 
-        meta_data = comic_archive.read_metadata(MetadataFormat.COMIC_RACK)
-        publisher, series, volume = self._cleanup_metadata(meta_data)
+        publisher, series, volume = self._cleanup_metadata(md)
 
         if not publisher or not series or not volume:
             questionary.print(
@@ -203,7 +206,7 @@ class FileSorter:
             )
             return False
 
-        new_path = self._get_new_path(meta_data, publisher, series, volume)
+        new_path = self._get_new_path(md, publisher, series, volume)
         self._overwrite_existing(new_path, comic)
 
         if not new_path.is_dir() and not self._create_new_path(new_path):
