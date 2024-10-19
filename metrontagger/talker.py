@@ -221,20 +221,20 @@ class Talker:
 
     @staticmethod
     def _get_id_from_metron_info(md: Metadata) -> None | tuple[InfoSource, int]:
-        website_sources = {"metron", "comic vine"}
+        online_sources = {"metron", "comic vine"}
         md_sources = [md.info_source.primary, *md.info_source.alternatives]
         return next(
             (
                 (
                     (
                         InfoSource.metron
-                        if source.name.lower() == "metron"
+                        if md_source.name.lower() == "metron"
                         else InfoSource.comic_vine
                     ),
-                    source.id_,
+                    md_source.id_,
                 )
-                for source in md_sources
-                if source and source.name.lower() in website_sources
+                for md_source in md_sources
+                if md_source and md_source.name.lower() in online_sources
             ),
             None,
         )
