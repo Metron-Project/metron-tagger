@@ -161,12 +161,9 @@ class Runner:
                 xml = ca.archiver.read_file("MetronInfo.xml")
                 self._check_if_xml_is_valid(ca, xml, MetadataFormat.METRON_INFO, remove_ci)
 
+    @staticmethod
     def _check_if_xml_is_valid(
-        self,
-        comic: Comic,
-        xml: bytes,
-        fmt: MetadataFormat,
-        remove_metadata: bool,
+        comic: Comic, xml: bytes, fmt: MetadataFormat, remove_metadata: bool
     ) -> None:
         result = ValidateMetadata(xml).validate()
         if result == SchemaVersion.ci_v2:
