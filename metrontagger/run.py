@@ -63,16 +63,19 @@ class Runner:
         original_files_changed: list[Path] = []
         renamer = FileRenamer()
         for comic in file_list:
-            comic_archive = Comic(str(comic))
-            if not comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
+            comic_archive = Comic(comic)
+            if comic_archive.has_metadata(MetadataFormat.METRON_INFO):
+                md = comic_archive.read_metadata(MetadataFormat.METRON_INFO)
+            elif comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
+                md = comic_archive.read_metadata(MetadataFormat.COMIC_RACK)
+            else:
                 questionary.print(
                     f"skipping '{comic.name}'. no metadata available.",
                     style=Styles.WARNING,
                 )
                 continue
 
-            meta_data = comic_archive.read_metadata(MetadataFormat.COMIC_RACK)
-            renamer.set_metadata(meta_data)
+            renamer.set_metadata(md)
             renamer.set_template(self.config.rename_template)
             renamer.set_issue_zero_padding(self.config.rename_issue_number_padding)
             renamer.set_smart_cleanup(self.config.rename_use_smart_string_cleanup)
