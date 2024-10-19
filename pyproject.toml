@@ -45,7 +45,7 @@ imagehash = "^4.3.1"
 pandas = "^2.2.1"
 comicfn2dict = "^0.2.4"
 tqdm = "^4.66.4"
-darkseid = {path = "/home/bpepple/PycharmProjects/darkseid/dist/darkseid-5.0.2-py3-none-any.whl"}
+darkseid = {path = "/home/bpepple/PycharmProjects/darkseid/dist/darkseid-5.0.5-py3-none-any.whl"}
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.6.2"
