@@ -185,7 +185,7 @@ class FileSorter:
         """
 
         try:
-            comic_archive = Comic(str(comic))
+            comic_archive = Comic(comic)
         except FileNotFoundError:
             return False
 
