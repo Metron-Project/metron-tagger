@@ -220,40 +220,40 @@ class Talker:
         return [item for item in lst if self._within_hamming_distance(comic, item.cover_hash)]
 
     @staticmethod
-    def _get_source_id(md: Metadata) -> tuple[InfoSource, int | None]:
-        """Get the information source and ID from metadata.
+    def _get_id_from_metron_info(md: Metadata) -> None | tuple[InfoSource, int]:
+        website_sources = {"metron", "comic vine"}
+        md_sources = [md.info_source.primary, *md.info_source.alternatives]
+        return next(
+            (
+                (
+                    (
+                        InfoSource.metron
+                        if source.name.lower() == "metron"
+                        else InfoSource.comic_vine
+                    ),
+                    source.id_,
+                )
+                for source in md_sources
+                if source and source.name.lower() in website_sources
+            ),
+            None,
+        )
 
-        This static method extracts the information source and ID from the metadata notes field, returning a tuple of
-        InfoSource and ID.
-        """
-
+    @staticmethod
+    def _get_id_from_comic_info(md: Metadata) -> None | tuple[InfoSource, int]:
         def _extract_id_str(notes: str, keyword: str) -> str:
-            """
-            Extracts and returns a specific string segment from the given notes based on the provided keyword.
-
-            Args:
-                notes (str): The notes string from which to extract the segment.
-                keyword (str): The keyword used to identify the segment to extract.
-
-            Returns:
-                str: The extracted string segment.
-            """
-
             return notes.split(keyword)[1].split("]")[0].strip()
-
-        source: InfoSource = InfoSource.unknown
-        id_: int | None = None
 
         # If `Notes` element doesn't exist let's bail.
         if md.notes is None:
-            return source, id_
+            return None
 
-        lower_notes = md.notes.lower()
+        lower_notes = md.notes.comic_rack.lower()
 
         id_str = ""
         if "metrontagger" in lower_notes:
             source = InfoSource.metron
-            id_str = _extract_id_str(md.notes, "issue_id:")
+            id_str = _extract_id_str(md.notes.comic_rack, "issue_id:")
         elif "comictagger" in lower_notes:
             if "metron" in lower_notes:
                 source = InfoSource.metron
@@ -261,14 +261,15 @@ class Talker:
                 source = InfoSource.comic_vine
             else:
                 source = InfoSource.unknown
-                id_str = _extract_id_str(md.notes, "Issue ID")
+            id_str = _extract_id_str(md.notes.comic_rack, "Issue ID")
         else:
-            return source, id_
+            return None
 
         try:
             id_ = int(id_str)
         except ValueError:
             LOGGER.exception("Comic has invalid id: %s #%s", md.series.name, md.issue)
+            return None
 
         return source, id_
 
@@ -294,36 +295,51 @@ class Talker:
             )
             return None, False
 
-        # Check if comic has a comicinfo.xml that contains either a cvid or metron id.
-        if ca.has_metadata(MetadataFormat.COMIC_RACK):
+        # Check if comic has a MetronInfo.xml or ComicInfo.xml that contains either a cvid or metron id.
+        source = id_ = None
+        # Let's prefer MetronInfo.xml over ComicInfo.xml, since it's easier to get info.
+        if ca.has_metadata(MetadataFormat.METRON_INFO):
+            md = ca.read_metadata(MetadataFormat.METRON_INFO)
+            if res := self._get_id_from_metron_info(md):
+                source, id_ = res
+        elif ca.has_metadata(MetadataFormat.COMIC_RACK):
             md = ca.read_metadata(MetadataFormat.COMIC_RACK)
-            source, id_ = self._get_source_id(md)
-            if source is not InfoSource.unknown and id_ is not None:
+            if res := self._get_id_from_comic_info(md):
+                source, id_ = res
 
-                def _print_metadata_message(src: InfoSource, comic: Comic) -> None:
-                    source_messages = {
-                        InfoSource.metron: "Metron ID",
-                        InfoSource.comic_vine: "ComicVine",
-                    }
-                    if src in source_messages:
+        if source is not None and id_ is not None:
+
+            def _print_metadata_message(src: InfoSource, comic: Comic) -> None:
+                source_messages = {
+                    InfoSource.metron: "Metron ID",
+                    InfoSource.comic_vine: "ComicVine",
+                    InfoSource.unknown: "Unknown Source",
+                }
+                if src in source_messages:
+                    if src != InfoSource.unknown:
                         questionary.print(
                             f"Found {source_messages[src]} in '{comic}' metadata and using that to get the metadata...",
                             style=Styles.INFO,
                         )
+                    else:
+                        questionary.print(
+                            f"Found {source_messages[src]} in '{comic}' metadata. Skipping...",
+                            style=Styles.WARNING,
+                        )
 
-                _print_metadata_message(source, ca)
+            _print_metadata_message(source, ca)
 
-                match source:
-                    case InfoSource.metron:
-                        self.match_results.add_good_match(fn)
-                        return id_, False
-                    case InfoSource.comic_vine:
-                        issues = self.api.issues_list(params={"cv_id": id_})
-                        # This should always be 1 otherwise let's do a regular search.
-                        if len(issues) == 1:
-                            return issues[0].id, False
-                    case _:
-                        pass
+            match source:
+                case InfoSource.metron:
+                    self.match_results.add_good_match(fn)
+                    return id_, False
+                case InfoSource.comic_vine:
+                    issues = self.api.issues_list(params={"cv_id": id_})
+                    # This should always be 1 otherwise let's do a regular search.
+                    if len(issues) == 1:
+                        return issues[0].id, False
+                case _:
+                    pass
 
         # Alright, if the comic doesn't have an let's do a search based on the filename.
         # TODO: Determine if we want to use some of the other keys beyond 'series' and 'issue number'

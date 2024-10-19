@@ -6,7 +6,7 @@ from zipfile import ZipFile
 
 import pytest
 from darkseid.comic import Comic, MetadataFormat
-from darkseid.metadata import URLS, Basic
+from darkseid.metadata import URLS, Basic, InfoSources, Metadata, Notes, Series, WebsiteInfo
 from mokkari.schemas.base import BaseResource
 from mokkari.schemas.generic import GenericItem
 from mokkari.schemas.issue import BaseIssue, BasicSeries, Credit, Issue, IssueSeries
@@ -14,7 +14,7 @@ from mokkari.schemas.reprint import Reprint
 from mokkari.session import Session
 from pydantic import HttpUrl, TypeAdapter
 
-from metrontagger.talker import Talker
+from metrontagger.talker import InfoSource, Talker
 
 tzinfo = timezone(timedelta(hours=-5))
 
@@ -271,3 +271,92 @@ def test_retrieve_single_issue(
     assert ca_md.credits is not None
     assert ca_md.credits[0].person == "Roger Stern"
     assert ca_md.credits[0].role[0].name == "Writer"
+
+
+@pytest.mark.parametrize(
+    ("primary_name", "primary_id", "alternatives", "expected"),
+    [
+        # Happy path tests
+        ("metron", 123, [], (InfoSource.metron, 123)),
+        ("comic vine", 456, [], (InfoSource.comic_vine, 456)),
+        ("anilist", 789, [WebsiteInfo("metron", 321)], (InfoSource.metron, 321)),
+        # Edge case
+        ("anilist", 789, [], None),
+    ],
+    ids=[
+        "happy_path_metron_primary",
+        "happy_path_comic_vine_primary",
+        "happy_path_metron_alternative",
+        "edge_case_no_metron_or_comic_vine",
+    ],
+)
+def test_get_id_from_metron_info(primary_name, primary_id, alternatives, expected):
+    # Arrange
+    md = Metadata(
+        info_source=InfoSources(
+            primary=WebsiteInfo(primary_name, primary_id), alternatives=alternatives
+        )
+    )
+
+    # Act
+    result = Talker._get_id_from_metron_info(md)
+
+    # Assert
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("notes", "expected"),
+    [
+        # Happy path tests
+        (
+            "Tagged with MetronTagger-2.6.0 using info from Metron on 2024-10-16 16:07:08. [issue_id:12345]",
+            (InfoSource.metron, 12345),
+        ),
+        (
+            "Tagged with ComicTagger 1.3.2a5 using info from Comic Vine on 2022-04-16 15:52:26. [Issue ID 67890]",
+            (InfoSource.comic_vine, 67890),
+        ),
+        # Edge cases
+        (
+            "Tagged with MetronTagger-2.6.0 using info from Metron on 2024-10-16 16:07:08. [issue_id:00001]",
+            (InfoSource.metron, 1),
+        ),
+        (
+            "Tagged with ComicTagger 1.3.2a5 using info from Comic Vine on 2022-04-16 15:52:26. [Issue ID 00000]",
+            (InfoSource.comic_vine, 0),
+        ),
+        # Error cases
+        (
+            "Tagged with MetronTagger-2.6.0 using info from Metron on 2024-10-16 16:07:08. [issue_id:abcde]",
+            None,
+        ),
+        (
+            "Tagged with ComicTagger 1.3.2a5 using info from Comic Vine on 2022-04-16 15:52:26. [Issue ID abcde]",
+            None,
+        ),
+        ("[unknown] Issue ID: 12345", None),
+        (None, None),
+    ],
+    ids=[
+        "metrontagger_valid_id",
+        "comictagger_valid_id",
+        "metrontagger_leading_zeros",
+        "comictagger_zero_id",
+        "metrontagger_invalid_id",
+        "comictagger_invalid_id",
+        "unknown_source",
+        "no_notes",
+    ],
+)
+def test_get_id_from_comic_info(notes, expected):
+    # Arrange
+    md = Metadata(
+        notes=Notes(comic_rack=notes) if notes else None, series=Series("Foo"), issue="2"
+    )
+
+    # Act
+    result = Talker._get_id_from_comic_info(md)
+
+    # Assert
+    assert result == expected
