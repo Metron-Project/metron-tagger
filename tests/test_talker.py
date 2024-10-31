@@ -6,7 +6,7 @@ from zipfile import ZipFile
 
 import pytest
 from darkseid.comic import Comic, MetadataFormat
-from darkseid.metadata import URLS, Basic, InfoSources, Metadata, Notes, Series, WebsiteInfo
+from darkseid.metadata import AgeRatings, Basic, InfoSources, Links, Metadata, Notes, Series
 from mokkari.schemas.base import BaseResource
 from mokkari.schemas.generic import GenericItem
 from mokkari.schemas.issue import BaseIssue, BasicSeries, Credit, Issue, IssueSeries
@@ -113,10 +113,10 @@ def test_map_resp_to_metadata(talker: Talker, test_issue: Issue) -> None:
     assert md.credits[0].person == "Al Milgrom"
     assert md.credits[0].role[0].name == "Cover"
     assert md.reprints == create_reprint_list(test_issue.reprints)
-    assert md.age_rating == "Everyone"
-    assert md.web_link == URLS(
-        "https://metron.cloud/issue/the-spectacular-spider-man-1976-47/", []
-    )
+    assert md.age_rating == AgeRatings("Everyone", "Everyone")
+    assert md.web_link == [
+        Links("https://metron.cloud/issue/the-spectacular-spider-man-1976-47/", True)
+    ]
 
 
 def test_map_resp_to_metadata_with_no_story_name(
@@ -279,7 +279,7 @@ def test_retrieve_single_issue(
         # Happy path tests
         ("metron", 123, [], (InfoSource.metron, 123)),
         ("comic vine", 456, [], (InfoSource.comic_vine, 456)),
-        ("anilist", 789, [WebsiteInfo("metron", 321)], (InfoSource.metron, 321)),
+        ("anilist", 789, [InfoSources("metron", 321)], (InfoSource.metron, 321)),
         # Edge case
         ("anilist", 789, [], None),
     ],
@@ -292,11 +292,7 @@ def test_retrieve_single_issue(
 )
 def test_get_id_from_metron_info(primary_name, primary_id, alternatives, expected):
     # Arrange
-    md = Metadata(
-        info_source=InfoSources(
-            primary=WebsiteInfo(primary_name, primary_id), alternatives=alternatives
-        )
-    )
+    md = Metadata(info_source=[InfoSources(primary_name, primary_id, True), *alternatives])
 
     # Act
     result = Talker._get_id_from_metron_info(md)

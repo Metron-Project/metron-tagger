@@ -282,12 +282,12 @@ toml = ["tomli"]
 
 [[package]]
 name = "darkseid"
-version = "5.0.5"
+version = "5.0.7"
 description = "A library to interact with comic archives"
 optional = false
 python-versions = ">=3.10,<4.0"
 files = [
-    {file = "darkseid-5.0.5-py3-none-any.whl", hash = "sha256:920db3c6eeb0375979207ab4c2e3aa3a6c52cd5d33ce3ae37a90ef9c33beb295"},
+    {file = "darkseid-5.0.7-py3-none-any.whl", hash = "sha256:82170e6fcbe167db5b3a7d32ff2fc7c95d9a96434e574cae9484a141e6d456ec"},
 ]
 
 [package.dependencies]
@@ -296,10 +296,11 @@ natsort = ">=8.0.0,<9.0.0"
 Pillow = ">=10.0.1,<11.0.0"
 pycountry = ">=24.6.1,<25.0.0"
 rarfile = ">=4.0,<5.0"
+xmlschema = ">=3.4.2,<4.0.0"
 
 [package.source]
 type = "file"
-url = "../darkseid/dist/darkseid-5.0.5-py3-none-any.whl"
+url = "../darkseid/dist/darkseid-5.0.7-py3-none-any.whl"
 
 [[package]]
 name = "defusedxml"
@@ -322,6 +323,20 @@ files = [
     {file = "distlib-0.3.8-py2.py3-none-any.whl", hash = "sha256:034db59a0b96f8ca18035f36290806a9a6e6bd9d1ff91e45a7f172eb17e51784"},
     {file = "distlib-0.3.8.tar.gz", hash = "sha256:1530ea13e350031b6312d8580ddb6b27a104275a31106523b8f123787f494f64"},
 ]
+
+[[package]]
+name = "elementpath"
+version = "4.6.0"
+description = "XPath 1.0/2.0/3.0/3.1 parsers and selectors for ElementTree and lxml"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "elementpath-4.6.0-py3-none-any.whl", hash = "sha256:e578677f19ccc6ff374c4477c687c547ecbaf7b478d98abb951b7b4b45260a17"},
+    {file = "elementpath-4.6.0.tar.gz", hash = "sha256:ba46bf07f66774927727ade55022b6c435fac06b2523cb3cd7689a1884d33468"},
+]
+
+[package.extras]
+dev = ["Sphinx", "coverage", "flake8", "lxml", "lxml-stubs", "memory-profiler", "memray", "mypy", "tox", "xmlschema (>=3.3.2)"]
 
 [[package]]
 name = "exceptiongroup"
@@ -1636,7 +1651,26 @@ files = [
     {file = "wcwidth-0.2.13.tar.gz", hash = "sha256:72ea0c06399eb286d978fdedb6923a9eb47e1c486ce63e9b4e64fc18303972b5"},
 ]
 
+[[package]]
+name = "xmlschema"
+version = "3.4.3"
+description = "An XML Schema validator and decoder"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "xmlschema-3.4.3-py3-none-any.whl", hash = "sha256:eea4e5a1aac041b546ebe7b2eb68eb5eaebf5c5258e573cfc182375676b2e4e3"},
+    {file = "xmlschema-3.4.3.tar.gz", hash = "sha256:0c638dac81c7d6c9da9a8d7544402c48cffe7ee0e13cc47fc0c18794d1395dfb"},
+]
+
+[package.dependencies]
+elementpath = ">=4.4.0,<5.0.0"
+
+[package.extras]
+codegen = ["elementpath (>=4.4.0,<5.0.0)", "jinja2"]
+dev = ["Sphinx", "coverage", "elementpath (>=4.4.0,<5.0.0)", "flake8", "jinja2", "lxml", "lxml-stubs", "memory-profiler", "mypy", "sphinx-rtd-theme", "tox"]
+docs = ["Sphinx", "elementpath (>=4.4.0,<5.0.0)", "jinja2", "sphinx-rtd-theme"]
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "5cc62cd5de0487f124e319a337df29efa8fa3699632d21a7ad83e75b9252b157"
+content-hash = "ebd553194f89c4a9ef5b49ba27e139fc22f16665bedc2fc93e09f5606438e024"

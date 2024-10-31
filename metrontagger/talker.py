@@ -21,17 +21,17 @@ from comicfn2dict import comicfn2dict
 from darkseid.comic import Comic, MetadataFormat
 from darkseid.issue_string import IssueString
 from darkseid.metadata import (
-    URLS,
+    AgeRatings,
     Arc,
     Basic,
     Credit,
     InfoSources,
+    Links,
     Metadata,
     Notes,
     Publisher,
     Role,
     Series,
-    WebsiteInfo,
 )
 from imagehash import ImageHash, hex_to_hash, phash
 from mokkari.exceptions import ApiError
@@ -222,22 +222,14 @@ class Talker:
     @staticmethod
     def _get_id_from_metron_info(md: Metadata) -> None | tuple[InfoSource, int]:
         online_sources = {"metron", "comic vine"}
-        md_sources = [md.info_source.primary, *md.info_source.alternatives]
-        return next(
-            (
-                (
-                    (
-                        InfoSource.metron
-                        if md_source.name.lower() == "metron"
-                        else InfoSource.comic_vine
-                    ),
-                    md_source.id_,
+        for src in md.info_source:
+            lower_name = src.name.lower()
+            if lower_name in online_sources:
+                return (
+                    InfoSource.metron if lower_name == "metron" else InfoSource.comic_vine,
+                    src.id_,
                 )
-                for md_source in md_sources
-                if md_source and md_source.name.lower() in online_sources
-            ),
-            None,
-        )
+        return None
 
     @staticmethod
     def _get_id_from_comic_info(md: Metadata) -> None | tuple[InfoSource, int]:
@@ -250,7 +242,6 @@ class Talker:
 
         lower_notes = md.notes.comic_rack.lower()
 
-        id_str = ""
         if "metrontagger" in lower_notes:
             source = InfoSource.metron
             id_str = _extract_id_str(md.notes.comic_rack, "issue_id:")
@@ -589,7 +580,7 @@ class Talker:
                     meta_data.add_credit(Credit(c.creator, [], c.id))
             return meta_data
 
-        def map_ratings(rating: str) -> str:
+        def map_ratings(rating: str) -> AgeRatings:
             """Map a rating string to a standardized format.
 
             This function maps a given rating string to a standardized format ('Everyone', 'Teen', 'Mature 17+',
@@ -603,14 +594,17 @@ class Talker:
             """
             age_rating = rating.lower()
             if age_rating in {"everyone", "cca"}:
-                return "Everyone"
+                return AgeRatings(metron_info="Everyone", comic_rack="Everyone")
             if age_rating in {"teen", "teen plus"}:
-                return "Teen"
-            return "Mature 17+" if age_rating == "mature" else "Unknown"
+                return AgeRatings(metron_info="Teen", comic_rack="Teen")
+            if age_rating in {"mature"}:
+                return AgeRatings(metron_info="Mature", comic_rack="Mature 17+")
+            return AgeRatings(metron_info="Unknown", comic_rack="Unknown")
 
         md = Metadata()
-        alt_info_source = [WebsiteInfo("Comic Vine", resp.cv_id)] if resp.cv_id else []
-        md.info_source = InfoSources(WebsiteInfo("Metron", resp.id), alt_info_source)
+
+        alt_info_source = [InfoSources("Comic Vine", resp.cv_id)] if resp.cv_id else []
+        md.info_source = [InfoSources("Metron", resp.id, True)] + alt_info_source  # NOQA: RUF005
         md.series = Series(
             name=resp.series.name,
             id_=resp.series.id,
@@ -628,7 +622,7 @@ class Talker:
         )
         md.cover_date = resp.cover_date or None
         md.comments = resp.desc
-        md.notes = create_notes(md.info_source.primary.id_)
+        md.notes = create_notes(resp.id)
         md.modified = resp.modified
         if resp.story_titles:
             md.stories = [Basic(story) for story in resp.story_titles]
@@ -647,6 +641,6 @@ class Talker:
         if resp.rating:
             md.age_rating = map_ratings(resp.rating.name)
         if resp.resource_url:
-            md.web_link = URLS(str(resp.resource_url), [])
+            md.web_link = [Links(str(resp.resource_url), True)]
 
         return md
