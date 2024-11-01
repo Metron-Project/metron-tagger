@@ -621,6 +621,7 @@ class Talker:
             Basic(resp.imprint.name, resp.imprint.id) if resp.imprint else None
         )
         md.cover_date = resp.cover_date or None
+        md.store_date = resp.store_date or None
         md.comments = resp.desc
         md.notes = create_notes(resp.id)
         md.modified = resp.modified
