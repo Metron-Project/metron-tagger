@@ -166,25 +166,31 @@ class Runner:
         comic: Comic, xml: bytes, fmt: MetadataFormat, remove_metadata: bool
     ) -> None:
         result = ValidateMetadata(xml).validate()
-        if result == SchemaVersion.ci_v2:
+        messages = {
+            SchemaVersion.ci_v2: (
+                f"'{comic.path.name}' has a valid ComicInfo Version 2",
+                Styles.SUCCESS,
+            ),
+            SchemaVersion.ci_v1: (
+                f"'{comic.path.name}' has a valid ComicInfo Version 1",
+                Styles.SUCCESS,
+            ),
+            SchemaVersion.mi_v1: (
+                f"'{comic.path.name}' has a valid MetronInfo Version 1",
+                Styles.SUCCESS,
+            ),
+        }
+
+        message, style = messages.get(
+            result, (f"'{comic.path.name}' is not valid", Styles.ERROR)
+        )
+        questionary.print(message, style=style)
+
+        if result not in messages and remove_metadata and comic.remove_metadata(fmt):
             questionary.print(
-                f"'{comic.path.name}' has a valid ComicInfo Version 2", style=Styles.SUCCESS
+                f"Removed non-valid metadata from '{comic.path.name}'.",
+                style=Styles.WARNING,
             )
-        elif result == SchemaVersion.ci_v1:
-            questionary.print(
-                f"'{comic.path.name}' has a valid ComicInfo Version 1", style=Styles.SUCCESS
-            )
-        elif result == SchemaVersion.mi_v1:
-            questionary.print(
-                f"'{comic.path.name}' has a valid MetronInfo Version 1", style=Styles.SUCCESS
-            )
-        else:
-            questionary.print(f"'{comic.path.name}' is not valid", style=Styles.ERROR)
-            if remove_metadata and comic.remove_metadata(fmt):
-                questionary.print(
-                    f"Removed non-valid metadata from '{comic.path.name}'.",
-                    style=Styles.WARNING,
-                )
 
     def _sort_comic_list(self: Runner, file_list: list[Path]) -> None:
         """Sort comic archives in the provided list.
