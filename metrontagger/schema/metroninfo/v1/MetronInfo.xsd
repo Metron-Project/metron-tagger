@@ -1,22 +1,38 @@
-<?xml version="1.0" encoding="utf-8"?>
-<xs:schema elementFormDefault="qualified" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+<?xml version="1.0" encoding="utf-8" ?>
+<xs:schema
+  elementFormDefault="qualified"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+>
     <xs:element name="MetronInfo" type="metroninfoType" />
 
     <!-- Complex Types -->
     <xs:complexType name="metroninfoType">
         <xs:all>
-            <xs:element name="ID" type="sourcesType" minOccurs="0" />
+            <xs:element name="IDS" type="idsType" minOccurs="0" />
             <xs:element name="Publisher" type="publisherType" minOccurs="0" />
             <xs:element name="Series" type="seriesType" />
-            <xs:element name="Volume" type="xs:string" minOccurs="0" /> <!-- This is used for Manga -->
+            <xs:element
+        name="MangaVolume"
+        type="xs:string"
+        minOccurs="0"
+      /> <!-- This is used for Manga -->
             <xs:element name="CollectionTitle" type="xs:string" minOccurs="0" />
             <xs:element name="Number" type="xs:string" minOccurs="0" />
-            <xs:element name="Stories" type="storyType" minOccurs="0" /> <!-- Story titles in issue -->
+            <xs:element
+        name="Stories"
+        type="storyType"
+        minOccurs="0"
+      /> <!-- Story titles in issue -->
             <xs:element name="Summary" type="xs:string" minOccurs="0" />
             <xs:element name="Prices" type="pricesType" minOccurs="0" />
             <xs:element name="CoverDate" type="xs:date" minOccurs="0" />
             <xs:element name="StoreDate" type="xs:date" minOccurs="0" />
-            <xs:element name="PageCount" type="xs:int" minOccurs="0" default="0" />
+            <xs:element
+        name="PageCount"
+        type="xs:int"
+        minOccurs="0"
+        default="0"
+      />
             <xs:element name="Notes" type="xs:string" minOccurs="0" />
             <xs:element name="Genres" type="genresType" minOccurs="0" />
             <xs:element name="Tags" type="tagsType" minOccurs="0" />
@@ -27,7 +43,12 @@
             <xs:element name="Locations" type="locationsType" minOccurs="0" />
             <xs:element name="Reprints" type="reprintsType" minOccurs="0" />
             <xs:element name="GTIN" type="gtinType" minOccurs="0" />
-            <xs:element name="AgeRating" type="ageRatingType" minOccurs="0" default="Unknown" />
+            <xs:element
+        name="AgeRating"
+        type="ageRatingType"
+        minOccurs="0"
+        default="Unknown"
+      />
             <xs:element name="URLs" type="urlsType" minOccurs="0" />
             <xs:element name="Credits" type="creditsType" minOccurs="0" />
             <xs:element name="LastModified" type="xs:dateTime" minOccurs="0" />
@@ -36,46 +57,57 @@
 
     <xs:complexType name="urlsType">
         <xs:sequence>
-            <!-- The following element should be for the primary source url -->
-            <xs:element name="Primary" type="xs:string" />
-            <!-- The following should be used for any additional urls -->
-            <xs:element name="Alternatives" type="AltUrl" minOccurs="0" />
+            <xs:element
+        name="URL"
+        type="urlType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
+        <xs:assert test="count(URL[@primary = true()]) &lt;= 1" />
     </xs:complexType>
 
-    <xs:complexType name="AltUrl">
+    <xs:complexType name="urlType">
+        <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute name="primary" type="xs:boolean" />
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <xs:complexType name="idsType">
         <xs:sequence>
-            <xs:element name="Alternative" type="xs:string" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="ID"
+        type="idType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
+        <xs:assert test="count(ID[@primary = true()]) &lt;= 1" />
     </xs:complexType>
 
-
-    <xs:complexType name="sourcesType">
-        <xs:sequence>
-            <!-- The following element should be used for the primary source of metadata information. -->
-            <xs:element name="Primary" type="sourceType" />
-            <!-- The following should be used for linking to other resources for the same issue. -->
-            <xs:element name="Alternatives" type="altIDs" minOccurs="0" />
-        </xs:sequence>
-    </xs:complexType>
-
-    <xs:complexType name="altIDs">
-        <xs:sequence>
-            <xs:element name="Alternative" type="sourceType" minOccurs="0" maxOccurs="unbounded" />
-        </xs:sequence>
-    </xs:complexType>
-
-    <xs:complexType name="sourceType">
+    <xs:complexType name="idType">
         <xs:simpleContent>
             <xs:extension base="xs:positiveInteger">
-                <xs:attribute name="source" type="informationSource" use="required" />
+                <xs:attribute
+          name="source"
+          type="informationSource"
+          use="required"
+        />
+                <xs:attribute name="primary" type="xs:boolean" />
             </xs:extension>
         </xs:simpleContent>
     </xs:complexType>
 
     <xs:complexType name="storyType">
         <xs:sequence>
-            <xs:element name="Story" type="resourceType" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="Story"
+        type="resourceType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
     </xs:complexType>
 
@@ -103,7 +135,21 @@
             <xs:element name="Volume" type="xs:int" minOccurs="0" />
             <xs:element name="Format" type="formatType" minOccurs="0" />
             <xs:element name="StartYear" type="xs:gYear" minOccurs="0" />
-            <xs:element name="AlternativeNames" type="alternativeNameType" minOccurs="0" />
+            <xs:element
+        name="IssueCount"
+        type="xs:positiveInteger"
+        minOccurs="0"
+      />
+            <xs:element
+        name="VolumeCount"
+        type="xs:positiveInteger"
+        minOccurs="0"
+      />
+            <xs:element
+        name="AlternativeNames"
+        type="alternativeNameType"
+        minOccurs="0"
+      />
         </xs:all>
         <xs:attribute name="lang" type="languageCode" default="en" />
         <xs:attribute name="id" type="xs:positiveInteger" />
@@ -111,7 +157,12 @@
 
     <xs:complexType name="alternativeNameType">
         <xs:sequence>
-            <xs:element name="AlternativeName" type="nameType" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="AlternativeName"
+        type="nameType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
     </xs:complexType>
 
@@ -127,37 +178,67 @@
 
     <xs:complexType name="charactersType">
         <xs:sequence>
-            <xs:element name="Character" type="resourceType" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="Character"
+        type="resourceType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
     </xs:complexType>
 
     <xs:complexType name="teamsType">
         <xs:sequence>
-            <xs:element name="Team" type="resourceType" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="Team"
+        type="resourceType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
     </xs:complexType>
 
     <xs:complexType name="locationsType">
         <xs:sequence>
-            <xs:element name="Location" type="resourceType" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="Location"
+        type="resourceType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
     </xs:complexType>
 
     <xs:complexType name="tagsType">
         <xs:sequence>
-            <xs:element name="Tag" type="resourceType" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="Tag"
+        type="resourceType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
     </xs:complexType>
 
     <xs:complexType name="reprintsType">
         <xs:sequence>
-            <xs:element name="Reprint" type="resourceType" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="Reprint"
+        type="resourceType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
     </xs:complexType>
 
     <xs:complexType name="universesType">
         <xs:sequence>
-            <xs:element name="Universe" type="universeType" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="Universe"
+        type="universeType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
     </xs:complexType>
 
@@ -171,7 +252,12 @@
 
     <xs:complexType name="arcsType">
         <xs:sequence>
-            <xs:element name="Arc" type="arcType" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="Arc"
+        type="arcType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
     </xs:complexType>
 
@@ -185,7 +271,12 @@
 
     <xs:complexType name="creditsType">
         <xs:sequence>
-            <xs:element name="Credit" type="creditType" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="Credit"
+        type="creditType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
     </xs:complexType>
 
@@ -199,7 +290,12 @@
 
     <xs:complexType name="rolesType">
         <xs:sequence>
-            <xs:element name="Role" type="roleType" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="Role"
+        type="roleType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
     </xs:complexType>
 
@@ -220,20 +316,34 @@
 
     <xs:complexType name="genresType">
         <xs:sequence>
-            <xs:element name="Genre" type="genreType" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="Genre"
+        type="genreType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
     </xs:complexType>
 
     <xs:complexType name="pricesType">
         <xs:sequence>
-            <xs:element name="Price" type="priceType" minOccurs="0" maxOccurs="unbounded" />
+            <xs:element
+        name="Price"
+        type="priceType"
+        minOccurs="0"
+        maxOccurs="unbounded"
+      />
         </xs:sequence>
     </xs:complexType>
 
     <xs:complexType name="priceType">
         <xs:simpleContent>
             <xs:extension base="xs:decimal">
-                <xs:attribute name="country" type="countryCode" use="required" />
+                <xs:attribute
+          name="country"
+          type="countryCode"
+          use="required"
+        />
             </xs:extension>
         </xs:simpleContent>
     </xs:complexType>
@@ -252,10 +362,14 @@
             <xs:enumeration value="Digital Chapter" />
             <xs:enumeration value="Graphic Novel" />
             <xs:enumeration value="Hardcover" />
-            <xs:enumeration value="Limited Series" /> <!-- Used for mini/maxi series -->
+            <xs:enumeration
+        value="Limited Series"
+      /> <!-- Used for mini/maxi series -->
             <xs:enumeration value="Omnibus" />
             <xs:enumeration value="One-Shot" />
-            <xs:enumeration value="Single Issue" /> <!-- Used for Ongoing/Cancelled series -->
+            <xs:enumeration
+        value="Single Issue"
+      /> <!-- Used for Ongoing/Cancelled series -->
             <xs:enumeration value="Trade Paperback" />
         </xs:restriction>
     </xs:simpleType>
@@ -327,10 +441,24 @@
     <xs:simpleType name="ageRatingType">
         <xs:restriction base="xs:string">
             <xs:enumeration value="Unknown" />
-            <xs:enumeration value="Everyone" /> <!-- Appropriate for readers of all ages. -->
-            <xs:enumeration value="Teen" /> <!-- Appropriate for readers age 12 and older. -->
-            <xs:enumeration value="Teen Plus" /> <!-- Appropriate for readers age 15 and older. -->
-            <xs:enumeration value="Mature" /> <!-- Appropriate for readers age 17 and older. -->
+            <xs:enumeration
+        value="Everyone"
+      /> <!-- Appropriate for readers of all ages. -->
+            <xs:enumeration
+        value="Teen"
+      /> <!-- Appropriate for readers age 12 and older. -->
+            <xs:enumeration
+        value="Teen Plus"
+      /> <!-- Appropriate for readers age 15 and older. -->
+            <xs:enumeration
+        value="Mature"
+      /> <!-- Appropriate for readers age 17 and older. -->
+            <xs:enumeration
+        value="Explicit"
+      /> <!-- Contains Gore, Sexually Explicit material that would be more extreme than R rating -->
+            <xs:enumeration
+        value="Adult"
+      /> <!-- Likely pornographic in nature -->
         </xs:restriction>
     </xs:simpleType>
 
