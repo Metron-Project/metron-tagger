@@ -40,12 +40,11 @@ python = "^3.10"
 mokkari = "^3.4.0"
 questionary = "^2.0.1"
 pyxdg = "^0.28"
-lxml = "^5.1.0"
 imagehash = "^4.3.1"
 pandas = "^2.2.1"
 comicfn2dict = "^0.2.4"
 tqdm = "^4.66.4"
-darkseid = {path = "/home/bpepple/PycharmProjects/darkseid/dist/darkseid-5.0.7-py3-none-any.whl"}
+darkseid = { path = "/home/bpepple/PycharmProjects/darkseid/dist/darkseid-5.0.7-py3-none-any.whl" }
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.6.2"
