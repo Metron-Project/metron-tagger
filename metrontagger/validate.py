@@ -7,10 +7,10 @@ from importlib.resources import as_file, files
 from io import BytesIO
 from typing import TYPE_CHECKING
 
+from xmlschema import XMLSchema10, XMLSchema11, XMLSchemaValidationError
+
 if TYPE_CHECKING:
     from pathlib import Path
-
-from lxml import etree as et
 
 
 @unique
@@ -93,12 +93,19 @@ class ValidateMetadata:
         if xsd_path is None:
             return False
 
-        # Parse the XML schema once
-        xmlschema = et.XMLSchema(et.parse(xsd_path))  # noqa: S320
+        if schema_version == SchemaVersion.mi_v1:
+            schema = XMLSchema11(xsd_path)
+        elif schema_version in [SchemaVersion.ci_v1, SchemaVersion.ci_v2]:
+            schema = XMLSchema10(xsd_path)
+        else:
+            return False
 
-        # Parse the XML document and validate
-        xml_doc = et.parse(BytesIO(self.xml))  # noqa: S320
-        return xmlschema.validate(xml_doc)
+        try:
+            schema.validate(BytesIO(self.xml))
+        except XMLSchemaValidationError:
+            return False
+
+        return True
 
     def validate(self: ValidateMetadata) -> SchemaVersion:
         """
