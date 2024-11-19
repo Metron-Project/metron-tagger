@@ -1,6 +1,7 @@
 dist
 .git
 .idea
+metrontagger/schema
 .mypy_cache
 /node_modules
 package-lock.json
