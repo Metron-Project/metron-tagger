@@ -76,6 +76,12 @@ def get_configs(opts: Namespace) -> MetronTaggerSettings:  # noqa: PLR0912
     if opts.duplicates:
         config.duplicates = opts.duplicates
 
+    if opts.metroninfo:
+        config.use_metron_info = opts.metroninfo
+
+    if opts.comicinfo:
+        config.use_comic_info = opts.comicinfo
+
     return config
 
 
