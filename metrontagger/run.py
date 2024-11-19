@@ -467,6 +467,12 @@ class Runner:
         ):
             self._update_ci_xml(duplicates_lst)
 
+    def _no_md_fmt_set(self: Runner) -> bool:
+        if not self.config.use_metron_info and not self.config.use_comic_info:
+            questionary.print("No metadata format was given. Exiting...", style=Styles.ERROR)
+            return True
+        return False
+
     def run(self: Runner) -> None:  # noqa: PLR0912
         """Run Metron Tagger operations based on the provided settings.
 
@@ -486,12 +492,16 @@ class Runner:
         init_logging(self.config)
 
         if self.config.missing:
+            if self._no_md_fmt_set():
+                sys.exit(0)
             self._comics_with_no_metadata(file_list)
 
         if self.config.export_to_cbz:
             self._export_to_zip(file_list)
 
         if self.config.delete:
+            if self._no_md_fmt_set():
+                sys.exit(0)
             self._delete_metadata(file_list)
 
         if self.config.duplicates:
@@ -500,6 +510,9 @@ class Runner:
         if self.config.id or self.config.online:
             if not self._has_credentials() and not self._get_credentials():
                 questionary.print("No credentials provided. Exiting...", style=Styles.ERROR)
+                sys.exit(0)
+
+            if self._no_md_fmt_set():
                 sys.exit(0)
 
             t = Talker(
@@ -530,4 +543,6 @@ class Runner:
             self._sort_comic_list(file_list)
 
         if self.config.validate:
+            if self._no_md_fmt_set():
+                sys.exit(0)
             self._validate_comic_info(file_list, self.config.remove_non_valid)
