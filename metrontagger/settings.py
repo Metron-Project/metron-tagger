@@ -7,10 +7,7 @@ import platform
 from os import environ
 from pathlib import Path, PurePath
 
-import questionary
 from xdg.BaseDirectory import save_config_path
-
-from metrontagger.styles import Styles
 
 
 class MetronTaggerSettings:
@@ -58,9 +55,9 @@ class MetronTaggerSettings:
         self.rename_issue_number_padding = 3
         self.rename_use_smart_string_cleanup: bool = True
 
-        # Metadata format: setting the defaults to True for new users.
-        self.use_metron_info: bool = True
-        self.use_comic_info: bool = True
+        # Metadata format
+        self.use_metron_info: bool = False
+        self.use_comic_info: bool = False
 
         folder = Path(config_dir) if config_dir else MetronTaggerSettings.get_settings_folder()
         self.settings_file = folder / "settings.ini"
@@ -73,24 +70,6 @@ class MetronTaggerSettings:
             self.save()
         else:
             self.load()
-
-    def _ask_user_default_metadata(self: MetronTaggerSettings) -> None:
-        msg = (
-            "Multiple metadata formats support has been added, we need you to set the default format(s) "
-            "you wish to use. If you wish to change this in the future, you'll need to modify your settings.ini."
-        )
-        questionary.print(msg, style=Styles.TITLE)
-        answers = questionary.form(
-            ci=questionary.confirm(
-                "Do you wish to write `ComicInfo.xml` metadata to your comics?"
-            ),
-            mi=questionary.confirm(
-                "Do you wish to write `MetronInfo.xml` metadata to your comics?"
-            ),
-        ).ask()
-        self.use_comic_info = answers["ci"]
-        self.use_metron_info = answers["mi"]
-        self.save()
 
     @staticmethod
     def get_settings_folder() -> Path:
@@ -142,16 +121,6 @@ class MetronTaggerSettings:
                 "rename_use_smart_string_cleanup",
             )
 
-        if not self.config.has_section("metadata"):
-            # Ask user what metadata format to use for defaults.
-            self._ask_user_default_metadata()
-
-        if self.config.has_option("metadata", "use_metron_info"):
-            self.use_metron_info = self.config.getboolean("metadata", "use_metron_info")
-
-        if self.config.has_option("metadata", "use_comic_info"):
-            self.use_comic_info = self.config.getboolean("metadata", "use_comic_info")
-
     def save(self: MetronTaggerSettings) -> None:
         """Save user settings to the configuration file.
 
@@ -180,12 +149,6 @@ class MetronTaggerSettings:
             "rename_use_smart_string_cleanup",
             str(self.rename_use_smart_string_cleanup),
         )
-
-        if not self.config.has_section("metadata"):
-            self.config.add_section("metadata")
-
-        self.config.set("metadata", "use_metron_info", str(self.use_metron_info))
-        self.config.set("metadata", "use_comic_info", str(self.use_comic_info))
 
         with self.settings_file.open("w") as configfile:
             self.config.write(configfile)
