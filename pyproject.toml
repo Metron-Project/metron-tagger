@@ -46,7 +46,6 @@ comicfn2dict = "^0.2.4"
 tqdm = "^4.66.4"
 darkseid = "^5.0.0"
 
-
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.6.2"
 tox = "^4.14.1"
