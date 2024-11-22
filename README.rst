@@ -32,7 +32,7 @@ Or install it yourself:
 
 .. code:: bash
 
-  $ pip install --user metron-tagger
+  $ pipx install metron-tagger
 
 FAQ
 ---
@@ -46,7 +46,7 @@ Help
 
 ::
 
-  usage: metron-tagger [-h] [-r] [-o] [--id ID] [-d] [--ignore-existing] [-i] [--missing] [-s] [-z] [--validate] [--delete-original] [--duplicates] [--version] path [path ...]
+  usage: metron-tagger [-h] [-r] [-o] [-m] [-c] [--id ID] [-d] [--ignore-existing] [-i] [--missing] [-s] [-z] [--validate] [--remove-non-valid] [--delete-original] [--duplicates] [--version] path [path ...]
 
   Read in a file or set of files, and return the result.
 
@@ -57,6 +57,8 @@ Help
     -h, --help           show this help message and exit
     -r, --rename         Rename comic archive from the files metadata. (default: False)
     -o, --online         Search online and attempt to identify comic archive. (default: False)
+    -m, --metroninfo     Write, delete, or validate MetronInfo.xml. (default: False)
+    -c, --comicinfo      Write, delete, or validate ComicInfo.xml. (default: False)
     --id ID              Identify file for tagging with the Metron Issue Id. (default: None)
     -d, --delete         Delete the metadata tags from the file. (default: False)
     --ignore-existing    Ignore files that have existing metadata tag. (default: False)
@@ -64,11 +66,30 @@ Help
     --missing            List files without metadata. (default: False)
     -s, --sort           Sort files that contain metadata tags. (default: False)
     -z, --export-to-cbz  Export a CBR (rar) archive to a CBZ (zip) archive. (default: False)
-    --validate           Verify that comic archive has a valid ComicInfo.xml. (default: False)
-    --remove-non-valid   Remove ComicInfo.xml from comic if not valid. Used with --validate option (default: False)
+    --validate           Verify that comic archive has a valid metadata xml. (default: False)
+    --remove-non-valid   Remove metadata xml from comic if not valid. Used with --validate option (default: False)
     --delete-original    Delete the original archive after successful export to another format. (default: False)
     --duplicates         Identify and give the option to delete duplicate pages in a directory of comics. (Experimental) (default: False)
     --version            Show the version number and exit
+
+Examples
+--------
+
+To tag all comics in a directory with MetronInfo.xml that don't already have one:
+::
+
+  metron-tagger -om --ignore-existing /path/to/comics
+
+To remove any ComicInfo.xml from a directory of comics:
+::
+
+  metron-tagger -dc /path/to/comics
+
+To validate any metadata, ComicInfo.xml and MetronInfo.xml, would be done by running the following:
+::
+
+  metron-tagger -cm --validate /path/to/comics
+
 
 Bugs/Requests
 -------------
