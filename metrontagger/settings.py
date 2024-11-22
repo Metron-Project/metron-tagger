@@ -53,7 +53,11 @@ class MetronTaggerSettings:
         # Rename settings
         self.rename_template = "%series% v%volume% #%issue% (%year%)"
         self.rename_issue_number_padding = 3
-        self.rename_use_smart_string_cleanup = True
+        self.rename_use_smart_string_cleanup: bool = True
+
+        # Metadata format
+        self.use_metron_info: bool = False
+        self.use_comic_info: bool = False
 
         folder = Path(config_dir) if config_dir else MetronTaggerSettings.get_settings_folder()
         self.settings_file = folder / "settings.ini"

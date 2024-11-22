@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import questionary
-from darkseid.comic import Comic
+from darkseid.comic import Comic, MetadataFormat
 from darkseid.metadata import Metadata
 from darkseid.utils import get_recursive_filelist
 from tqdm import tqdm
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from metrontagger.settings import MetronTaggerSettings
 from metrontagger.styles import Styles
 from metrontagger.talker import Talker
-from metrontagger.validate_ci import SchemaVersion, ValidateComicInfo
+from metrontagger.validate import SchemaVersion, ValidateMetadata
 
 LOGGER = getLogger(__name__)
 
@@ -63,16 +63,19 @@ class Runner:
         original_files_changed: list[Path] = []
         renamer = FileRenamer()
         for comic in file_list:
-            comic_archive = Comic(str(comic))
-            if not comic_archive.has_metadata():
+            comic_archive = Comic(comic)
+            if comic_archive.has_metadata(MetadataFormat.METRON_INFO):
+                md = comic_archive.read_metadata(MetadataFormat.METRON_INFO)
+            elif comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
+                md = comic_archive.read_metadata(MetadataFormat.COMIC_RACK)
+            else:
                 questionary.print(
                     f"skipping '{comic.name}'. no metadata available.",
                     style=Styles.WARNING,
                 )
                 continue
 
-            meta_data = comic_archive.read_metadata()
-            renamer.set_metadata(meta_data)
+            renamer.set_metadata(md)
             renamer.set_template(self.config.rename_template)
             renamer.set_issue_zero_padding(self.config.rename_issue_number_padding)
             renamer.set_smart_cleanup(self.config.rename_use_smart_string_cleanup)
@@ -132,49 +135,62 @@ class Runner:
                     style=Styles.WARNING,
                 )
 
-    @staticmethod
-    def _validate_comic_info(file_list: list[Path], remove_ci: bool = False) -> None:
-        """Validate ComicInfo metadata in comic archives.
-
-        This static method validates the ComicInfo metadata in the provided list of comic archives, displaying the
-        validation results and optionally removing non-valid metadata based on the 'remove_ci' flag.
-
-        Args:
-            file_list: list[Path]: The list of comic archive file paths to validate.
-            remove_ci: bool, optional: A flag indicating whether to remove non-valid metadata. Defaults to False.
-
-        Returns:
-            None
-        """
+    def _validate_comic_info(
+        self: Runner, file_list: list[Path], remove_ci: bool = False
+    ) -> None:
+        """Validate ComicInfo metadata in comic archives."""
 
         questionary.print("\nValidating ComicInfo:\n---------------------", style=Styles.TITLE)
         for comic in file_list:
-            ca = Comic(str(comic))
-            if not ca.has_metadata():
+            ca = Comic(comic)
+            has_comic_rack = ca.has_metadata(MetadataFormat.COMIC_RACK)
+            has_metron_info = ca.has_metadata(MetadataFormat.METRON_INFO)
+
+            if not has_comic_rack and not has_metron_info:
                 questionary.print(
-                    f"'{ca.path.name}' doesn't have a ComicInfo.xml file.",
+                    f"'{ca.path.name}' doesn't have any metadata files.",
                     style=Styles.WARNING,
                 )
                 continue
-            xml = ca.archiver.read_file("ComicInfo.xml")
-            result = ValidateComicInfo(xml).validate()
-            if result == SchemaVersion.v2:
-                questionary.print(
-                    f"'{ca.path.name}' is a valid ComicInfo Version 2",
-                    style=Styles.SUCCESS,
-                )
-            elif result == SchemaVersion.v1:
-                questionary.print(
-                    f"'{ca.path.name}' is a valid ComicInfo Version 1",
-                    style=Styles.SUCCESS,
-                )
-            else:
-                questionary.print(f"'{ca.path.name}' is not valid", style=Styles.ERROR)
-                if remove_ci and ca.remove_metadata():
-                    questionary.print(
-                        f"Removed non-valid metadata from '{ca.path.name}'.",
-                        style=Styles.WARNING,
-                    )
+
+            if self.config.use_comic_info and has_comic_rack:
+                xml = ca.archiver.read_file("ComicInfo.xml")
+                self._check_if_xml_is_valid(ca, xml, MetadataFormat.COMIC_RACK, remove_ci)
+
+            if self.config.use_metron_info and has_metron_info:
+                xml = ca.archiver.read_file("MetronInfo.xml")
+                self._check_if_xml_is_valid(ca, xml, MetadataFormat.METRON_INFO, remove_ci)
+
+    @staticmethod
+    def _check_if_xml_is_valid(
+        comic: Comic, xml: bytes, fmt: MetadataFormat, remove_metadata: bool
+    ) -> None:
+        result = ValidateMetadata(xml).validate()
+        messages = {
+            SchemaVersion.ci_v2: (
+                f"'{comic.path.name}' has a valid ComicInfo Version 2",
+                Styles.SUCCESS,
+            ),
+            SchemaVersion.ci_v1: (
+                f"'{comic.path.name}' has a valid ComicInfo Version 1",
+                Styles.SUCCESS,
+            ),
+            SchemaVersion.mi_v1: (
+                f"'{comic.path.name}' has a valid MetronInfo Version 1",
+                Styles.SUCCESS,
+            ),
+        }
+
+        message, style = messages.get(
+            result, (f"'{comic.path.name}' is not valid", Styles.ERROR)
+        )
+        questionary.print(message, style=style)
+
+        if result not in messages and remove_metadata and comic.remove_metadata(fmt):
+            questionary.print(
+                f"Removed non-valid metadata from '{comic.path.name}'.",
+                style=Styles.WARNING,
+            )
 
     def _sort_comic_list(self: Runner, file_list: list[Path]) -> None:
         """Sort comic archives in the provided list.
@@ -206,8 +222,7 @@ class Runner:
             if not result:
                 questionary.print(f"Unable to move '{comic.name}'.", style=Styles.ERROR)
 
-    @staticmethod
-    def _comics_with_no_metadata(file_list: list[Path]) -> None:
+    def _comics_with_no_metadata(self: Runner, file_list: list[Path]) -> None:
         """Display files without metadata.
 
         This static method prints out the files in the provided list that do not have associated metadata.
@@ -223,14 +238,22 @@ class Runner:
             "\nShowing files without metadata:\n-------------------------------",
             style=Styles.TITLE,
         )
+
+        if not (self.config.use_comic_info or self.config.use_metron_info):
+            return
+
         for comic in file_list:
             comic_archive = Comic(str(comic))
-            if comic_archive.has_metadata():
-                continue
-            questionary.print(f"{comic}", style=Styles.SUCCESS)
+            if (
+                self.config.use_comic_info
+                and not comic_archive.has_metadata(MetadataFormat.COMIC_RACK)
+            ) or (
+                self.config.use_metron_info
+                and not comic_archive.has_metadata(MetadataFormat.METRON_INFO)
+            ):
+                questionary.print(f"{comic}", style=Styles.SUCCESS)
 
-    @staticmethod
-    def _delete_metadata(file_list: list[Path]) -> None:
+    def _delete_metadata(self: Runner, file_list: list[Path]) -> None:
         """Remove metadata from comic archives.
 
         This static method removes metadata from the comic archives in the provided list, if metadata exists.
@@ -243,16 +266,28 @@ class Runner:
         """
 
         questionary.print("\nRemoving metadata:\n-----------------", style=Styles.TITLE)
-        for comic in file_list:
-            comic_archive = Comic(str(comic))
-            if comic_archive.has_metadata():
-                comic_archive.remove_metadata()
-                questionary.print(
-                    f"removed metadata from '{comic.name}'",
-                    style=Styles.SUCCESS,
-                )
+        for item in file_list:
+            comic_archive = Comic(item)
+            formats_removed = []
+
+            if self.config.use_comic_info and comic_archive.has_metadata(
+                MetadataFormat.COMIC_RACK
+            ):
+                comic_archive.remove_metadata(MetadataFormat.COMIC_RACK)
+                formats_removed.append("'ComicInfo.xml'")
+
+            if self.config.use_metron_info and comic_archive.has_metadata(
+                MetadataFormat.METRON_INFO
+            ):
+                comic_archive.remove_metadata(MetadataFormat.METRON_INFO)
+                formats_removed.append("'MetronInfo.xml'")
+
+            if formats_removed:
+                fmt = " and ".join(formats_removed)
+                msg = f"Removed {fmt} metadata from '{item.name}'."
+                questionary.print(msg, style=Styles.SUCCESS)
             else:
-                questionary.print(f"no metadata in '{comic.name}'", style=Styles.WARNING)
+                questionary.print(f"no metadata in '{item.name}'", style=Styles.WARNING)
 
     def _has_credentials(self: Runner) -> bool:
         """Check if Metron credentials are present.
@@ -348,12 +383,12 @@ class Runner:
 
         for item in tqdm(file_list):
             comic = Comic(item.path_)
-            if comic.has_metadata():
-                md = comic.read_metadata()
+            if comic.has_metadata(MetadataFormat.COMIC_RACK):
+                md = comic.read_metadata(MetadataFormat.COMIC_RACK)
                 new_md = Metadata()
                 new_md.set_default_page_list(comic.get_number_of_pages())
                 md.overlay(new_md)
-                if not comic.write_metadata(md):
+                if not comic.write_metadata(md, MetadataFormat.COMIC_RACK):
                     LOGGER.error("Could not write metadata to %s", comic)
 
     def _remove_duplicates(self: Runner, file_list: list[Path]) -> None:
@@ -423,11 +458,20 @@ class Runner:
         else:
             questionary.print("No duplicate page changes to write.", style=Styles.SUCCESS)
 
-        # Ask user if they want to update ComicInfo.xml for changes.
-        if questionary.confirm(
-            "Do you want to update the comic's 'comicinfo.xml' for the changes?",
-        ).ask():
+        # Ask user if they want to update ComicInfo.xml pages for changes. Not necessary for MetronInfo.xml
+        if (
+            self.config.use_comic_info
+            and questionary.confirm(
+                "Do you want to update the comic's 'comicinfo.xml' for the changes?",
+            ).ask()
+        ):
             self._update_ci_xml(duplicates_lst)
+
+    def _no_md_fmt_set(self: Runner) -> bool:
+        if not self.config.use_metron_info and not self.config.use_comic_info:
+            questionary.print("No metadata format was given. Exiting...", style=Styles.ERROR)
+            return True
+        return False
 
     def run(self: Runner) -> None:  # noqa: PLR0912
         """Run Metron Tagger operations based on the provided settings.
@@ -448,12 +492,16 @@ class Runner:
         init_logging(self.config)
 
         if self.config.missing:
+            if self._no_md_fmt_set():
+                sys.exit(0)
             self._comics_with_no_metadata(file_list)
 
         if self.config.export_to_cbz:
             self._export_to_zip(file_list)
 
         if self.config.delete:
+            if self._no_md_fmt_set():
+                sys.exit(0)
             self._delete_metadata(file_list)
 
         if self.config.duplicates:
@@ -464,7 +512,15 @@ class Runner:
                 questionary.print("No credentials provided. Exiting...", style=Styles.ERROR)
                 sys.exit(0)
 
-            t = Talker(self.config.metron_user, self.config.metron_pass)
+            if self._no_md_fmt_set():
+                sys.exit(0)
+
+            t = Talker(
+                self.config.metron_user,
+                self.config.metron_pass,
+                self.config.use_metron_info,
+                self.config.use_comic_info,
+            )
             if self.config.id:
                 if len(file_list) == 1:
                     t.retrieve_single_issue(file_list[0], self.config.id)
@@ -487,4 +543,6 @@ class Runner:
             self._sort_comic_list(file_list)
 
         if self.config.validate:
+            if self._no_md_fmt_set():
+                sys.exit(0)
             self._validate_comic_info(file_list, self.config.remove_non_valid)

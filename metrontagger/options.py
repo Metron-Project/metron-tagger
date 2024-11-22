@@ -26,6 +26,20 @@ def make_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
     )
+    parser.add_argument(
+        "-m",
+        "--metroninfo",
+        help="Write, delete, or validate MetronInfo.xml.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "-c",
+        "--comicinfo",
+        help="Write, delete, or validate ComicInfo.xml.",
+        action="store_true",
+        default=False,
+    )
     parser.add_argument("--id", help="Identify file for tagging with the Metron Issue Id.")
     parser.add_argument(
         "-d",
@@ -69,13 +83,13 @@ def make_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--validate",
-        help="Verify that comic archive has a valid ComicInfo.xml.",
+        help="Verify that comic archive has a valid metadata xml.",
         action="store_true",
         default=False,
     )
     parser.add_argument(
         "--remove-non-valid",
-        help="Remove ComicInfo.xml from comic if not valid. Used with --validate option",
+        help="Remove metadata xml from comic if not valid. Used with --validate option",
         action="store_true",
         default=False,
     )

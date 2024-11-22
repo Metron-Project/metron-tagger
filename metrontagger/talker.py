@@ -18,9 +18,21 @@ if TYPE_CHECKING:
 import mokkari
 import questionary
 from comicfn2dict import comicfn2dict
-from darkseid.comic import Comic
+from darkseid.comic import Comic, MetadataFormat
 from darkseid.issue_string import IssueString
-from darkseid.metadata import Basic, Credit, Metadata, Role, Series
+from darkseid.metadata import (
+    AgeRatings,
+    Arc,
+    Basic,
+    Credit,
+    InfoSources,
+    Links,
+    Metadata,
+    Notes,
+    Publisher,
+    Role,
+    Series,
+)
 from imagehash import ImageHash, hex_to_hash, phash
 from mokkari.exceptions import ApiError
 from PIL import Image
@@ -104,13 +116,17 @@ class Talker:
     This class provides methods for identifying comics, retrieving single issues, and processing match results.
     """
 
-    def __init__(self: Talker, username: str, password: str) -> None:
+    def __init__(
+        self: Talker, username: str, password: str, metron_info: bool, comic_info: bool
+    ) -> None:
         """Initialize the Talker class with API credentials.
 
         This method sets up the API connection using the provided username and password, and initializes match
         results storage.
         """
         self.api = mokkari.api(username, password, user_agent=f"Metron-Tagger/{__version__}")
+        self.metron_info = metron_info
+        self.comic_info = comic_info
         self.match_results = OnlineMatchResults()
 
     @staticmethod
@@ -204,40 +220,31 @@ class Talker:
         return [item for item in lst if self._within_hamming_distance(comic, item.cover_hash)]
 
     @staticmethod
-    def _get_source_id(md: Metadata) -> tuple[InfoSource, int | None]:
-        """Get the information source and ID from metadata.
+    def _get_id_from_metron_info(md: Metadata) -> None | tuple[InfoSource, int]:
+        online_sources = {"metron", "comic vine"}
+        for src in md.info_source:
+            lower_name = src.name.lower()
+            if lower_name in online_sources:
+                return (
+                    InfoSource.metron if lower_name == "metron" else InfoSource.comic_vine,
+                    src.id_,
+                )
+        return None
 
-        This static method extracts the information source and ID from the metadata notes field, returning a tuple of
-        InfoSource and ID.
-        """
-
+    @staticmethod
+    def _get_id_from_comic_info(md: Metadata) -> None | tuple[InfoSource, int]:
         def _extract_id_str(notes: str, keyword: str) -> str:
-            """
-            Extracts and returns a specific string segment from the given notes based on the provided keyword.
-
-            Args:
-                notes (str): The notes string from which to extract the segment.
-                keyword (str): The keyword used to identify the segment to extract.
-
-            Returns:
-                str: The extracted string segment.
-            """
-
             return notes.split(keyword)[1].split("]")[0].strip()
-
-        source: InfoSource = InfoSource.unknown
-        id_: int | None = None
 
         # If `Notes` element doesn't exist let's bail.
         if md.notes is None:
-            return source, id_
+            return None
 
-        lower_notes = md.notes.lower()
+        lower_notes = md.notes.comic_rack.lower()
 
-        id_str = ""
         if "metrontagger" in lower_notes:
             source = InfoSource.metron
-            id_str = _extract_id_str(md.notes, "issue_id:")
+            id_str = _extract_id_str(md.notes.comic_rack, "issue_id:")
         elif "comictagger" in lower_notes:
             if "metron" in lower_notes:
                 source = InfoSource.metron
@@ -245,14 +252,15 @@ class Talker:
                 source = InfoSource.comic_vine
             else:
                 source = InfoSource.unknown
-                id_str = _extract_id_str(md.notes, "Issue ID")
+            id_str = _extract_id_str(md.notes.comic_rack, "Issue ID")
         else:
-            return source, id_
+            return None
 
         try:
             id_ = int(id_str)
         except ValueError:
             LOGGER.exception("Comic has invalid id: %s #%s", md.series.name, md.issue)
+            return None
 
         return source, id_
 
@@ -278,36 +286,51 @@ class Talker:
             )
             return None, False
 
-        # Check if comic has a comicinfo.xml that contains either a cvid or metron id.
-        if ca.has_metadata():
-            md = ca.read_metadata()
-            source, id_ = self._get_source_id(md)
-            if source is not InfoSource.unknown and id_ is not None:
+        # Check if comic has a MetronInfo.xml or ComicInfo.xml that contains either a cvid or metron id.
+        source = id_ = None
+        # Let's prefer MetronInfo.xml over ComicInfo.xml, since it's easier to get info.
+        if ca.has_metadata(MetadataFormat.METRON_INFO):
+            md = ca.read_metadata(MetadataFormat.METRON_INFO)
+            if res := self._get_id_from_metron_info(md):
+                source, id_ = res
+        elif ca.has_metadata(MetadataFormat.COMIC_RACK):
+            md = ca.read_metadata(MetadataFormat.COMIC_RACK)
+            if res := self._get_id_from_comic_info(md):
+                source, id_ = res
 
-                def _print_metadata_message(src: InfoSource, comic: Comic) -> None:
-                    source_messages = {
-                        InfoSource.metron: "Metron ID",
-                        InfoSource.comic_vine: "ComicVine",
-                    }
-                    if src in source_messages:
+        if source is not None and id_ is not None:
+
+            def _print_metadata_message(src: InfoSource, comic: Comic) -> None:
+                source_messages = {
+                    InfoSource.metron: "Metron ID",
+                    InfoSource.comic_vine: "ComicVine",
+                    InfoSource.unknown: "Unknown Source",
+                }
+                if src in source_messages:
+                    if src != InfoSource.unknown:
                         questionary.print(
                             f"Found {source_messages[src]} in '{comic}' metadata and using that to get the metadata...",
                             style=Styles.INFO,
                         )
+                    else:
+                        questionary.print(
+                            f"Found {source_messages[src]} in '{comic}' metadata. Skipping...",
+                            style=Styles.WARNING,
+                        )
 
-                _print_metadata_message(source, ca)
+            _print_metadata_message(source, ca)
 
-                match source:
-                    case InfoSource.metron:
-                        self.match_results.add_good_match(fn)
-                        return id_, False
-                    case InfoSource.comic_vine:
-                        issues = self.api.issues_list(params={"cv_id": id_})
-                        # This should always be 1 otherwise let's do a regular search.
-                        if len(issues) == 1:
-                            return issues[0].id, False
-                    case _:
-                        pass
+            match source:
+                case InfoSource.metron:
+                    self.match_results.add_good_match(fn)
+                    return id_, False
+                case InfoSource.comic_vine:
+                    issues = self.api.issues_list(params={"cv_id": id_})
+                    # This should always be 1 otherwise let's do a regular search.
+                    if len(issues) == 1:
+                        return issues[0].id, False
+                case _:
+                    pass
 
         # Alright, if the comic doesn't have an let's do a search based on the filename.
         # TODO: Determine if we want to use some of the other keys beyond 'series' and 'issue number'
@@ -378,33 +401,54 @@ class Talker:
                 ):
                     self._write_issue_md(match_set.filename, issue_id)
 
-    def _write_issue_md(self: Talker, filename: Path, issue_id: int) -> None:
-        """Write metadata for an issue.
+    def _write_issue_md(self, filename: Path, issue_id: int) -> None:
+        """Write metadata for a comic issue.
 
-        This method retrieves issue data, overlays it with existing metadata, and writes the metadata to the comic file.
+        This method retrieves issue data from an API, overlays it with existing metadata, and writes the metadata to
+        the specified comic file. It handles potential errors during data retrieval and provides feedback on the
+        success or failure of the metadata writing process.
+
+        Args:
+            filename (Path): The path to the comic file where metadata will be written.
+            issue_id (int): The identifier for the comic issue to retrieve metadata for.
+
+        Returns:
+            None
+
+        Raises:
+            ApiError: If there is an error retrieving data from the API.
+
+        Examples:
+            # Example usage:
+            # talker_instance._write_issue_md(Path("comic.cbz"), 123)
         """
-        # sourcery skip: extract-method, inline-immediately-returned-variable
-        success = False
-        resp = None
-        md = None
+
         try:
             resp = self.api.issue(issue_id)
         except ApiError as e:
             questionary.print(f"Failed to retrieve data: {e!r}", style=Styles.ERROR)
-        if resp is not None:
-            ca = Comic(str(filename))
-            meta_data = Metadata()
-            meta_data.set_default_page_list(ca.get_number_of_pages())
-            md = self._map_resp_to_metadata(resp)
-            md.overlay(meta_data)
-            success = ca.write_metadata(md)
+            return
 
-        if success and md is not None:
+        ca = Comic(filename)
+        meta_data = Metadata()
+        meta_data.set_default_page_list(ca.get_number_of_pages())
+        md = self._map_resp_to_metadata(resp)
+        md.overlay(meta_data)
+
+        md_fmt = []
+        if self.comic_info and ca.write_metadata(md, MetadataFormat.COMIC_RACK):
+            md_fmt.append("'ComicInfo.xml'")
+        if self.metron_info and ca.write_metadata(md, MetadataFormat.METRON_INFO):
+            md_fmt.append("'MetronInfo.xml'")
+
+        if md_fmt:
             collection = md.series.format.lower() in ["trade paperback", "hard cover"]
             collection_text = " (Collection)" if collection else ""
+            fmt = " and ".join(md_fmt)
             msg = (
-                f"Using '{md.series.name} #{md.issue} ({md.cover_date.year}){collection_text}' "
-                f"metadata for '{filename.name}'."
+                f"Writing {fmt} metadata using "
+                f"'{md.series.name} #{md.issue} ({md.cover_date.year}){collection_text}' "
+                f"for '{filename.name}'."
             )
             questionary.print(msg, style=Styles.SUCCESS)
         else:
@@ -438,7 +482,7 @@ class Talker:
         for fn in file_list:
             if config.ignore_existing:
                 comic_archive = Comic(str(fn))
-                if comic_archive.has_metadata():
+                if comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
                     questionary.print(
                         f"{fn.name} has metadata. Skipping...",
                         style=Styles.WARNING,
@@ -463,7 +507,7 @@ class Talker:
         self._write_issue_md(fn, id_)
 
     @staticmethod
-    def _map_resp_to_metadata(resp: Issue) -> Metadata:
+    def _map_resp_to_metadata(resp: Issue) -> Metadata:  # noqa: PLR0915
         """Map response data to metadata.
 
         This static method maps the response data from an Issue object to a Metadata object, including information
@@ -478,16 +522,32 @@ class Talker:
             """
             return [Basic(r.name, r.id) for r in resource]
 
-        def create_note(issue_id: int) -> str:
+        def create_arc_list(resource: any) -> list[Arc]:
+            """Create a list of Arc objects from a given resource.
+
+            This function takes a resource containing items and constructs a list of Arc
+            objects using the attributes of each item. It ensures that the 'number' attribute
+            is set to None if it is not provided.
+
+            Args:
+                resource (any): An iterable containing items with 'name', 'id', and 'number' attributes.
+
+            Returns:
+                list[Arc]: A list of Arc objects created from the provided resource.
+            """
+            return [Arc(item.name, item.id) for item in resource]
+
+        def create_notes(issue_id: int) -> Notes:
             """Create a note for an issue.
 
             This function generates a note string including tagging information from MetronTagger and the issue ID.
             """
             now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # noqa: DTZ005
-            return (
-                f"Tagged with MetronTagger-{__version__} using info from Metron on "
-                f"{now_date}. [issue_id:{issue_id}]"
+            metron_info_note = (
+                f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}."
             )
+            comic_rack_note = f"{metron_info_note} [issue_id:{issue_id}]"
+            return Notes(metron_info=metron_info_note, comic_rack=comic_rack_note)
 
         def add_credits_to_metadata(
             meta_data: Metadata,
@@ -520,7 +580,7 @@ class Talker:
                     meta_data.add_credit(Credit(c.creator, [], c.id))
             return meta_data
 
-        def map_ratings(rating: str) -> str:
+        def map_ratings(rating: str) -> AgeRatings:
             """Map a rating string to a standardized format.
 
             This function maps a given rating string to a standardized format ('Everyone', 'Teen', 'Mature 17+',
@@ -534,28 +594,37 @@ class Talker:
             """
             age_rating = rating.lower()
             if age_rating in {"everyone", "cca"}:
-                return "Everyone"
+                return AgeRatings(metron_info="Everyone", comic_rack="Everyone")
             if age_rating in {"teen", "teen plus"}:
-                return "Teen"
-            return "Mature 17+" if age_rating == "mature" else "Unknown"
+                return AgeRatings(metron_info="Teen", comic_rack="Teen")
+            if age_rating in {"mature"}:
+                return AgeRatings(metron_info="Mature", comic_rack="Mature 17+")
+            return AgeRatings(metron_info="Unknown", comic_rack="Unknown")
 
         md = Metadata()
-        md.info_source = Basic("Metron", resp.id)
+
+        alt_info_source = [InfoSources("Comic Vine", resp.cv_id)] if resp.cv_id else []
+        md.info_source = [InfoSources("Metron", resp.id, True)] + alt_info_source  # NOQA: RUF005
         md.series = Series(
-            resp.series.name,
-            resp.series.id,
-            resp.series.sort_name,
-            resp.series.volume,
-            resp.series.series_type.name,
+            name=resp.series.name,
+            id_=resp.series.id,
+            sort_name=resp.series.sort_name,
+            volume=resp.series.volume,
+            format=resp.series.series_type.name,
+            start_year=resp.series.year_began,
         )
         md.issue = IssueString(resp.number).as_string() if resp.number else None
         md.publisher = (
-            Basic(resp.publisher.name, resp.publisher.id) if resp.publisher else None
+            Publisher(resp.publisher.name, resp.publisher.id) if resp.publisher else None
         )
-        md.imprint = Basic(resp.imprint.name, resp.imprint.id) if resp.imprint else None
+        md.publisher.imprint = (
+            Basic(resp.imprint.name, resp.imprint.id) if resp.imprint else None
+        )
         md.cover_date = resp.cover_date or None
+        md.store_date = resp.store_date or None
         md.comments = resp.desc
-        md.notes = create_note(md.info_source.id_)
+        md.notes = create_notes(resp.id)
+        md.modified = resp.modified
         if resp.story_titles:
             md.stories = [Basic(story) for story in resp.story_titles]
         if resp.characters:
@@ -563,7 +632,7 @@ class Talker:
         if resp.teams:
             md.teams = create_resource_list(resp.teams)
         if resp.arcs:
-            md.story_arcs = create_resource_list(resp.arcs)
+            md.story_arcs = create_arc_list(resp.arcs)
         if resp.series.genres:
             md.genres = create_resource_list(resp.series.genres)
         if resp.reprints:
@@ -573,6 +642,6 @@ class Talker:
         if resp.rating:
             md.age_rating = map_ratings(resp.rating.name)
         if resp.resource_url:
-            md.web_link = str(resp.resource_url)
+            md.web_link = [Links(str(resp.resource_url), True)]
 
         return md

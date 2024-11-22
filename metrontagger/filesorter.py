@@ -7,7 +7,7 @@ from shutil import Error, move
 from typing import TYPE_CHECKING
 
 import questionary
-from darkseid.comic import Comic
+from darkseid.comic import Comic, MetadataFormat
 
 if TYPE_CHECKING:
     from darkseid.metadata import Metadata
@@ -60,8 +60,8 @@ class FileSorter:
             tuple[str | None, str | None, str | None]: Cleaned publisher, series, and volume strings.
         """
         # If there is an imprint, let's use that as the publisher.
-        if meta_data.imprint:
-            publisher = cleanup_string(meta_data.imprint.name)
+        if meta_data.publisher.imprint:
+            publisher = cleanup_string(meta_data.publisher.imprint.name)
         else:
             publisher = (
                 cleanup_string(meta_data.publisher.name) if meta_data.publisher else None
@@ -185,15 +185,18 @@ class FileSorter:
         """
 
         try:
-            comic_archive = Comic(str(comic))
+            comic_archive = Comic(comic)
         except FileNotFoundError:
             return False
 
-        if not comic_archive.has_metadata():
+        if comic_archive.has_metadata(MetadataFormat.METRON_INFO):
+            md = comic_archive.read_metadata(MetadataFormat.METRON_INFO)
+        elif comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
+            md = comic_archive.read_metadata(MetadataFormat.COMIC_RACK)
+        else:
             return False
 
-        meta_data = comic_archive.read_metadata()
-        publisher, series, volume = self._cleanup_metadata(meta_data)
+        publisher, series, volume = self._cleanup_metadata(md)
 
         if not publisher or not series or not volume:
             questionary.print(
@@ -203,7 +206,7 @@ class FileSorter:
             )
             return False
 
-        new_path = self._get_new_path(meta_data, publisher, series, volume)
+        new_path = self._get_new_path(md, publisher, series, volume)
         self._overwrite_existing(new_path, comic)
 
         if not new_path.is_dir() and not self._create_new_path(new_path):

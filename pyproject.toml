@@ -37,15 +37,14 @@ keywords = ["comics", "comic", "metadata", "tagging", "tagger"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-mokkari = "^3.3.0"
+mokkari = "^3.4.0"
 questionary = "^2.0.1"
 pyxdg = "^0.28"
-lxml = "^5.1.0"
 imagehash = "^4.3.1"
 pandas = "^2.2.1"
 comicfn2dict = "^0.2.4"
 tqdm = "^4.66.4"
-darkseid = "^4.4.0"
+darkseid = "^5.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.6.2"
@@ -127,6 +126,7 @@ extend-ignore = [
   "COM819",
   "ISC001",
   "ISC002",
+  "PT001",
 ]
 extend-select = [
   "A",
@@ -182,7 +182,7 @@ ban-relative-imports = "all"
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
-"tests/test_*.py" = ["ERA001", "S101", "SLF001"]
+"tests/test_*.py" = ["ERA001", "S101", "SLF001", "PT001"]
 
 [tool.ruff.lint.pycodestyle]
 ignore-overlong-task-comments = true
