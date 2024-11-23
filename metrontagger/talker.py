@@ -481,8 +481,16 @@ class Talker:
 
         for fn in file_list:
             if config.ignore_existing:
-                comic_archive = Comic(str(fn))
-                if comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
+                comic = Comic(fn)
+                if (
+                    comic.has_metadata(MetadataFormat.COMIC_RACK)
+                    and self.comic_info
+                    and not self.metron_info
+                ) or (
+                    comic.has_metadata(MetadataFormat.METRON_INFO)
+                    and self.metron_info
+                    and not self.comic_info
+                ):
                     questionary.print(
                         f"{fn.name} has metadata. Skipping...",
                         style=Styles.WARNING,
