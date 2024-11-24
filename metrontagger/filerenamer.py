@@ -245,7 +245,7 @@ class FileRenamer:
             issue_str = IssueString(md.issue).as_string(pad=self.issue_zero_padding)
         new_name = self.replace_token(new_name, issue_str, "%issue%")
 
-        new_name = self.replace_token(new_name, md.issue_count, "%issuecount%")
+        new_name = self.replace_token(new_name, md.series.issue_count, "%issuecount%")
         new_name = self.replace_token(
             new_name, md.cover_date.year if md.cover_date else "Unknown", "%year%"
         )
@@ -269,7 +269,7 @@ class FileRenamer:
         new_name = self.replace_token(new_name, md.alternate_series, "%alternateseries%")
         new_name = self.replace_token(new_name, md.alternate_number, "%alternatenumber%")
         new_name = self.replace_token(new_name, md.alternate_count, "%alternatecount%")
-        if md.publisher and md.publisher.imprint:
+        if md.publisher is not None and md.publisher.imprint is not None:
             new_name = self.replace_token(new_name, md.publisher.imprint.name, "%imprint%")
 
         if md.series:
