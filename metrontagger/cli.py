@@ -82,6 +82,9 @@ def get_configs(opts: Namespace) -> MetronTaggerSettings:  # noqa: PLR0912
     if opts.comicinfo:
         config.use_comic_info = opts.comicinfo
 
+    if opts.migrate:
+        config.migrate = opts.migrate
+
     return config
 
 
