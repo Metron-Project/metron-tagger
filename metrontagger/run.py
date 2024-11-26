@@ -15,6 +15,7 @@ from metrontagger.duplicates import DuplicateIssue, Duplicates
 from metrontagger.filerenamer import FileRenamer
 from metrontagger.filesorter import FileSorter
 from metrontagger.logging import init_logging
+from metrontagger.utils import create_print_title
 
 if TYPE_CHECKING:
     from metrontagger.settings import MetronTaggerSettings
@@ -52,11 +53,8 @@ class Runner:
         Returns:
             list[Path]: The updated list of file paths after renaming.
         """
-
-        questionary.print(
-            "\nStarting comic archive renaming:\n-------------------------------",
-            style=Styles.TITLE,
-        )
+        msg = create_print_title("Renaming ComicInfo.xml to MetronInfo.xml:")
+        questionary.print(msg, style=Styles.TITLE)
 
         # Lists to track filename changes
         new_file_names: list[Path] = []
@@ -113,8 +111,8 @@ class Runner:
         Returns:
             None
         """
-
-        questionary.print("\nExporting to cbz:\n-----------------", style=Styles.TITLE)
+        msg = create_print_title("Exporting to CBZ:")
+        questionary.print(msg, style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(str(comic))
             if ca.is_rar():
@@ -139,8 +137,8 @@ class Runner:
         self: Runner, file_list: list[Path], remove_ci: bool = False
     ) -> None:
         """Validate ComicInfo metadata in comic archives."""
-
-        questionary.print("\nValidating ComicInfo:\n---------------------", style=Styles.TITLE)
+        msg = create_print_title("Validating ComicInfo:")
+        questionary.print(msg, style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(comic)
             has_comic_rack = ca.has_metadata(MetadataFormat.COMIC_RACK)
@@ -212,10 +210,8 @@ class Runner:
             )
             return
 
-        questionary.print(
-            "\nStarting sorting of comic archives:\n----------------------------------",
-            style=Styles.TITLE,
-        )
+        msg = create_print_title("Starting Sorting of Comic Archives:")
+        questionary.print(msg, style=Styles.TITLE)
         file_sorter = FileSorter(self.config.sort_dir)
         for comic in file_list:
             result = file_sorter.sort_comics(comic)
@@ -233,11 +229,8 @@ class Runner:
         Returns:
             None
         """
-
-        questionary.print(
-            "\nShowing files without metadata:\n-------------------------------",
-            style=Styles.TITLE,
-        )
+        msg = create_print_title("Showing Files Without Metadata:")
+        questionary.print(msg, style=Styles.TITLE)
 
         if not (self.config.use_comic_info or self.config.use_metron_info):
             return
@@ -264,8 +257,8 @@ class Runner:
         Returns:
             None
         """
-
-        questionary.print("\nRemoving metadata:\n-----------------", style=Styles.TITLE)
+        msg = create_print_title("Removing Metadata:")
+        questionary.print(msg, style=Styles.TITLE)
         for item in file_list:
             comic_archive = Comic(item)
             formats_removed = []

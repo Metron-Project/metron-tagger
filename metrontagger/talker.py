@@ -39,7 +39,7 @@ from PIL import Image
 
 from metrontagger import __version__
 from metrontagger.styles import Styles
-from metrontagger.utils import create_query_params
+from metrontagger.utils import create_print_title, create_query_params
 
 LOGGER = getLogger(__name__)
 
@@ -383,12 +383,14 @@ class Talker:
         """
         # Print file matching results.
         if self.match_results.good_matches:
-            questionary.print("\nSuccessful matches:\n------------------", style=Styles.TITLE)
+            msg = create_print_title("Successful Matches:")
+            questionary.print(msg, style=Styles.TITLE)
             for comic in self.match_results.good_matches:
                 questionary.print(f"{comic}", style=Styles.SUCCESS)
 
         if self.match_results.no_matches:
-            questionary.print("\nNo matches:\n------------------", style=Styles.TITLE)
+            msg = create_print_title("No Matches:")
+            questionary.print(msg, style=Styles.TITLE)
             for comic in self.match_results.no_matches:
                 questionary.print(f"{comic}", style=Styles.WARNING)
 
@@ -474,10 +476,8 @@ class Talker:
         Returns:
             None
         """
-        questionary.print(
-            "\nStarting online search and tagging:\n----------------------------------",
-            style=Styles.TITLE,
-        )
+        msg = create_print_title("Starting Online Search and Tagging:")
+        questionary.print(msg, style=Styles.TITLE)
 
         for fn in file_list:
             if config.ignore_existing:
