@@ -287,13 +287,13 @@ toml = ["tomli"]
 
 [[package]]
 name = "darkseid"
-version = "5.0.1"
+version = "5.1.0"
 description = "A library to interact with comic archives"
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "darkseid-5.0.1-py3-none-any.whl", hash = "sha256:bc6c24519553a903ca58c3f64509865e1a3d9417e0423a9aefa59d13423758b6"},
-    {file = "darkseid-5.0.1.tar.gz", hash = "sha256:b1d607f391944315336df54f0f2de53bfad2d35bb6a8c687ac3be92b786478be"},
+    {file = "darkseid-5.1.0-py3-none-any.whl", hash = "sha256:642c749cc705f7259c59b92f016b109c1ced3695c2e39e36e386c158efa4e16f"},
+    {file = "darkseid-5.1.0.tar.gz", hash = "sha256:28a158345f639f64ce6781ec649e4a6fbd63f07b8ecd78bbcfc7bc754c86d38d"},
 ]
 
 [package.dependencies]
@@ -1532,4 +1532,4 @@ docs = ["Sphinx", "elementpath (>=4.4.0,<5.0.0)", "jinja2", "sphinx-rtd-theme"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "e0bdd5d3348e3d12c9531302f4daedd9c9ef8646af76af2b949017b9f2c7918e"
+content-hash = "f9fa0457eacd780b5fe5faad8e7dc2f122e917ae4baac1156d6827c508cbbb09"
