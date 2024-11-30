@@ -49,6 +49,7 @@ class MetronTaggerSettings:
         self.validate: bool = False
         self.remove_non_valid: bool = False
         self.duplicates: bool = False
+        self.migrate: bool = False
 
         # Rename settings
         self.rename_template = "%series% v%volume% #%issue% (%year%)"

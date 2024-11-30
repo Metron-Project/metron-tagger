@@ -107,6 +107,12 @@ def make_parser() -> argparse.ArgumentParser:
         default=False,
     )
     parser.add_argument(
+        "--migrate",
+        help="Migrate information from a ComicInfo.xml into a *new* MetronInfo.xml",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {__version__}",

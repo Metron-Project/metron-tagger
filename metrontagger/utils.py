@@ -3,6 +3,23 @@
 from urllib.parse import quote_plus
 
 
+def create_print_title(txt: str) -> str:
+    """Create a formatted title string for printing.
+
+    This function generates a title string that includes the provided text, formatted with newlines
+    and a line of dashes beneath it for visual separation. It is useful for enhancing the readability
+    of printed output by clearly delineating sections.
+
+    Args:
+        txt (str): The text to be used as the title.
+
+    Returns:
+        str: The formatted title string, including newlines and dashes.
+    """
+    result = f"\n{txt}\n"
+    return result + "-" * len(txt)
+
+
 def cleanup_string(path_name: int | str | None) -> str | None:
     """Clean up and sanitize a string for use as a path name.
 

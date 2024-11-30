@@ -15,6 +15,7 @@ from metrontagger.duplicates import DuplicateIssue, Duplicates
 from metrontagger.filerenamer import FileRenamer
 from metrontagger.filesorter import FileSorter
 from metrontagger.logging import init_logging
+from metrontagger.utils import create_print_title
 
 if TYPE_CHECKING:
     from metrontagger.settings import MetronTaggerSettings
@@ -40,6 +41,42 @@ class Runner:
 
         self.config = config
 
+    @staticmethod
+    def migrate_ci_to_mi(file_list: list[Path]) -> None:
+        """
+        Migrate ComicInfo.xml metadata to MetronInfo.xml format.
+
+        This static method processes a list of comic files, checking for existing ComicInfo.xml metadata and
+        migrating it to the MetronInfo.xml format if applicable. It provides feedback on the migration process
+        through printed messages.
+
+        Args:
+            file_list (list[Path]): A list of Path objects representing the comic files to be processed.
+
+        Returns:
+            None
+        """
+
+        msg = create_print_title("Migrating ComicInfo.xml to MetronInfo.xml:")
+        questionary.print(msg, style=Styles.TITLE)
+
+        for item in file_list:
+            comic = Comic(item)
+            if comic.has_metadata(MetadataFormat.COMIC_RACK) and not comic.has_metadata(
+                MetadataFormat.METRON_INFO
+            ):
+                md = comic.read_metadata(MetadataFormat.COMIC_RACK)
+                if comic.write_metadata(md, MetadataFormat.METRON_INFO):
+                    questionary.print(
+                        f"Migrated information to new MetronInfo.xml for '{comic}'",
+                        style=Styles.SUCCESS,
+                    )
+                else:
+                    questionary.print(
+                        f"There was an error writing MetronInfo.xml for '{comic}'",
+                        style=Styles.ERROR,
+                    )
+
     def rename_comics(self: Runner, file_list: list[Path]) -> list[Path]:
         """Rename comic archives based on metadata.
 
@@ -52,11 +89,8 @@ class Runner:
         Returns:
             list[Path]: The updated list of file paths after renaming.
         """
-
-        questionary.print(
-            "\nStarting comic archive renaming:\n-------------------------------",
-            style=Styles.TITLE,
-        )
+        msg = create_print_title("Renaming ComicInfo.xml to MetronInfo.xml:")
+        questionary.print(msg, style=Styles.TITLE)
 
         # Lists to track filename changes
         new_file_names: list[Path] = []
@@ -113,8 +147,8 @@ class Runner:
         Returns:
             None
         """
-
-        questionary.print("\nExporting to cbz:\n-----------------", style=Styles.TITLE)
+        msg = create_print_title("Exporting to CBZ:")
+        questionary.print(msg, style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(str(comic))
             if ca.is_rar():
@@ -139,8 +173,8 @@ class Runner:
         self: Runner, file_list: list[Path], remove_ci: bool = False
     ) -> None:
         """Validate ComicInfo metadata in comic archives."""
-
-        questionary.print("\nValidating ComicInfo:\n---------------------", style=Styles.TITLE)
+        msg = create_print_title("Validating ComicInfo:")
+        questionary.print(msg, style=Styles.TITLE)
         for comic in file_list:
             ca = Comic(comic)
             has_comic_rack = ca.has_metadata(MetadataFormat.COMIC_RACK)
@@ -212,10 +246,8 @@ class Runner:
             )
             return
 
-        questionary.print(
-            "\nStarting sorting of comic archives:\n----------------------------------",
-            style=Styles.TITLE,
-        )
+        msg = create_print_title("Starting Sorting of Comic Archives:")
+        questionary.print(msg, style=Styles.TITLE)
         file_sorter = FileSorter(self.config.sort_dir)
         for comic in file_list:
             result = file_sorter.sort_comics(comic)
@@ -233,11 +265,8 @@ class Runner:
         Returns:
             None
         """
-
-        questionary.print(
-            "\nShowing files without metadata:\n-------------------------------",
-            style=Styles.TITLE,
-        )
+        msg = create_print_title("Showing Files Without Metadata:")
+        questionary.print(msg, style=Styles.TITLE)
 
         if not (self.config.use_comic_info or self.config.use_metron_info):
             return
@@ -264,8 +293,8 @@ class Runner:
         Returns:
             None
         """
-
-        questionary.print("\nRemoving metadata:\n-----------------", style=Styles.TITLE)
+        msg = create_print_title("Removing Metadata:")
+        questionary.print(msg, style=Styles.TITLE)
         for item in file_list:
             comic_archive = Comic(item)
             formats_removed = []
@@ -532,6 +561,9 @@ class Runner:
                     sys.exit(0)
             else:
                 t.identify_comics(file_list, self.config)
+
+        if self.config.migrate:
+            self.migrate_ci_to_mi(file_list)
 
         if self.config.rename:
             file_list = self.rename_comics(file_list)
