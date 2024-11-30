@@ -41,6 +41,42 @@ class Runner:
 
         self.config = config
 
+    @staticmethod
+    def migrate_ci_to_mi(file_list: list[Path]) -> None:
+        """
+        Migrate ComicInfo.xml metadata to MetronInfo.xml format.
+
+        This static method processes a list of comic files, checking for existing ComicInfo.xml metadata and
+        migrating it to the MetronInfo.xml format if applicable. It provides feedback on the migration process
+        through printed messages.
+
+        Args:
+            file_list (list[Path]): A list of Path objects representing the comic files to be processed.
+
+        Returns:
+            None
+        """
+
+        msg = create_print_title("Migrating ComicInfo.xml to MetronInfo.xml:")
+        questionary.print(msg, style=Styles.TITLE)
+
+        for item in file_list:
+            comic = Comic(item)
+            if comic.has_metadata(MetadataFormat.COMIC_RACK) and not comic.has_metadata(
+                MetadataFormat.METRON_INFO
+            ):
+                md = comic.read_metadata(MetadataFormat.COMIC_RACK)
+                if comic.write_metadata(md, MetadataFormat.METRON_INFO):
+                    questionary.print(
+                        f"Migrated information to new MetronInfo.xml for '{comic}'",
+                        style=Styles.SUCCESS,
+                    )
+                else:
+                    questionary.print(
+                        f"There was an error writing MetronInfo.xml for '{comic}'",
+                        style=Styles.ERROR,
+                    )
+
     def rename_comics(self: Runner, file_list: list[Path]) -> list[Path]:
         """Rename comic archives based on metadata.
 
@@ -525,6 +561,9 @@ class Runner:
                     sys.exit(0)
             else:
                 t.identify_comics(file_list, self.config)
+
+        if self.config.migrate:
+            self.migrate_ci_to_mi(file_list)
 
         if self.config.rename:
             file_list = self.rename_comics(file_list)
