@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import questionary
 from darkseid.comic import Comic, MetadataFormat
-from darkseid.metadata import Metadata
+from darkseid.metadata import Metadata, Notes
 from darkseid.utils import get_recursive_filelist
 from tqdm import tqdm
 
@@ -19,6 +20,7 @@ from metrontagger.utils import create_print_title
 
 if TYPE_CHECKING:
     from metrontagger.settings import MetronTaggerSettings
+from metrontagger import __version__
 from metrontagger.styles import Styles
 from metrontagger.talker import Talker
 from metrontagger.validate import SchemaVersion, ValidateMetadata
@@ -57,6 +59,15 @@ class Runner:
             None
         """
 
+        def create_mi_note(md: Metadata) -> Metadata:
+            now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # noqa: DTZ005
+            note_txt = f"Data migrated from 'ComicInfo.xml' using MetronTagger-{__version__} on {now_date}."
+            if md.notes is None:
+                md.notes = Notes(metron_info=note_txt)
+            elif not md.notes.metron_info:
+                md.notes.metron_info = note_txt
+            return md
+
         msg = create_print_title("Migrating ComicInfo.xml to MetronInfo.xml:")
         questionary.print(msg, style=Styles.TITLE)
 
@@ -66,6 +77,7 @@ class Runner:
                 MetadataFormat.METRON_INFO
             ):
                 md = comic.read_metadata(MetadataFormat.COMIC_RACK)
+                md = create_mi_note(md)
                 if comic.write_metadata(md, MetadataFormat.METRON_INFO):
                     questionary.print(
                         f"Migrated information to new MetronInfo.xml for '{comic}'",
