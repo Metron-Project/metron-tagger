@@ -33,6 +33,7 @@ from darkseid.metadata import (
     Role,
     Series,
 )
+from darkseid.utils import get_issue_id_from_note
 from imagehash import ImageHash, hex_to_hash, phash
 from mokkari.exceptions import ApiError
 from PIL import Image
@@ -233,36 +234,26 @@ class Talker:
 
     @staticmethod
     def _get_id_from_comic_info(md: Metadata) -> None | tuple[InfoSource, int]:
-        def _extract_id_str(notes: str, keyword: str) -> str:
-            return notes.split(keyword)[1].split("]")[0].strip()
-
-        # If `Notes` element doesn't exist let's bail.
-        if md.notes is None:
+        if md.notes is None or not md.notes.comic_rack:
             return None
 
-        lower_notes = md.notes.comic_rack.lower()
+        res = get_issue_id_from_note(md.notes.comic_rack)
+        if res is None:
+            return None
 
-        if "metrontagger" in lower_notes:
-            source = InfoSource.metron
-            id_str = _extract_id_str(md.notes.comic_rack, "issue_id:")
-        elif "comictagger" in lower_notes:
-            if "metron" in lower_notes:
-                source = InfoSource.metron
-            elif "comic vine" in lower_notes:
-                source = InfoSource.comic_vine
-            else:
-                source = InfoSource.unknown
-            id_str = _extract_id_str(md.notes.comic_rack, "Issue ID")
-        else:
+        source_map = {"Metron": InfoSource.metron, "Comic Vine": InfoSource.comic_vine}
+
+        src = source_map.get(res["source"])
+        if src is None:
             return None
 
         try:
-            id_ = int(id_str)
+            id_ = int(res["id"])
         except ValueError:
             LOGGER.exception("Comic has invalid id: %s #%s", md.series.name, md.issue)
             return None
 
-        return source, id_
+        return src, id_
 
     def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912 PLR0911
         """Process a comic file for metadata.
