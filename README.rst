@@ -46,7 +46,10 @@ Help
 
 ::
 
-  usage: metron-tagger [-h] [-r] [-o] [-m] [-c] [--id ID] [-d] [--ignore-existing] [-i] [--missing] [-s] [-z] [--validate] [--remove-non-valid] [--delete-original] [--duplicates] [--version] path [path ...]
+  usage: metron-tagger [-h] [-r] [-o] [-m] [-c] [--id ID] [-d] [--ignore-existing] [-i] [--missing] [-s] [-z] [--validate] [--remove-non-valid] [--delete-original]
+                     [--duplicates] [--migrate] [--version]
+                     path [path ...]
+
 
   Read in a file or set of files, and return the result.
 
@@ -70,6 +73,7 @@ Help
     --remove-non-valid   Remove metadata xml from comic if not valid. Used with --validate option (default: False)
     --delete-original    Delete the original archive after successful export to another format. (default: False)
     --duplicates         Identify and give the option to delete duplicate pages in a directory of comics. (Experimental) (default: False)
+    --migrate            Migrate information from a ComicInfo.xml into a *new* MetronInfo.xml (default: False)
     --version            Show the version number and exit
 
 Examples
@@ -89,6 +93,11 @@ To validate any metadata, ComicInfo.xml and MetronInfo.xml, would be done by run
 ::
 
   metron-tagger -cm --validate /path/to/comics
+
+To write MetronInfo.xml metadata from comics with ComicInfo.xml data, and migrate data for comics that don't exist at the Metron Comic Database:
+::
+
+  metron-tagger -om --migrate /path/to/comics
 
 
 Bugs/Requests
