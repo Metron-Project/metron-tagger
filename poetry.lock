@@ -287,13 +287,13 @@ toml = ["tomli"]
 
 [[package]]
 name = "darkseid"
-version = "5.1.0"
+version = "5.1.1"
 description = "A library to interact with comic archives"
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "darkseid-5.1.0-py3-none-any.whl", hash = "sha256:642c749cc705f7259c59b92f016b109c1ced3695c2e39e36e386c158efa4e16f"},
-    {file = "darkseid-5.1.0.tar.gz", hash = "sha256:28a158345f639f64ce6781ec649e4a6fbd63f07b8ecd78bbcfc7bc754c86d38d"},
+    {file = "darkseid-5.1.1-py3-none-any.whl", hash = "sha256:fd4194911c7b22d9c53a79429494e5e62a635ccb440e076fd4be4fea5b0019a1"},
+    {file = "darkseid-5.1.1.tar.gz", hash = "sha256:191f6cdae2055caf21eb227e44c67d611411d78ddcdc72ca11eaed1fd9d0f184"},
 ]
 
 [package.dependencies]
@@ -990,13 +990,13 @@ nodejs = ["nodejs-wheel-binaries"]
 
 [[package]]
 name = "pytest"
-version = "8.3.3"
+version = "8.3.4"
 description = "pytest: simple powerful testing with Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "pytest-8.3.3-py3-none-any.whl", hash = "sha256:a6853c7375b2663155079443d2e45de913a911a11d669df02a50814944db57b2"},
-    {file = "pytest-8.3.3.tar.gz", hash = "sha256:70b98107bd648308a7952b06e6ca9a50bc660be218d53c257cc1fc94fda10181"},
+    {file = "pytest-8.3.4-py3-none-any.whl", hash = "sha256:50e16d954148559c9a74109af1eaf0c945ba2d8f30f0a3d3335edde19788b6f6"},
+    {file = "pytest-8.3.4.tar.gz", hash = "sha256:965370d062bce11e73868e0335abac31b4d3de0e82f4007408d242b4f8610761"},
 ]
 
 [package.dependencies]
@@ -1562,4 +1562,4 @@ docs = ["Sphinx", "elementpath (>=4.4.0,<5.0.0)", "jinja2", "sphinx-rtd-theme"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "f9fa0457eacd780b5fe5faad8e7dc2f122e917ae4baac1156d6827c508cbbb09"
+content-hash = "c01088378ff2b27750f7c57609823780aa217e81e0a6d568328a3bf7037cad43"
