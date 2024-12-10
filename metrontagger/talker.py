@@ -32,6 +32,7 @@ from darkseid.metadata import (
     Publisher,
     Role,
     Series,
+    Universe,
 )
 from darkseid.utils import get_issue_id_from_note
 from imagehash import ImageHash, hex_to_hash, phash
@@ -636,6 +637,8 @@ class Talker:
             md.genres = create_resource_list(resp.series.genres)
         if resp.reprints:
             md.reprints = [Basic(r.issue, r.id) for r in resp.reprints]
+        if resp.universes:
+            md.universes = [Universe(uni.name, uni.id) for uni in resp.universes]
         if resp.credits:
             md = add_credits_to_metadata(md, resp.credits)
         if resp.rating:
