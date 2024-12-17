@@ -24,13 +24,13 @@ files = [
 
 [[package]]
 name = "certifi"
-version = "2024.8.30"
+version = "2024.12.14"
 description = "Python package for providing Mozilla's CA Bundle."
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "certifi-2024.8.30-py3-none-any.whl", hash = "sha256:922820b53db7a7257ffbda3f597266d435245903d80737e34f8a45ff3e3230d8"},
-    {file = "certifi-2024.8.30.tar.gz", hash = "sha256:bec941d2aa8195e248a60b31ff9f0558284cf01a52591ceda73ea9afffd69fd9"},
+    {file = "certifi-2024.12.14-py3-none-any.whl", hash = "sha256:1275f7a45be9464efc1173084eaa30f866fe2e47d389406136d332ed4967ec56"},
+    {file = "certifi-2024.12.14.tar.gz", hash = "sha256:b650d30f370c2b724812bee08008be0c4163b163ddaec3f2546c1caf65f191db"},
 ]
 
 [[package]]
@@ -445,17 +445,17 @@ restructuredtext = ["rst2ansi"]
 
 [[package]]
 name = "mokkari"
-version = "3.4.0"
+version = "3.5.0"
 description = "Python wrapper for Metron API"
 optional = false
 python-versions = "<4.0,>=3.10"
 files = [
-    {file = "mokkari-3.4.0-py3-none-any.whl", hash = "sha256:5bf5930cf1c871a0fb6f6d22f94f0ee2092224846832d1ef62a0a7faddf371d4"},
-    {file = "mokkari-3.4.0.tar.gz", hash = "sha256:5caff5856883855e70ff299b795501829469c898f550a8de3124fcffcebcff35"},
+    {file = "mokkari-3.5.0-py3-none-any.whl", hash = "sha256:dba6b81a0d307f85f65edd0a4ec42478ef3eb2afaa4921950de441d1deea59b7"},
+    {file = "mokkari-3.5.0.tar.gz", hash = "sha256:6b253d2efa3728146de5bd3e5aea9415a34c1d348b58e809a0fbbad802ef5994"},
 ]
 
 [package.dependencies]
-pydantic = ">=2.5.3,<3.0.0"
+pydantic = ">=2.10.3,<3.0.0"
 ratelimit = ">=2.2.1,<3.0.0"
 requests = ">=2.26.0,<3.0.0"
 
@@ -1564,4 +1564,4 @@ docs = ["Sphinx", "elementpath (>=4.4.0,<5.0.0)", "jinja2", "sphinx-rtd-theme"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "c01088378ff2b27750f7c57609823780aa217e81e0a6d568328a3bf7037cad43"
+content-hash = "9e817a97078d7b2baca995901992edf70ca59fefd74ca598cb96fc71be0265bf"
