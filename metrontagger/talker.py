@@ -603,7 +603,14 @@ class Talker:
 
         md = Metadata()
 
-        alt_info_source = [InfoSources("Comic Vine", resp.cv_id)] if resp.cv_id else []
+        alt_info_source = [
+            info_source
+            for info_source in [
+                InfoSources("Comic Vine", resp.cv_id) if resp.cv_id else None,
+                InfoSources("Grand Comics Database", resp.gcd_id) if resp.gcd_id else None,
+            ]
+            if info_source is not None
+        ]
         md.info_source = [InfoSources("Metron", resp.id, True)] + alt_info_source  # NOQA: RUF005
         md.series = Series(
             name=resp.series.name,
