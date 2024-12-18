@@ -38,7 +38,7 @@ keywords = ["comics", "comic", "metadata", "tagging", "tagger"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-mokkari = "^3.4.0"
+mokkari = "^3.5.0"
 questionary = "^2.0.1"
 pyxdg = "^0.28"
 imagehash = "^4.3.1"
