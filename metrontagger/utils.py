@@ -16,8 +16,7 @@ def create_print_title(txt: str) -> str:
     Returns:
         str: The formatted title string, including newlines and dashes.
     """
-    result = f"\n{txt}\n"
-    return result + "-" * len(txt)
+    return f"\n{txt}\n{txt.replace(txt, '-' * len(txt))}"
 
 
 def cleanup_string(path_name: int | str | None) -> str | None:
