@@ -634,6 +634,8 @@ class Talker:
         md.modified = resp.modified
         if resp.story_titles:
             md.stories = [Basic(story) for story in resp.story_titles]
+        if resp.collection_title:
+            md.collection_title = resp.collection_title
         if resp.characters:
             md.characters = create_resource_list(resp.characters)
         if resp.teams:
