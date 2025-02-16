@@ -33,8 +33,9 @@ def test_issue() -> Issue:
             year_began=1978,
         ),
         number="47",
-        collection_title="",
-        story_titles=["A Night on the Prowl!"],
+        alt_number="",
+        title="",
+        name=["A Night on the Prowl!"],
         cover_date=date(1980, 10, 1),
         store_date=None,
         price=Decimal(".5"),
@@ -42,7 +43,7 @@ def test_issue() -> Issue:
         upc="",
         isbn="",
         sku="",
-        page_count=36,
+        page=36,
         desc="Spider-Man goes on a wild goose chase to find out who is behind the Prowler impersonation.",
         image=HttpUrl(
             "https://static.metron.cloud/media/issue/2021/05/22/the-spectacular-spider-man-47.jpg"
@@ -143,7 +144,7 @@ def test_issue_list() -> list[BaseIssue]:
             id=3634,
             series=BasicSeries(name="Aquaman", volume=1, year_began=1962),
             number="1",
-            issue_name="Aquaman (1962) #1",
+            issue="Aquaman (1962) #1",
             cover_date=date(1962, 2, 1),
             image=HttpUrl(
                 "https://static.metron.cloud/media/issue/2019/07/12/aquaman-v1-1.jpg"
@@ -155,7 +156,7 @@ def test_issue_list() -> list[BaseIssue]:
             id=2471,
             series=BasicSeries(name="Aquaman", volume=2, year_began=1986),
             number="1",
-            issue_name="Aquaman (1986) #1",
+            issue="Aquaman (1986) #1",
             cover_date=date(1986, 2, 1),
             image=HttpUrl(
                 "https://static.metron.cloud/media/issue/2019/05/19/aquaman-v2-1.jpg"
@@ -167,7 +168,7 @@ def test_issue_list() -> list[BaseIssue]:
             id=2541,
             series=BasicSeries(name="Aquaman", volume=3, year_began=1989),
             number="1",
-            issue_name="Aquaman (1989) #1",
+            issue="Aquaman (1989) #1",
             cover_date=date(1989, 6, 1),
             image=HttpUrl(
                 "https://static.metron.cloud/media/issue/2019/05/25/aquaman-v3-1.jpg"
