@@ -256,7 +256,7 @@ class Talker:
 
         return src, id_
 
-    def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912 PLR0911
+    def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912 PLR0911 PLR0915
         """Process a comic file for metadata.
 
         This method processes a comic file to extract metadata, including checking for existing metadata, extracting
@@ -279,16 +279,27 @@ class Talker:
             return None, False
 
         # Check if comic has a MetronInfo.xml or ComicInfo.xml that contains either a cvid or metron id.
-        source = id_ = None
+        md = source = id_ = None
         # Let's prefer MetronInfo.xml over ComicInfo.xml, since it's easier to get info.
         if ca.has_metadata(MetadataFormat.METRON_INFO):
-            md = ca.read_metadata(MetadataFormat.METRON_INFO)
-            if res := self._get_id_from_metron_info(md):
-                source, id_ = res
+            try:
+                md = ca.read_metadata(MetadataFormat.METRON_INFO)
+            except KeyError:
+                LOGGER.warning(
+                    "Unable to find MetronInfo.xml. Most likely it's in a subdirectory. File: %s",
+                    ca,
+                )
+            if md is not None:  # NOQA: SIM102
+                if res := self._get_id_from_metron_info(md):
+                    source, id_ = res
         elif ca.has_metadata(MetadataFormat.COMIC_RACK):
-            md = ca.read_metadata(MetadataFormat.COMIC_RACK)
-            if res := self._get_id_from_comic_info(md):
-                source, id_ = res
+            try:
+                md = ca.read_metadata(MetadataFormat.COMIC_RACK)
+            except KeyError:
+                LOGGER.warning("Unable to find ComicInfo.xml. File: %s", ca)
+            if md is not None:  # NOQA: SIM102
+                if res := self._get_id_from_comic_info(md):
+                    source, id_ = res
 
         if source is not None and id_ is not None:
 
@@ -430,10 +441,19 @@ class Talker:
         md.overlay(meta_data)
 
         md_fmt = []
-        if self.comic_info and ca.write_metadata(md, MetadataFormat.COMIC_RACK):
-            md_fmt.append("'ComicInfo.xml'")
-        if self.metron_info and ca.write_metadata(md, MetadataFormat.METRON_INFO):
-            md_fmt.append("'MetronInfo.xml'")
+        for meta_format, file_name in [
+            (MetadataFormat.COMIC_RACK, "'ComicInfo.xml'"),
+            (MetadataFormat.METRON_INFO, "'MetronInfo.xml'"),
+        ]:
+            if (meta_format == MetadataFormat.COMIC_RACK and self.comic_info) or (
+                meta_format == MetadataFormat.METRON_INFO and self.metron_info
+            ):
+                try:
+                    result = ca.write_metadata(md, meta_format)
+                    if result:
+                        md_fmt.append(file_name)
+                except KeyError:
+                    LOGGER.warning(f"Failed to write metadata {file_name} for '{ca}'.")
 
         if md_fmt:
             collection = md.series.format.lower() in ["trade paperback", "hard cover"]
@@ -447,7 +467,7 @@ class Talker:
             questionary.print(msg, style=Styles.SUCCESS)
         else:
             questionary.print(
-                f"There was a problem writing metadata for '{filename.name}'.",
+                f"There was a problem writing metadata for '{filename.name}'. Check logs for details.",
                 style=Styles.ERROR,
             )
 

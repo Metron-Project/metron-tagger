@@ -38,14 +38,14 @@ keywords = ["comics", "comic", "metadata", "tagging", "tagger"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-mokkari = "^3.5.0"
+mokkari = "^3.8.0"
 questionary = "^2.0.1"
 pyxdg = "^0.28"
 imagehash = "^4.3.1"
 pandas = "^2.2.1"
 comicfn2dict = "^0.2.4"
 tqdm = "^4.66.4"
-darkseid = "^5.1.1"
+darkseid = "^5.1.2"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.6.2"
