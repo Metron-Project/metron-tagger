@@ -10,6 +10,7 @@ from darkseid.metadata import Credit, Metadata, Publisher, Role, Series
 from PIL import Image
 
 from metrontagger.options import make_parser
+from metrontagger.settings import MetronTaggerSettings
 from metrontagger.talker import Talker
 
 CONTENT = "blah blah blah"
@@ -29,6 +30,11 @@ def create_cover_page() -> bytes:
 @pytest.fixture(scope="session")
 def parser() -> ArgumentParser:
     return make_parser()
+
+
+@pytest.fixture
+def settings(tmp_path: Path) -> MetronTaggerSettings:
+    return MetronTaggerSettings(config_dir=str(tmp_path))
 
 
 @pytest.fixture(scope="session")
