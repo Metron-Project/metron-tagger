@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+__all__ = ["Talker"]
+
 import io
 import warnings
 from datetime import datetime
@@ -8,12 +10,11 @@ from logging import getLogger
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from argparse import Namespace
     from pathlib import Path
 
     from mokkari.schemas.generic import GenericItem
     from mokkari.schemas.issue import BaseIssue, Credit as MokkariCredit, Issue
-
-    from metrontagger.settings import MetronTaggerSettings
 
 import mokkari
 import questionary
@@ -473,8 +474,8 @@ class Talker:
 
     def identify_comics(
         self: Talker,
+        args: Namespace,
         file_list: list[Path],
-        config: MetronTaggerSettings,
     ) -> None:
         """Identify and tag comics from a list of files.
 
@@ -483,7 +484,7 @@ class Talker:
 
         Args:
             file_list: list[Path]: A list of file paths to process.
-            config: MetronTaggerSettings: The configuration settings for the tagging process.
+            args: NameSpace: The arguments used for the tagging process.
 
         Returns:
             None
@@ -492,7 +493,7 @@ class Talker:
         questionary.print(msg, style=Styles.TITLE)
 
         for fn in file_list:
-            if config.ignore_existing:
+            if args.ignore_existing:
                 comic = Comic(fn)
                 if (
                     comic.has_metadata(MetadataFormat.COMIC_RACK)
@@ -509,7 +510,7 @@ class Talker:
                     )
                     continue
 
-            issue_id, multiple_match = self._process_file(fn, config.interactive)
+            issue_id, multiple_match = self._process_file(fn, args.interactive)
             if issue_id:
                 self._write_issue_md(fn, issue_id)
             elif not multiple_match:
@@ -518,7 +519,7 @@ class Talker:
         # Print match results
         self._post_process_matches()
 
-    def retrieve_single_issue(self: Talker, fn: Path, id_: int) -> None:
+    def retrieve_single_issue(self: Talker, id_: int, fn: Path) -> None:
         """Retrieve and write metadata for a single issue.
 
         This method retrieves metadata for a single issue using the provided ID and writes the metadata to the

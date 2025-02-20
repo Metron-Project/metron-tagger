@@ -1,3 +1,6 @@
+__all__ = ["Styles"]
+
+
 class Styles:
     """Class defining styles for console output.
 

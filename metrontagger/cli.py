@@ -1,10 +1,16 @@
 """Cli for Metron-Tagger."""
 
 from argparse import Namespace
+from logging import getLogger
 
+import questionary
+
+from metrontagger import __version__, init_logging
 from metrontagger.options import make_parser
 from metrontagger.run import Runner
 from metrontagger.settings import MetronTaggerSettings
+
+LOGGER = getLogger(__name__)
 
 
 def get_args() -> Namespace:
@@ -21,71 +27,31 @@ def get_args() -> Namespace:
     return parser.parse_args()
 
 
-def get_configs(opts: Namespace) -> MetronTaggerSettings:  # noqa: PLR0912
-    """Get MetronTaggerSettings from command line options.
+def _metron_credentials(settings: MetronTaggerSettings) -> None:
+    """Prompt for Metron credentials if not set.
 
-    This function creates a MetronTaggerSettings object based on the provided command line options.
-
-    Args:
-        opts (Namespace): The parsed command line options.
-
-    Returns:
-        MetronTaggerSettings: The MetronTaggerSettings object with configurations based on the command line options.
+    If the Metron username and password are not already set in the
+    settings, prompt the user for them and store them.
     """
+    if settings["metron.user"] is None:
+        settings["metron.user"] = questionary.text("What is your Metron username?").ask()
+        LOGGER.debug("Added Metron username")
+    if settings["metron.password"] is None:
+        settings["metron.password"] = questionary.text("What is your Metron password?").ask()
+        LOGGER.debug("Added Metron password")
 
-    config = MetronTaggerSettings()
-    if opts.path:
-        config.path = opts.path
 
-    if opts.id:
-        config.id = opts.id
+def _set_sort_directory(settings: MetronTaggerSettings) -> None:
+    """Prompt for the default sort directory if not set.
 
-    if opts.online:
-        config.online = opts.online
-
-    if opts.missing:
-        config.missing = opts.missing
-
-    if opts.delete:
-        config.delete = opts.delete
-
-    if opts.rename:
-        config.rename = opts.rename
-
-    if opts.sort:
-        config.sort = opts.sort
-
-    if opts.interactive:
-        config.interactive = opts.interactive
-
-    if opts.ignore_existing:
-        config.ignore_existing = opts.ignore_existing
-
-    if opts.export_to_cbz:
-        config.export_to_cbz = opts.export_to_cbz
-
-    if opts.delete_original:
-        config.delete_original = opts.delete_original
-
-    if opts.validate:
-        config.validate = opts.validate
-
-    if opts.remove_non_valid:
-        config.remove_non_valid = opts.remove_non_valid
-
-    if opts.duplicates:
-        config.duplicates = opts.duplicates
-
-    if opts.metroninfo:
-        config.use_metron_info = opts.metroninfo
-
-    if opts.comicinfo:
-        config.use_comic_info = opts.comicinfo
-
-    if opts.migrate:
-        config.migrate = opts.migrate
-
-    return config
+    If the default sort directory is not already set in the settings,
+    prompt the user for it and store it.
+    """
+    if settings["DEFAULT.sort_dir"] is None:
+        settings["DEFAULT.sort_dir"] = questionary.text(
+            "What is the default sort directory?"
+        ).ask()
+        LOGGER.debug("Added default sort directory")
 
 
 def main() -> None:
@@ -97,11 +63,16 @@ def main() -> None:
     Returns:
         None
     """
+    init_logging()
+    settings = MetronTaggerSettings()
+    LOGGER.info("Bekka v%s", __version__)
 
     args = get_args()
-    config = get_configs(args)
+    _metron_credentials(settings=settings)
+    if args.sort:
+        _set_sort_directory(settings=settings)
 
-    runner = Runner(config)
+    runner = Runner(args, settings)
     runner.run()
 
 

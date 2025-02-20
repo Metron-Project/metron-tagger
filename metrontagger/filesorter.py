@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+__all__ = ["FileSorter"]
+
 from pathlib import Path
 from shutil import Error, move
 from typing import TYPE_CHECKING
