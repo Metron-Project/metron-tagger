@@ -3,6 +3,8 @@
 # Copyright 2023 Brian Pepple
 from __future__ import annotations
 
+__all__ = ["Duplicates", "DuplicateIssue"]
+
 import io
 import warnings
 from dataclasses import dataclass

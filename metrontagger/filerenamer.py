@@ -4,6 +4,7 @@
 # Copyright 2020 Brian Pepple
 from __future__ import annotations
 
+__all__ = ["FileRenamer"]
 import datetime
 import re
 from typing import TYPE_CHECKING

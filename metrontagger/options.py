@@ -1,5 +1,7 @@
 """Utility to create an argument parser"""
 
+__all__ = ["make_parser"]
+
 import argparse
 
 from metrontagger import __version__

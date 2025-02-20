@@ -1,6 +1,28 @@
 """Some miscellaneous functions"""
 
+__all__ = [
+    "get_settings_folder",
+    "create_print_title",
+    "cleanup_string",
+    "create_query_params",
+]
+
+import platform
+from os import environ
+from pathlib import Path, PurePath
 from urllib.parse import quote_plus
+
+from xdg.BaseDirectory import save_config_path
+
+
+def get_settings_folder() -> Path:
+    """Method to determine where the users configs should be saved."""
+
+    if platform.system() != "Windows":
+        return Path(save_config_path("metron-tagger"))
+
+    windows_path = PurePath(environ["APPDATA"]).joinpath("MetronTagger")
+    return Path(windows_path)
 
 
 def create_print_title(txt: str) -> str:

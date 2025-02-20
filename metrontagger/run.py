@@ -15,10 +15,11 @@ from tqdm import tqdm
 from metrontagger.duplicates import DuplicateIssue, Duplicates
 from metrontagger.filerenamer import FileRenamer
 from metrontagger.filesorter import FileSorter
-from metrontagger.logging import init_logging
 from metrontagger.utils import create_print_title
 
 if TYPE_CHECKING:
+    from argparse import Namespace
+
     from metrontagger.settings import MetronTaggerSettings
 from metrontagger import __version__
 from metrontagger.styles import Styles
@@ -35,12 +36,12 @@ class Runner:
     removing duplicates, validating ComicInfo, and more based on the provided settings.
     """
 
-    def __init__(self: Runner, config: MetronTaggerSettings) -> None:
+    def __init__(self: Runner, args: Namespace, config: MetronTaggerSettings) -> None:
         """Initialize the Runner with MetronTaggerSettings.
 
         This method sets up the Runner object with the provided MetronTaggerSettings configuration.
         """
-
+        self.args = args
         self.config = config
 
     @staticmethod
@@ -122,9 +123,9 @@ class Runner:
                 continue
 
             renamer.set_metadata(md)
-            renamer.set_template(self.config.rename_template)
-            renamer.set_issue_zero_padding(self.config.rename_issue_number_padding)
-            renamer.set_smart_cleanup(self.config.rename_use_smart_string_cleanup)
+            renamer.set_template(self.config["rename.rename_template"])
+            renamer.set_issue_zero_padding(self.config["rename.rename_issue_number_padding"])
+            renamer.set_smart_cleanup(self.config["rename.rename_use_smart_string_cleanup"])
 
             unique_name = renamer.rename_file(comic)
             if unique_name is None:
@@ -170,7 +171,7 @@ class Runner:
                         f"Exported '{comic.name}' to a cbz archive.",
                         style=Styles.SUCCESS,
                     )
-                    if self.config.delete_original:
+                    if self.args.delete_original:
                         questionary.print(f"Removing '{comic.name}'.", style=Styles.SUCCESS)
                         comic.unlink()
                 else:
@@ -199,11 +200,11 @@ class Runner:
                 )
                 continue
 
-            if self.config.use_comic_info and has_comic_rack:
+            if self.args.comicinfo and has_comic_rack:
                 xml = ca.archiver.read_file("ComicInfo.xml")
                 self._check_if_xml_is_valid(ca, xml, MetadataFormat.COMIC_RACK, remove_ci)
 
-            if self.config.use_metron_info and has_metron_info:
+            if self.args.metroninfo and has_metron_info:
                 xml = ca.archiver.read_file("MetronInfo.xml")
                 self._check_if_xml_is_valid(ca, xml, MetadataFormat.METRON_INFO, remove_ci)
 
@@ -251,7 +252,7 @@ class Runner:
             None
         """
 
-        if not self.config.sort_dir:
+        if not self.config["DEFAULT.sort_dir"]:
             questionary.print(
                 "\nUnable to sort files. No destination directory was provided.",
                 style=Styles.ERROR,
@@ -260,7 +261,7 @@ class Runner:
 
         msg = create_print_title("Starting Sorting of Comic Archives:")
         questionary.print(msg, style=Styles.TITLE)
-        file_sorter = FileSorter(self.config.sort_dir)
+        file_sorter = FileSorter(self.config["DEFAULT.sort_dir"])
         for comic in file_list:
             result = file_sorter.sort_comics(comic)
             if not result:
@@ -280,16 +281,16 @@ class Runner:
         msg = create_print_title("Showing Files Without Metadata:")
         questionary.print(msg, style=Styles.TITLE)
 
-        if not (self.config.use_comic_info or self.config.use_metron_info):
+        if not (self.args.comicinfo or self.args.metroninfo):
             return
 
         for comic in file_list:
             comic_archive = Comic(str(comic))
             if (
-                self.config.use_comic_info
+                self.args.comicinfo
                 and not comic_archive.has_metadata(MetadataFormat.COMIC_RACK)
             ) or (
-                self.config.use_metron_info
+                self.args.metroninfo
                 and not comic_archive.has_metadata(MetadataFormat.METRON_INFO)
             ):
                 questionary.print(f"{comic}", style=Styles.SUCCESS)
@@ -311,15 +312,11 @@ class Runner:
             comic_archive = Comic(item)
             formats_removed = []
 
-            if self.config.use_comic_info and comic_archive.has_metadata(
-                MetadataFormat.COMIC_RACK
-            ):
+            if self.args.comicinfo and comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
                 comic_archive.remove_metadata(MetadataFormat.COMIC_RACK)
                 formats_removed.append("'ComicInfo.xml'")
 
-            if self.config.use_metron_info and comic_archive.has_metadata(
-                MetadataFormat.METRON_INFO
-            ):
+            if self.args.metroninfo and comic_archive.has_metadata(MetadataFormat.METRON_INFO):
                 comic_archive.remove_metadata(MetadataFormat.METRON_INFO)
                 formats_removed.append("'MetronInfo.xml'")
 
@@ -329,61 +326,6 @@ class Runner:
                 questionary.print(msg, style=Styles.SUCCESS)
             else:
                 questionary.print(f"no metadata in '{item.name}'", style=Styles.WARNING)
-
-    def _has_credentials(self: Runner) -> bool:
-        """Check if Metron credentials are present.
-
-        This method returns True if Metron credentials are provided in the configuration settings, otherwise False.
-
-        Returns:
-            bool: True if Metron credentials are present, False otherwise.
-        """
-
-        return bool(self.config.metron_user and self.config.metron_pass)
-
-    def _get_credentials(self: Runner) -> bool:
-        """Prompt the user to enter Metron credentials.
-
-        This method asks the user to input their Metron username and password, and provides an option to save the
-        credentials based on the user's choice.
-
-        Returns:
-            bool: True if the user entered both username and password, False otherwise.
-        """
-
-        answers = questionary.form(
-            user=questionary.text("What is your Metron username?"),
-            passwd=questionary.text("What is your Metron password?"),
-            save=questionary.confirm("Would you like to save your credentials?"),
-        ).ask()
-        if answers["user"] and answers["passwd"]:
-            self.config.metron_user = answers["user"]
-            self.config.metron_pass = answers["passwd"]
-            if answers["save"]:
-                self.config.save()
-            return True
-        return False
-
-    def _get_sort_dir(self: Runner) -> bool:
-        """Prompt the user to specify the directory for sorting comics.
-
-        This method asks the user to input the directory path where the comics should be sorted to, and provides an
-        option to save this location for future use.
-
-        Returns:
-            bool: True if a directory path is provided, False otherwise.
-        """
-
-        answers = questionary.form(
-            dir=questionary.path("What directory should comics be sorted to?"),
-            save=questionary.confirm("Would you like to save this location for future use?"),
-        ).ask()
-        if answers["dir"]:
-            self.config.sort_dir = answers["dir"]
-            if answers["save"]:
-                self.config.save()
-            return True
-        return False
 
     @staticmethod
     def _get_duplicate_entry_index(
@@ -501,7 +443,7 @@ class Runner:
 
         # Ask user if they want to update ComicInfo.xml pages for changes. Not necessary for MetronInfo.xml
         if (
-            self.config.use_comic_info
+            self.args.comicinfo
             and questionary.confirm(
                 "Do you want to update the comic's 'comicinfo.xml' for the changes?",
             ).ask()
@@ -509,7 +451,7 @@ class Runner:
             self._update_ci_xml(duplicates_lst)
 
     def _no_md_fmt_set(self: Runner) -> bool:
-        if not self.config.use_metron_info and not self.config.use_comic_info:
+        if not self.args.metroninfo and not self.args.comicinfo:
             questionary.print("No metadata format was given. Exiting...", style=Styles.ERROR)
             return True
         return False
@@ -525,46 +467,39 @@ class Runner:
             None
         """
 
-        if not (file_list := get_recursive_filelist(self.config.path)):
+        if not (file_list := get_recursive_filelist(self.args.path)):
             questionary.print("No files to process. Exiting.", style=Styles.WARNING)
             sys.exit(0)
 
-        # Start logging
-        init_logging(self.config)
-
-        if self.config.missing:
+        if self.args.missing:
             if self._no_md_fmt_set():
                 sys.exit(0)
             self._comics_with_no_metadata(file_list)
 
-        if self.config.export_to_cbz:
+        if self.args.export_to_cbz:
             self._export_to_zip(file_list)
 
-        if self.config.delete:
+        if self.args.delete:
             if self._no_md_fmt_set():
                 sys.exit(0)
             self._delete_metadata(file_list)
 
-        if self.config.duplicates:
+        if self.args.duplicates:
             self._remove_duplicates(file_list)
 
-        if self.config.id or self.config.online:
-            if not self._has_credentials() and not self._get_credentials():
-                questionary.print("No credentials provided. Exiting...", style=Styles.ERROR)
-                sys.exit(0)
-
+        if self.args.id or self.args.online:
             if self._no_md_fmt_set():
                 sys.exit(0)
 
             t = Talker(
-                self.config.metron_user,
-                self.config.metron_pass,
-                self.config.use_metron_info,
-                self.config.use_comic_info,
+                self.config["metron.user"],
+                self.config["metron.password"],
+                self.args.metroninfo,
+                self.args.comicinfo,
             )
-            if self.config.id:
+            if self.args.id:
                 if len(file_list) == 1:
-                    t.retrieve_single_issue(file_list[0], self.config.id)
+                    t.retrieve_single_issue(self.args.id, file_list[0])
                 else:
                     questionary.print(
                         "More than one file was passed for Id processing. Exiting...",
@@ -572,21 +507,18 @@ class Runner:
                     )
                     sys.exit(0)
             else:
-                t.identify_comics(file_list, self.config)
+                t.identify_comics(self.args, file_list)
 
-        if self.config.migrate:
+        if self.args.migrate:
             self.migrate_ci_to_mi(file_list)
 
-        if self.config.rename:
+        if self.args.rename:
             file_list = self.rename_comics(file_list)
 
-        if self.config.sort:
-            if not self.config.sort_dir and not self._get_sort_dir():
-                questionary.print("No sort directory given. Exiting...")
-                sys.exit(0)
+        if self.args.sort:
             self._sort_comic_list(file_list)
 
-        if self.config.validate:
+        if self.args.validate:
             if self._no_md_fmt_set():
                 sys.exit(0)
-            self._validate_comic_info(file_list, self.config.remove_non_valid)
+            self._validate_comic_info(file_list, self.args.remove_non_valid)

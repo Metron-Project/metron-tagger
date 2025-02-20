@@ -221,7 +221,7 @@ def test_write_issue_md(
 
     # Mock the call to Metron
     mocker.patch.object(Session, "issue", return_value=test_issue)
-    talker.retrieve_single_issue(Path(str(fake_comic)), 5)
+    talker.retrieve_single_issue(5, Path(str(fake_comic)))
 
     # Now let's test writing the metadata to file
     talker._write_issue_md(Path(str(fake_comic)), 1)
@@ -255,7 +255,7 @@ def test_retrieve_single_issue(
 
     # Mock the call to Metron
     mocker.patch.object(Session, "issue", return_value=test_issue)
-    talker.retrieve_single_issue(Path(str(fake_comic)), 10)
+    talker.retrieve_single_issue(10, Path(str(fake_comic)))
 
     # Now let's test the metadata
     ca = Comic(str(fake_comic))
