@@ -338,25 +338,6 @@ class Runner:
 
         return bool(self.config["metron.user"] and self.config["metron.password"])
 
-    def _get_sort_dir(self: Runner) -> bool:
-        """Prompt the user to specify the directory for sorting comics.
-
-        This method asks the user to input the directory path where the comics should be sorted to, and provides an
-        option to save this location for future use.
-
-        Returns:
-            bool: True if a directory path is provided, False otherwise.
-        """
-
-        answers = questionary.form(
-            dir=questionary.path("What directory should comics be sorted to?"),
-            save=questionary.confirm("Would you like to save this location for future use?"),
-        ).ask()
-        if answers["dir"]:
-            self.config["DEFAULT.sort_dir"] = answers["dir"]
-            return True
-        return False
-
     @staticmethod
     def _get_duplicate_entry_index(
         comic_path: str,
@@ -546,9 +527,6 @@ class Runner:
             file_list = self.rename_comics(file_list)
 
         if self.args.sort:
-            if not self.config["DEFAULT.sort_dir"] and not self._get_sort_dir():
-                questionary.print("No sort directory given. Exiting...")
-                sys.exit(0)
             self._sort_comic_list(file_list)
 
         if self.args.validate:
