@@ -327,17 +327,6 @@ class Runner:
             else:
                 questionary.print(f"no metadata in '{item.name}'", style=Styles.WARNING)
 
-    def _has_credentials(self: Runner) -> bool:
-        """Check if Metron credentials are present.
-
-        This method returns True if Metron credentials are provided in the configuration settings, otherwise False.
-
-        Returns:
-            bool: True if Metron credentials are present, False otherwise.
-        """
-
-        return bool(self.config["metron.user"] and self.config["metron.password"])
-
     @staticmethod
     def _get_duplicate_entry_index(
         comic_path: str,
