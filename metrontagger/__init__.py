@@ -2,7 +2,7 @@
 
 __all__ = ["__version__", "init_logging"]
 
-__version__ = "3.2.0"
+__version__ = "3.3.0"
 
 import logging
 from logging import basicConfig
