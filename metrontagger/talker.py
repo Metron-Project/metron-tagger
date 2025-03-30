@@ -341,6 +341,11 @@ class Talker:
         metadata: dict[str, str | tuple[str, ...]] = comicfn2dict(fn, verbose=0)
 
         params = create_query_params(metadata)
+        if params is None:
+            questionary.print(
+                f"Unable to correctly parse filename: {fn.name}", style=Styles.ERROR
+            )
+            return None, False
         i_list = self.api.issues_list(params=params)
         result_count = len(i_list)
 
