@@ -6,13 +6,20 @@ from comicfn2dict import comicfn2dict
 from metrontagger.utils import cleanup_string, create_query_params
 
 
-def test_dict(tmp_path: Path) -> None:
+def test_heavy_metal() -> None:
+    # Heavy Metal is a special case where the metadata doesn't have a series name.
+    fn = Path("Heavy Metal #319 (2022).cbz")
+    md = comicfn2dict(fn)
+    result = create_query_params(md)
+    assert result is None
+
+
+def test_dict() -> None:
     series = "Aquaman"
     number = "9"
     volume = "1"
     year = "1999"
-    # Make the tmp file
-    comic = tmp_path / f"{series} v{volume} #{number} ({year}).cbz"
+    comic = Path(f"{series} v{volume} #{number} ({year}).cbz")
     md = comicfn2dict(comic)
 
     result = create_query_params(md)
@@ -23,13 +30,12 @@ def test_dict(tmp_path: Path) -> None:
     assert result == expected
 
 
-def test_dict_with_title_hyphon(tmp_path: Path) -> None:
+def test_dict_with_title_hyphon() -> None:
     series = "Batman - Superman"
     number = "5"
     volume = "1"
     year = "2013"
-    # Make the tmp file
-    comic = tmp_path / f"{series} v{volume} #{number} ({year}).cbz"
+    comic = Path(f"{series} v{volume} #{number} ({year}).cbz")
     md = comicfn2dict(comic)
 
     result = create_query_params(md)
@@ -40,11 +46,10 @@ def test_dict_with_title_hyphon(tmp_path: Path) -> None:
     assert result == expected
 
 
-def test_query_dict_without_issue_number(tmp_path: Path) -> None:
+def test_query_dict_without_issue_number() -> None:
     series = "Batman"
     year = "1990"
-    # Make the tmp file
-    comic = tmp_path / f"{series} ({year}).cbz"
+    comic = Path(f"{series} ({year}).cbz")
     md = comicfn2dict(comic)
 
     result = create_query_params(md)
@@ -55,10 +60,9 @@ def test_query_dict_without_issue_number(tmp_path: Path) -> None:
     assert result == expected
 
 
-def test_query_dict_with_issue_number(tmp_path: Path) -> None:
-    fn = "Moon Knight - Black, White, & Blood #1.cbz"
-    comic = tmp_path / fn
-    md = comicfn2dict(comic)
+def test_query_dict_with_issue_number() -> None:
+    fn = Path("Moon Knight - Black, White, & Blood #1.cbz")
+    md = comicfn2dict(fn)
     result = create_query_params(md)
     expected = {"series_name": "Moon Knight Black White Blood", "number": "1"}
     assert result == expected

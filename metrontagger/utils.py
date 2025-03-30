@@ -8,11 +8,14 @@ __all__ = [
 ]
 
 import platform
+from logging import getLogger
 from os import environ
 from pathlib import Path, PurePath
 from urllib.parse import quote_plus
 
 from xdg.BaseDirectory import save_config_path
+
+LOGGER = getLogger(__name__)
 
 
 def get_settings_folder() -> Path:
@@ -68,7 +71,7 @@ def cleanup_string(path_name: int | str | None) -> str | None:
     return path_name.replace("?", "")
 
 
-def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str, str]:
+def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str, str] | None:
     """Create query parameters for searching based on metadata.
 
     This function prepares query parameters for searching based on the series name and issue number extracted from
@@ -80,12 +83,14 @@ def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str,
     Returns:
         dict[str, str]: The query parameters for searching.
     """
-
-    # TODO: Should probably check if there is a 'series' key.
     # Remove hyphen when searching for series name
-    series_string: str = (
-        metadata["series"].replace(" - ", " ").replace(",", "").replace(" & ", " ").strip()
-    )
+    try:
+        series_string: str = (
+            metadata["series"].replace(" - ", " ").replace(",", "").replace(" & ", " ").strip()
+        )
+    except KeyError:
+        LOGGER.error("Bad filename parsing: %s", metadata)  # NOQA: TRY400
+        return None
 
     # If there isn't an issue number, let's assume it's "1".
     number: str = quote_plus(metadata["issue"].encode("utf-8")) if "issue" in metadata else "1"
