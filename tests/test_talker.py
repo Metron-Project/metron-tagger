@@ -208,13 +208,11 @@ def test_process_file(
 
 
 def test_process_file_with_accept_only(
+    talker: Talker,
     fake_comic: ZipFile,
     test_issue_list: list[BaseIssue],
     mocker: any,
 ) -> None:
-    # Create a talker with accept_only=True
-    talker = Talker("Foo", "Bar", True, True)
-
     # Remove any existing metadata from comic fixture
     ca = Comic(str(fake_comic))
     if ca.has_metadata(MetadataFormat.COMIC_RACK):
