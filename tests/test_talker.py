@@ -214,7 +214,7 @@ def test_process_file_with_accept_only(
 ) -> None:
     # Create a talker with accept_only=True
     talker = Talker("Foo", "Bar", True, True)
-    
+
     # Remove any existing metadata from comic fixture
     ca = Comic(str(fake_comic))
     if ca.has_metadata(MetadataFormat.COMIC_RACK):
@@ -222,7 +222,7 @@ def test_process_file_with_accept_only(
 
     # Mock the call to Metron with a single result
     mocker.patch.object(Session, "issues_list", return_value=[test_issue_list[0]])
-    
+
     # Test with a single match
     id_, multiple = talker._process_file(Path(str(fake_comic)), False, True)
     assert id_ is not None

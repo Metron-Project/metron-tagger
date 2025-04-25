@@ -257,7 +257,9 @@ class Talker:
 
         return src, id_
 
-    def _process_file(self: Talker, fn: Path, interactive: bool, accept_only: bool = False) -> tuple[int | None, bool]:  # noqa: PLR0912 PLR0911 PLR0915
+    def _process_file(  # noqa: PLR0912 PLR0911 PLR0915
+        self: Talker, fn: Path, interactive: bool, accept_only: bool = False
+    ) -> tuple[int | None, bool]:
         """Process a comic file for metadata.
 
         This method processes a comic file to extract metadata, including checking for existing metadata, extracting
@@ -385,7 +387,7 @@ class Talker:
         if accept_only:
             self.match_results.add_good_match(fn)
             return i_list[0].id, False
-        
+
         # Otherwise, add to multiple matches to ask the user later
         self.match_results.add_multiple_match(MultipleMatch(fn, i_list))
         return None, True
@@ -521,7 +523,9 @@ class Talker:
                     )
                     continue
 
-            issue_id, multiple_match = self._process_file(fn, args.interactive, args.accept_only)
+            issue_id, multiple_match = self._process_file(
+                fn, args.interactive, args.accept_only
+            )
             if issue_id:
                 self._write_issue_md(fn, issue_id)
             elif not multiple_match:
