@@ -64,6 +64,12 @@ def make_parser() -> argparse.ArgumentParser:
         default=False,
     )
     parser.add_argument(
+        "--accept-only",
+        help="Automatically accept the match when exactly one valid match is found.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--missing",
         help="List files without metadata.",
         action="store_true",

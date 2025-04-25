@@ -257,7 +257,9 @@ class Talker:
 
         return src, id_
 
-    def _process_file(self: Talker, fn: Path, interactive: bool) -> tuple[int | None, bool]:  # noqa: PLR0912 PLR0911 PLR0915
+    def _process_file(  # noqa: PLR0912 PLR0911 PLR0915
+        self: Talker, fn: Path, interactive: bool, accept_only: bool = False
+    ) -> tuple[int | None, bool]:
         """Process a comic file for metadata.
 
         This method processes a comic file to extract metadata, including checking for existing metadata, extracting
@@ -266,7 +268,7 @@ class Talker:
         Args:
             fn: Path: The file path of the comic to process.
             interactive: bool: A flag indicating if the process should be interactive.
-
+            accept_only: bool: A flag indicating if the process should automatically accept a match if it's the only one.
         Returns: tuple[int | None, bool]: A tuple containing the issue ID and a flag indicating if multiple matches
         were found.
         """
@@ -380,7 +382,13 @@ class Talker:
             self.match_results.add_good_match(fn)
             return i_list[0].id, False
 
-        # Single match not withing the hamming distance. We'll ask if the single choice is correct.
+        # Single match not within the hamming distance.
+        # If --accept-only flag is set and there's exactly one match, automatically accept it
+        if accept_only:
+            self.match_results.add_good_match(fn)
+            return i_list[0].id, False
+
+        # Otherwise, add to multiple matches to ask the user later
         self.match_results.add_multiple_match(MultipleMatch(fn, i_list))
         return None, True
 
@@ -515,7 +523,9 @@ class Talker:
                     )
                     continue
 
-            issue_id, multiple_match = self._process_file(fn, args.interactive)
+            issue_id, multiple_match = self._process_file(
+                fn, args.interactive, args.accept_only
+            )
             if issue_id:
                 self._write_issue_md(fn, issue_id)
             elif not multiple_match:

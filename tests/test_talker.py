@@ -207,6 +207,28 @@ def test_process_file(
     assert 2471 in id_list  # noqa: PLR2004
 
 
+def test_process_file_with_accept_only(
+    talker: Talker,
+    fake_comic: ZipFile,
+    test_issue_list: list[BaseIssue],
+    mocker: any,
+) -> None:
+    # Remove any existing metadata from comic fixture
+    ca = Comic(str(fake_comic))
+    if ca.has_metadata(MetadataFormat.COMIC_RACK):
+        ca.remove_metadata(MetadataFormat.COMIC_RACK)
+
+    # Mock the call to Metron with a single result
+    mocker.patch.object(Session, "issues_list", return_value=[test_issue_list[0]])
+
+    # Test with a single match
+    id_, multiple = talker._process_file(Path(str(fake_comic)), False, True)
+    assert id_ is not None
+    assert id_ == test_issue_list[0].id
+    assert not multiple
+    assert fake_comic in talker.match_results.good_matches
+
+
 @pytest.mark.skipif(sys.platform in ["win32"], reason="Skip Windows.")
 def test_write_issue_md(
     talker: Talker,
