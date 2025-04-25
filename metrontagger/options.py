@@ -57,13 +57,6 @@ def make_parser() -> argparse.ArgumentParser:
         default=False,
     )
     parser.add_argument(
-        "-i",
-        "--interactive",
-        help="Interactively query the user when there are matches for an online search.",
-        action="store_true",
-        default=False,
-    )
-    parser.add_argument(
         "--accept-only",
         help="Automatically accept the match when exactly one valid match is found.",
         action="store_true",
