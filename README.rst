@@ -46,10 +46,8 @@ Help
 
 ::
 
-  usage: metron-tagger [-h] [-r] [-o] [-m] [-c] [--id ID] [-d] [--ignore-existing] [-i] [--missing] [-s] [-z] [--validate] [--remove-non-valid] [--delete-original]
-                     [--duplicates] [--migrate] [--version]
+  usage: metron-tagger [-h] [-r] [-o] [-m] [-c] [--id ID] [-d] [--ignore-existing] [--accept-only] [--missing] [-s] [-z] [--validate] [--remove-non-valid] [--delete-original] [--duplicates] [--migrate] [--version]
                      path [path ...]
-
 
   Read in a file or set of files, and return the result.
 
@@ -65,7 +63,7 @@ Help
     --id ID              Identify file for tagging with the Metron Issue Id. (default: None)
     -d, --delete         Delete the metadata tags from the file. (default: False)
     --ignore-existing    Ignore files that have existing metadata tag. (default: False)
-    -i, --interactive    Interactively query the user when there are matches for an online search. (default: False)
+    --accept-only        Automatically accept the match when exactly one valid match is found. (default: False)
     --missing            List files without metadata. (default: False)
     -s, --sort           Sort files that contain metadata tags. (default: False)
     -z, --export-to-cbz  Export a CBR (rar) archive to a CBZ (zip) archive. (default: False)
