@@ -222,7 +222,7 @@ def test_process_file_with_accept_only(
     mocker.patch.object(Session, "issues_list", return_value=[test_issue_list[0]])
 
     # Test with a single match
-    id_, multiple = talker._process_file(Path(str(fake_comic)), False, True)
+    id_, multiple = talker._process_file(Path(str(fake_comic)), True)
     assert id_ is not None
     assert id_ == test_issue_list[0].id
     assert not multiple
