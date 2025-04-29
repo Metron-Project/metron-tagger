@@ -6,6 +6,45 @@ from comicfn2dict import comicfn2dict
 from metrontagger.utils import cleanup_string, create_query_params
 
 
+@pytest.mark.parametrize(
+    ("test_input", "expected"),
+    [
+        ("simple_string", "simple_string"),  # ID: happy_path_simple
+        ("string with spaces", "string with spaces"),  # ID: happy_path_spaces
+        ("string/with/slashes", "string-with-slashes"),  # ID: happy_path_slashes
+        ("string:with:colons", "string-with-colons"),  # ID: happy_path_colons
+        ("string :", "string -"),  # ID: happy_path_colon_space_start
+        ("string?", "string"),  # ID: happy_path_question_mark
+        (123, "123"),  # ID: happy_path_integer
+        (123.45, "123.45"),  # ID: happy_path_float
+    ],
+)
+def test_cleanup_string_happy_path(test_input, expected):
+    # Act
+    result = cleanup_string(test_input)
+
+    # Assert
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("test_input", "expected"),
+    [
+        ("", ""),  # ID: edge_case_empty
+        (None, None),  # ID: edge_case_none
+        ("   ", "   "),  # ID: edge_case_whitespace
+        ("string\nwith\nnewlines", "string\nwith\nnewlines"),  # ID: edge_case_newlines
+        ("string\twith\ttabs", "string\twith\ttabs"),  # ID: edge_case_tabs
+    ],
+)
+def test_cleanup_string_edge_cases(test_input, expected):
+    # Act
+    result = cleanup_string(test_input)
+
+    # Assert
+    assert result == expected
+
+
 def test_heavy_metal() -> None:
     # Heavy Metal is a special case where the metadata doesn't have a series name.
     fn = Path("Heavy Metal #319 (2022).cbz")

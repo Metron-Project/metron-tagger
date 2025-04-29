@@ -44,11 +44,11 @@ def create_print_title(txt: str) -> str:
     return f"\n{txt}\n{txt.replace(txt, '-' * len(txt))}"
 
 
-def cleanup_string(path_name: int | str | None) -> str | None:
+def cleanup_string(path_name: float | str | None) -> str | None:
     """Clean up and sanitize a string for use as a path name.
 
-    This function takes an input string, converts integers to strings, and removes or replaces characters to ensure
-    the string is suitable for use as a path name.
+    This function takes an input string, converts integers & floats to strings, and removes or replaces characters to
+    ensure the string is suitable for use as a path name.
 
 
     Args:
@@ -61,7 +61,7 @@ def cleanup_string(path_name: int | str | None) -> str | None:
     if path_name is None:
         return None
 
-    if isinstance(path_name, int):
+    if isinstance(path_name, int | float):
         path_name = str(path_name)
 
     path_name = path_name.replace("/", "-")
