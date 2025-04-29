@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from mokkari.schemas.generic import GenericItem
-    from mokkari.schemas.issue import BaseIssue, Credit as MokkariCredit, Issue
+    from mokkari.schemas.issue import BaseIssue, BasicSeries, Credit as MokkariCredit, Issue
 
 import mokkari
 import questionary
@@ -258,7 +258,7 @@ class Talker:
         return src, id_
 
     def _process_file(  # noqa: PLR0912 PLR0911 PLR0915
-        self: Talker, fn: Path, accept_only: bool = False
+        self: Talker, fn: Path, accept_only: bool = False, series: BasicSeries | None = None
     ) -> tuple[int | None, bool]:
         """Process a comic file for metadata.
 
@@ -268,6 +268,7 @@ class Talker:
         Args:
             fn: Path: The file path of the comic to process.
             accept_only: bool: A flag indicating if the process should automatically accept a match if it's the only one.
+            series: BasicSeries | None: Optional series to restrict matches to only issues from that series.
         Returns: tuple[int | None, bool]: A tuple containing the issue ID and a flag indicating if multiple matches
         were found.
         """
@@ -348,6 +349,19 @@ class Talker:
             )
             return None, False
         i_list = self.api.issues_list(params=params)
+        # Filter by series_id if provided
+        if series is not None:
+            i_list = [
+                issue
+                for issue in i_list
+                if issue.series.name == series.name
+                and issue.series.year_began == series.year_began
+            ]
+            if not i_list:
+                questionary.print(
+                    f"'{fn.name}' matched issues, but none from series {series}",
+                    style=Styles.WARNING,
+                )
         result_count = len(i_list)
 
         # No matches
@@ -486,13 +500,22 @@ class Talker:
         with existing metadata and handling multiple matches.
 
         Args:
-            file_list: list[Path]: A list of file paths to process.
             args: NameSpace: The arguments used for the tagging process.
+            file_list: list[Path]: A list of file paths to process.
 
         Returns:
             None
         """
-        msg = create_print_title("Starting Online Search and Tagging:")
+        if args.id is not None:
+            series = self.api.series(args.id)
+            if series is None:
+                questionary.print(f"Series ID {args.id} not found", style=Styles.ERROR)
+                return
+            msg = create_print_title(
+                f"Starting Online Search and Tagging (Series ID: {args.id}):"
+            )
+        else:
+            msg = create_print_title("Starting Online Search and Tagging:")
         questionary.print(msg, style=Styles.TITLE)
 
         for fn in file_list:
@@ -513,7 +536,7 @@ class Talker:
                     )
                     continue
 
-            issue_id, multiple_match = self._process_file(fn, args.accept_only)
+            issue_id, multiple_match = self._process_file(fn, args.accept_only, series=series)
             if issue_id:
                 self._write_issue_md(fn, issue_id)
             elif not multiple_match:

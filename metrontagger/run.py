@@ -497,15 +497,9 @@ class Runner:
                 self.args.metroninfo,
                 self.args.comicinfo,
             )
-            if self.args.id:
-                if len(file_list) == 1:
-                    t.retrieve_single_issue(self.args.id, file_list[0])
-                else:
-                    questionary.print(
-                        "More than one file was passed for Id processing. Exiting...",
-                        style=Styles.WARNING,
-                    )
-                    sys.exit(0)
+            if self.args.id and len(file_list) == 1:
+                # Single file with --id: interpret as issue ID
+                t.retrieve_single_issue(self.args.id, file_list[0])
             else:
                 t.identify_comics(self.args, file_list)
 

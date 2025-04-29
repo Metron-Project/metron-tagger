@@ -53,7 +53,7 @@ from metrontagger.options import make_parser
                 "online": True,
                 "metroninfo": True,
                 "comicinfo": True,
-                "id": "12345",
+                "id": 12345,
                 "delete": True,
                 "ignore_existing": True,
                 "missing": True,
