@@ -42,7 +42,12 @@ def make_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
     )
-    parser.add_argument("--id", help="Identify file for tagging with the Metron Issue Id.")
+    parser.add_argument(
+        "--id",
+        help="Identify file for tagging with the Metron Issue Id, or restrict directory matches to issues from a specific Metron Series Id.",
+        type=int,
+        default=None,
+    )
     parser.add_argument(
         "-d",
         "--delete",

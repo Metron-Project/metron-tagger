@@ -258,7 +258,7 @@ class Talker:
         return src, id_
 
     def _process_file(  # noqa: PLR0912 PLR0911 PLR0915
-        self: Talker, fn: Path, accept_only: bool = False
+        self: Talker, fn: Path, accept_only: bool = False, series_id: int | None = None
     ) -> tuple[int | None, bool]:
         """Process a comic file for metadata.
 
@@ -268,6 +268,7 @@ class Talker:
         Args:
             fn: Path: The file path of the comic to process.
             accept_only: bool: A flag indicating if the process should automatically accept a match if it's the only one.
+            series_id: int | None: Optional series ID to restrict matches to only issues from that series.
         Returns: tuple[int | None, bool]: A tuple containing the issue ID and a flag indicating if multiple matches
         were found.
         """
@@ -340,6 +341,8 @@ class Talker:
         # Alright, if the comic doesn't have an let's do a search based on the filename.
         # TODO: Determine if we want to use some of the other keys beyond 'series' and 'issue number'
         metadata: dict[str, str | tuple[str, ...]] = comicfn2dict(fn, verbose=0)
+        if series_id is not None:
+            metadata["series_id"] = series_id
 
         params = create_query_params(metadata)
         if params is None:
@@ -486,13 +489,18 @@ class Talker:
         with existing metadata and handling multiple matches.
 
         Args:
-            file_list: list[Path]: A list of file paths to process.
             args: NameSpace: The arguments used for the tagging process.
+            file_list: list[Path]: A list of file paths to process.
 
         Returns:
             None
         """
-        msg = create_print_title("Starting Online Search and Tagging:")
+        if args.id is not None:
+            msg = create_print_title(
+                f"Starting Online Search and Tagging (Series ID: {args.id}):"
+            )
+        else:
+            msg = create_print_title("Starting Online Search and Tagging:")
         questionary.print(msg, style=Styles.TITLE)
 
         for fn in file_list:
@@ -513,7 +521,9 @@ class Talker:
                     )
                     continue
 
-            issue_id, multiple_match = self._process_file(fn, args.accept_only)
+            issue_id, multiple_match = self._process_file(
+                fn, args.accept_only, series_id=args.id
+            )
             if issue_id:
                 self._write_issue_md(fn, issue_id)
             elif not multiple_match:
