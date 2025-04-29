@@ -83,26 +83,34 @@ def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str,
     Returns:
         dict[str, str]: The query parameters for searching.
     """
-    # Remove hyphen when searching for series name
-    try:
-        series_string: str = (
-            metadata["series"].replace(" - ", " ").replace(",", "").replace(" & ", " ").strip()
-        )
-    except KeyError:
-        LOGGER.error("Bad filename parsing: %s", metadata)  # NOQA: TRY400
-        return None
+    params = {}
+
+    if "series_id" in metadata:
+        params["series_id"] = metadata["series_id"]
+    else:
+        # Remove hyphen when searching for series name
+        try:
+            params["series_name"] = (
+                metadata["series"]
+                .replace(" - ", " ")
+                .replace(",", "")
+                .replace(" & ", " ")
+                .strip()
+            )
+        except KeyError:
+            LOGGER.error("Bad filename parsing: %s", metadata)  # NOQA: TRY400
+            return None
 
     # If there isn't an issue number, let's assume it's "1".
-    number: str = quote_plus(metadata["issue"].encode("utf-8")) if "issue" in metadata else "1"
+    params["number"] = (
+        quote_plus(metadata["issue"].encode("utf-8")) if "issue" in metadata else "1"
+    )
 
     # Strip any leading zeros from the issue number for the API to correctly match.
-    number = number.lstrip("0")
+    params["number"] = params["number"].lstrip("0")
 
     # Handle issues with #½
-    if number == ".5":
-        number = "½"
+    if params["number"] == ".5":
+        params["number"] = "½"
 
-    return {
-        "series_name": series_string,
-        "number": number,
-    }
+    return params

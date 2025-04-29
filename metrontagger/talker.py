@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from mokkari.schemas.generic import GenericItem
-    from mokkari.schemas.issue import BaseIssue, BasicSeries, Credit as MokkariCredit, Issue
+    from mokkari.schemas.issue import BaseIssue, Credit as MokkariCredit, Issue
 
 import mokkari
 import questionary
@@ -258,7 +258,7 @@ class Talker:
         return src, id_
 
     def _process_file(  # noqa: PLR0912 PLR0911 PLR0915
-        self: Talker, fn: Path, accept_only: bool = False, series: BasicSeries | None = None
+        self: Talker, fn: Path, accept_only: bool = False, series_id: int | None = None
     ) -> tuple[int | None, bool]:
         """Process a comic file for metadata.
 
@@ -268,7 +268,7 @@ class Talker:
         Args:
             fn: Path: The file path of the comic to process.
             accept_only: bool: A flag indicating if the process should automatically accept a match if it's the only one.
-            series: BasicSeries | None: Optional series to restrict matches to only issues from that series.
+            series_id: int | None: Optional series ID to restrict matches to only issues from that series.
         Returns: tuple[int | None, bool]: A tuple containing the issue ID and a flag indicating if multiple matches
         were found.
         """
@@ -341,6 +341,8 @@ class Talker:
         # Alright, if the comic doesn't have an let's do a search based on the filename.
         # TODO: Determine if we want to use some of the other keys beyond 'series' and 'issue number'
         metadata: dict[str, str | tuple[str, ...]] = comicfn2dict(fn, verbose=0)
+        if series_id is not None:
+            metadata["series_id"] = series_id
 
         params = create_query_params(metadata)
         if params is None:
@@ -349,19 +351,6 @@ class Talker:
             )
             return None, False
         i_list = self.api.issues_list(params=params)
-        # Filter by series_id if provided
-        if series is not None:
-            i_list = [
-                issue
-                for issue in i_list
-                if issue.series.name == series.name
-                and issue.series.year_began == series.year_began
-            ]
-            if not i_list:
-                questionary.print(
-                    f"'{fn.name}' matched issues, but none from series {series}",
-                    style=Styles.WARNING,
-                )
         result_count = len(i_list)
 
         # No matches
@@ -507,10 +496,6 @@ class Talker:
             None
         """
         if args.id is not None:
-            series = self.api.series(args.id)
-            if series is None:
-                questionary.print(f"Series ID {args.id} not found", style=Styles.ERROR)
-                return
             msg = create_print_title(
                 f"Starting Online Search and Tagging (Series ID: {args.id}):"
             )
@@ -536,7 +521,9 @@ class Talker:
                     )
                     continue
 
-            issue_id, multiple_match = self._process_file(fn, args.accept_only, series=series)
+            issue_id, multiple_match = self._process_file(
+                fn, args.accept_only, series_id=args.id
+            )
             if issue_id:
                 self._write_issue_md(fn, issue_id)
             elif not multiple_match:
