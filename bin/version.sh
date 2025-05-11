@@ -1,5 +1,5 @@
 #!/bin/bash
-# Get version or set version in Frontend & API.
+# Get version or set version.
 set -euo pipefail
 MODE="${1:-}"
 if [ "$MODE" = "" ]; then
