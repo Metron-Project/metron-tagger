@@ -4,11 +4,21 @@ on:
     tags:
       - "v*.*.*"
 jobs:
-  build:
+  run:
+    name: "Build and publish release"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build and publish to pypi
-        uses: JRubics/poetry-publish@v2.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
         with:
-          pypi_token: ${{ secrets.PYPI_TOKEN }}
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Build
+        run: uv build
+
+      - name: Publish
+        run: uv publish -t ${{ secrets.PYPI_TOKEN }}

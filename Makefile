@@ -1,28 +1,28 @@
 .PHONY: install-deps
-## Update pip and install poetry
+## Update pip and install uv
 ## @category Install
 install-deps:
 	pip install --upgrade pip
-	pip install --upgrade poetry
+	pip install --upgrade uv
 	npm install
 
 .PHONY: install
 ## Install for production
 ## @category Install
 install-prod: install-deps
-	poetry install --no-root --only-root
+	uv sync --no-install-project --no-dev  --no-group test
 
 .PHONY: install-dev
 ## Install dev requirements
 ## @category Install
 install-dev: install-deps
-	poetry install --no-root --only-root --with dev
+	uv sync --no-install-project
 
 .PHONY: install-all
 ## Install with all extras
 ## @category Install
 install-all: install-deps
-	poetry install --no-root --all-extras
+	uv sync --no-install-project --all-extras
 
 .PHONY: clean
 ## Clean pycaches
@@ -34,13 +34,13 @@ clean:
 ## Build package
 ## @category Build
 build:
-	poetry build
+	uv build
 
 .PHONY: publish
 ## Publish package to pypi
 ## @category Deploy
 publish:
-	poetry publish
+	uv publish
 
 .PHONY: update
 ## Update dependencies
