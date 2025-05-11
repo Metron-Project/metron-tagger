@@ -1,10 +1,11 @@
 #!/bin/bash
 # Get version or set version in Frontend & API.
 set -euo pipefail
-VERSION="${1:-}"
-if [ "$VERSION" = "" ]; then
+MODE="${1:-}"
+if [ "$MODE" = "" ]; then
   uv version
 else
-  uv version
+  uv version --bump $MODE
+  VERSION="$(uv version --short)"
   npm version --allow-same-version --no-git-tag-version "$VERSION"
 fi
