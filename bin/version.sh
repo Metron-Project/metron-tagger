@@ -3,8 +3,8 @@
 set -euo pipefail
 VERSION="${1:-}"
 if [ "$VERSION" = "" ]; then
-  poetry version | awk '{print $2};'
+  uv version
 else
-  poetry version "$VERSION"
+  uv version
   npm version --allow-same-version --no-git-tag-version "$VERSION"
 fi

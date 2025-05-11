@@ -5,10 +5,10 @@ metrontagger/schema
 .mypy_cache
 /node_modules
 package-lock.json
-poetry.lock
 __pycache__
 .pytest_cache
 .ruff_cache
 /test-results
 .tox
+uv.lock
 .venv*

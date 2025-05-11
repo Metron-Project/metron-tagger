@@ -10,9 +10,8 @@ bin/sortignore.sh
 ####################
 ###### Python ######
 ###################
-poetry run ruff check --fix .
-poetry run ruff format .
-# poetry run djlint templates --profile=django --reformat
+uv run ruff check --fix .
+uv run ruff format .
 
 ############################################
 ##### Javascript, JSON, Markdown, YAML #####

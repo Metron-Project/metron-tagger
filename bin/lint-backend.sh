@@ -5,13 +5,12 @@ set -euxo pipefail
 ####################
 ###### Python ######
 ####################
-poetry run ruff check .
-poetry run ruff format --check .
-# poetry run pyright
-poetry run vulture --exclude "*/venv/*.py,*/.tox/*.py,*/node_modules/*.py,*/tests/*.py" .
+uv run ruff check .
+uv run ruff format --check .
+# uv run pyright
+uv run vulture --exclude "*/.venv/*.py,*/.tox/*.py,*/node_modules/*.py,*/tests/*.py" .
 
 ############################################
 ##### Javascript, JSON, Markdown, YAML #####
 ############################################
 npm run lint
-npm run remark-check
