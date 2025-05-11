@@ -2,12 +2,13 @@
 
 __all__ = ["__version__", "init_logging"]
 
-__version__ = "3.5.0"
-
 import logging
+from importlib.metadata import version
 from logging import basicConfig
 
 from metrontagger.utils import get_settings_folder
+
+__version__ = version("metron-tagger")
 
 DATE_FMT = "%Y-%m-%d %H:%M:%S %Z"
 LOG_FMT = "{asctime} {levelname:8} {message}"
