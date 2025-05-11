@@ -48,7 +48,7 @@ publish:
 update:
 	./bin/update-deps.sh
 
-## Show version. Use V variable to set version
+## Show version. Use V variable to set version mode, possible values can be major, minor, patch
 ## @category Update
 V :=
 .PHONY: version
