@@ -3,13 +3,15 @@
 # Copyright 2023 Brian Pepple
 from __future__ import annotations
 
-__all__ = ["Duplicates", "DuplicateIssue"]
+__all__ = ["DuplicateIssue", "Duplicates"]
 
 import io
 import warnings
+from collections import defaultdict
 from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import questionary
@@ -19,6 +21,10 @@ from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
 
 from metrontagger.styles import Styles
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
 
 LOGGER = getLogger(__name__)
 
@@ -44,8 +50,17 @@ class DuplicateIssue:
     path_: str
     pages_index: list[int]
 
-    def __repr__(self: DuplicateIssue) -> str:
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(name={Path(self.path_).name})"
+
+    def add_page_index(self, index: int) -> None:
+        """Add a page index to the list of duplicate pages."""
+        if index not in self.pages_index:
+            self.pages_index.append(index)
+
+
+class DuplicateProcessingError(Exception):
+    """Exception raised when duplicate processing fails."""
 
 
 class Duplicates:
@@ -61,11 +76,10 @@ class Duplicates:
         None
     """
 
-    def __init__(self: Duplicates, file_lst: list[Path]) -> None:
+    def __init__(self, file_lst: list[Path]) -> None:
         """Initialize the Duplicates class with a list of file paths.
 
         This method sets the list of file paths and initializes the data frame to None.
-
 
         Args:
             file_lst: list[Path]: A list of file paths to be processed.
@@ -73,156 +87,260 @@ class Duplicates:
         Returns:
             None
         """
+        if not file_lst:
+            msg = "File list cannot be empty"
+            raise ValueError(msg)
 
         self._file_lst = file_lst
         self._data_frame: pd.DataFrame | None = None
+        self._hash_cache: dict[str, list[dict[str, str | int]]] = defaultdict(list)
 
-    def _image_hashes(self: Duplicates) -> list[dict[str, any]]:
-        """Method to get a list of dictionaries containing the file path, page index, and page hashes.
+    def __enter__(self):
+        return self
 
-        This method iterates over the file list, extracts page hashes for each comic, and stores the information in
-        dictionaries.
+    def __exit__(self, *_) -> None:
+        self._clear_cache()
 
-        Returns:
-            list[dict[str, any]]: A list of dictionaries containing file path, page index, and page hashes.
+    def _clear_cache(self) -> None:
+        """Clear internal caches to free memory."""
+        self._data_frame = None
+        self._hash_cache.clear()
+
+    def _generate_page_hashes(self) -> Generator[dict[str, str | int], None, None]:
+        """Generator to yield page hash information for each comic page.
+
+        Yields:
+            dict[str, str | int]: Dictionary containing file path, page index, and page hash.
         """
-
-        hashes_lst = []
         questionary.print("Getting page hashes.", style=Styles.INFO)
-        for item in tqdm(self._file_lst):
-            comic = Comic(item)
-            if not comic.is_writable():
-                LOGGER.error(f"{comic} is not writable.")
+        for item in tqdm(self._file_lst, desc="Processing comics"):
+            try:
+                comic = Comic(item)
+                if not comic.is_writable():
+                    LOGGER.warning("Comic %s is not writable, skipping", comic)
+                    continue
+
+                yield from self._process_comic_pages(comic)
+
+            except Exception as e:
+                LOGGER.error("Failed to process comic %s: %s", item, e)  # noqa: TRY400
                 continue
-            pages = [comic.get_page(i) for i in range(comic.get_number_of_pages())]
-            for i, page in enumerate(pages):
-                try:
-                    with Image.open(io.BytesIO(page)) as img:
-                        img_hash = average_hash(img)
-                        image_info = {
-                            "path": str(comic.path),
-                            "index": i,
-                            "hash": str(img_hash),
-                        }
-                        hashes_lst.append(image_info)
-                except (UnidentifiedImageError, OSError) as e:
-                    error_message = (
-                        f"UnidentifiedImageError: Skipping page {i} of '{comic}'"
-                        if isinstance(e, UnidentifiedImageError)
-                        else f"Unable to get image hash for page {i} of '{comic}'"
-                    )
-                    LOGGER.exception("%s", error_message)
 
-        return hashes_lst
-
-    def _get_page_hashes(self: Duplicates) -> pd.DataFrame:
-        """Method to get a DataFrame of comics with duplicate pages.
-
-        This method calls _image_hashes to retrieve page hashes, creates a DataFrame, and filters out duplicates
-        based on hash values.
-
-        Returns:
-            pd.DataFrame: A DataFrame containing comics with duplicate pages.
-        """
-
-        comic_hashes = self._image_hashes()
-        self._data_frame = pd.DataFrame(comic_hashes)
-        return self._data_frame[self._data_frame["hash"].duplicated(keep=False)].sort_values(
-            "hash"
-        )
-
-    def get_distinct_hashes(self: Duplicates) -> list[str]:
-        """Method to get distinct hash values.
-
-        This method retrieves page hashes, identifies distinct hash values, and returns a list of unique hash values.
-
-        Returns:
-            list[str]: A list of distinct hash values.
-        """
-
-        page_hashes = self._get_page_hashes()
-        return list(set(page_hashes["hash"]))
-
-    def get_comic_info_for_distinct_hash(self: Duplicates, img_hash: str) -> DuplicateIssue:  # noqa: ARG002
-        """Method to retrieve comic information for a distinct hash value.
-
-        This method takes a hash value, finds the corresponding comic information in the data frame, and returns a
-        DuplicateIssue object with the comic's path and page index.
+    def _process_comic_pages(
+        self, comic: Comic
+    ) -> Generator[dict[str, str | int], None, None]:
+        """Process all pages in a comic and yield hash information.
 
         Args:
-            img_hash: str: The hash value to search for in the data frame.
+            comic: Comic object to process
 
-        Returns:
-            DuplicateIssue: A DuplicateIssue object representing the comic information.
+        Yields:
+            dict[str, str | int]: Dictionary containing file path, page index, and page hash.
         """
+        num_pages = comic.get_number_of_pages()
+        for page_idx in range(num_pages):
+            try:
+                page_data = comic.get_page(page_idx)
+                if img_hash := self._calculate_image_hash(page_data):
+                    yield {
+                        "path": str(comic.path),
+                        "index": page_idx,
+                        "hash": img_hash,
+                    }
+            except Exception:
+                LOGGER.exception("Failed to process page %d of '%s'", page_idx, comic)
 
-        row = self._data_frame.query("hash == @img_hash").iloc[0]
-        return DuplicateIssue(row["path"], row["index"])
-
-    def get_comic_list_from_hash(self: Duplicates, img_hash: str) -> list[DuplicateIssue]:
-        """Method to get a list of DuplicateIssue objects from a hash value.
-
-        This method retrieves comic information from the data frame based on the hash value and returns a list of
-        DuplicateIssue objects.
+    @staticmethod
+    def _calculate_image_hash(page_data: bytes) -> str | None:
+        """Calculate the hash for a single image page.
 
         Args:
-            img_hash: str: The hash value to search for in the data frame.
+            page_data: Raw image data as bytes
+
+        Returns:
+            str | None: Hash string or None if calculation failed
+        """
+        try:
+            with Image.open(io.BytesIO(page_data)) as img:
+                return str(average_hash(img))
+        except (UnidentifiedImageError, OSError) as e:
+            LOGGER.debug("Unable to calculate hash for image: %s", e)
+            return None
+
+    def _build_dataframe(self) -> pd.DataFrame:
+        """Build a DataFrame from page hashes and cache duplicates.
+
+        Returns:
+            pd.DataFrame: DataFrame containing comics with duplicate pages.
+        """
+        if self._data_frame is not None:
+            return self._data_frame
+
+        # Convert generator to list for DataFrame creation
+        hash_data = list(self._generate_page_hashes())
+
+        if not hash_data:
+            LOGGER.warning("No valid page hashes found")
+            return pd.DataFrame()
+
+        self._data_frame = pd.DataFrame(hash_data)
+
+        # Build hash cache for faster lookups
+        self._build_hash_cache()
+
+        return self._data_frame
+
+    def _build_hash_cache(self) -> None:
+        """Build a cache of hash values for faster duplicate lookups."""
+        if self._data_frame is None or self._data_frame.empty:
+            return
+
+        for _, row in self._data_frame.iterrows():
+            hash_value = row["hash"]
+            self._hash_cache[hash_value].append({"path": row["path"], "index": row["index"]})
+
+    def get_duplicate_pages_dataframe(self) -> pd.DataFrame:
+        """Get a DataFrame containing only duplicate pages.
+
+        Returns:
+            pd.DataFrame: DataFrame containing comics with duplicate pages.
+        """
+        df = self._build_dataframe()
+        if df.empty:
+            return df
+
+        return df[df["hash"].duplicated(keep=False)].sort_values("hash")
+
+    def get_distinct_hashes(self) -> list[str]:
+        """Get distinct hash values for duplicate pages.
+
+        Returns:
+            list[str]: A list of distinct hash values that appear in multiple pages.
+        """
+        duplicate_df = self.get_duplicate_pages_dataframe()
+        return [] if duplicate_df.empty else list(duplicate_df["hash"].unique())
+
+    def get_comic_info_for_hash(self, img_hash: str) -> DuplicateIssue | None:
+        """Retrieve comic information for a specific hash value.
+
+        Args:
+            img_hash: str: The hash value to search for.
+
+        Returns:
+            DuplicateIssue | None: A DuplicateIssue object or None if hash not found.
+        """
+        if img_hash not in self._hash_cache:
+            return None
+
+        first_entry = self._hash_cache[img_hash][0]
+        return DuplicateIssue(first_entry["path"], [first_entry["index"]])
+
+    def get_comic_list_from_hash(self, img_hash: str) -> list[DuplicateIssue]:
+        """Get a list of DuplicateIssue objects from a hash value.
+
+        Args:
+            img_hash: str: The hash value to search for.
 
         Returns:
             list[DuplicateIssue]: A list of DuplicateIssue objects representing comics with the specified hash value.
         """
-        filtered_df = self._data_frame[self._data_frame["hash"] == img_hash]
+        if img_hash not in self._hash_cache:
+            return []
+
         return [
-            DuplicateIssue(row["path"], [row["index"]]) for _, row in filtered_df.iterrows()
+            DuplicateIssue(entry["path"], [entry["index"]])
+            for entry in self._hash_cache[img_hash]
         ]
 
     @staticmethod
-    def delete_comic_pages(dups_lst: list[DuplicateIssue]) -> None:
-        """Method to delete pages from a comic.
-
-        This method iterates over a list of DuplicateIssue objects, attempts to remove the specified pages from each
-        comic, and provides feedback on the success of the operation.
+    def delete_comic_pages(duplicates_list: list[DuplicateIssue]) -> dict[str, bool]:
+        """Delete pages from comics and return results.
 
         Args:
-            dups_lst: list[DuplicateIssue]: A list of DuplicateIssue objects representing duplicate pages to be removed.
+            duplicates_list: list[DuplicateIssue]: List of DuplicateIssue objects representing duplicate pages.
 
         Returns:
-            None
+            dict[str, bool]: Dictionary mapping comic paths to success status.
         """
-        results = [
-            (comic, comic.remove_pages(item.pages_index))
-            for item in tqdm(dups_lst)
-            for comic in [Comic(item.path_)]
-        ]
+        if not duplicates_list:
+            LOGGER.info("No duplicate pages to delete")
+            return {}
 
-        for comic, success in results:
-            questionary.print(
-                f"{'Removed' if success else 'Failed to remove'} duplicate pages from {comic}",
-                style=Styles.SUCCESS if success else Styles.WARNING,
-            )
+        results = {}
+        for item in duplicates_list:
+            try:
+                comic = Comic(item.path_)
+                # Sort pages in descending order to avoid index shifting issues
+                sorted_pages = sorted(item.pages_index, reverse=True)
+                success = comic.remove_pages(sorted_pages)
+                results[item.path_] = success
+
+                status_msg = "Removed" if success else "Failed to remove"
+                style = Styles.SUCCESS if success else Styles.WARNING
+                questionary.print(
+                    f"{status_msg} duplicate pages from {comic}",
+                    style=style,
+                )
+            except Exception as e:
+                LOGGER.error("Error deleting pages from %s: %s", item.path_, e)  # noqa: TRY400
+                results[item.path_] = False
+                questionary.print(
+                    f"Error removing duplicate pages from {Path(item.path_).name}: {e}",
+                    style=Styles.ERROR,
+                )
+
+        return results
 
     @staticmethod
-    def show_image(first_comic: DuplicateIssue) -> None:
-        """Method to show the user an image from a comic.
-
-        This method takes a DuplicateIssue object, retrieves the image data, and displays the image to the user.
+    def show_image(duplicate_issue: DuplicateIssue) -> bool:
+        """Show an image from a comic to the user.
 
         Args:
-            first_comic: DuplicateIssue: The DuplicateIssue object representing the comic to display.
+            duplicate_issue: DuplicateIssue: The DuplicateIssue object representing the comic to display.
 
         Returns:
-            None
+            bool: True if image was successfully shown, False otherwise.
         """
+        if not duplicate_issue.pages_index:
+            LOGGER.warning("No page indices available for %s", duplicate_issue.path_)
+            return False
 
-        comic = Comic(first_comic.path_)
-        # noinspection PyTypeChecker
-        img_data = comic.get_page(first_comic.pages_index)
         try:
+            comic = Comic(duplicate_issue.path_)
+            # Use first page index if multiple are available
+            page_index = duplicate_issue.pages_index[0]
+            img_data = comic.get_page(page_index)
+
             with io.BytesIO(img_data) as img_io:
                 image = Image.open(img_io)
                 image.show()
-        except UnidentifiedImageError:
+                return True
+
+        except (UnidentifiedImageError, OSError, IndexError) as e:
+            LOGGER.warning("Unable to show image from %s: %s", duplicate_issue.path_, e)
             questionary.print(
-                f"Unable to show image from {comic}.",
+                f"Unable to show image from {Path(duplicate_issue.path_).name}.",
                 style=Styles.WARNING,
             )
+            return False
+        except Exception as e:
+            LOGGER.error(  # noqa: TRY400
+                "Unexpected error showing image from %s: %s", duplicate_issue.path_, e
+            )
+            return False
+
+    def get_statistics(self) -> dict[str, int]:
+        """Get statistics about the duplicate detection process.
+
+        Returns:
+            dict[str, int]: Dictionary containing various statistics.
+        """
+        df = self._build_dataframe()
+        duplicate_df = self.get_duplicate_pages_dataframe()
+
+        return {
+            "total_pages": len(df),
+            "duplicate_pages": len(duplicate_df),
+            "unique_duplicate_hashes": len(self.get_distinct_hashes()),
+            "comics_processed": len(self._file_lst),
+        }
