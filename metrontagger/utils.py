@@ -95,6 +95,9 @@ def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str,
                 .replace(" - ", " ")
                 .replace(",", "")
                 .replace(" & ", " ")
+                .replace("HC", "")
+                .replace("TPB", "")
+                .replace("Digital Chapter", "")
                 .strip()
             )
         except KeyError:
