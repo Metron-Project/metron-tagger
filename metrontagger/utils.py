@@ -1,10 +1,10 @@
 """Some miscellaneous functions"""
 
 __all__ = [
-    "get_settings_folder",
-    "create_print_title",
     "cleanup_string",
+    "create_print_title",
     "create_query_params",
+    "get_settings_folder",
 ]
 
 import platform
@@ -107,7 +107,7 @@ def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str,
     )
 
     # Strip any leading zeros from the issue number for the API to correctly match.
-    params["number"] = params["number"].lstrip("0")
+    params["number"] = params["number"].lstrip("0") or "0"
 
     # Handle issues with #½
     if params["number"] == ".5":
