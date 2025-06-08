@@ -6,6 +6,7 @@ import io
 import warnings
 from datetime import datetime
 from enum import Enum, auto, unique
+from functools import lru_cache
 from logging import getLogger
 from typing import TYPE_CHECKING
 
@@ -179,7 +180,8 @@ class Talker:
         return questionary.select("Select an issue to match", choices=choices).ask()
 
     @staticmethod
-    def _get_comic_cover_hash(comic: Comic) -> ImageHash | None:
+    @lru_cache(maxsize=128)
+    def _get_comic_cover_hash_cached(comic: Comic) -> ImageHash | None:
         """Get the image hash of a comic cover.
 
         This static method calculates the image hash of the comic cover image using pHash algorithm.
@@ -208,13 +210,15 @@ class Talker:
         """
         if metron_hash is None:
             return False
-        comic_hash = self._get_comic_cover_hash(comic)
+        comic_hash = self._get_comic_cover_hash_cached(comic)
         if comic_hash is None:
             return False
         hamming = comic_hash - hex_to_hash(metron_hash)
         return hamming <= HAMMING_DISTANCE
 
-    def _get_hamming_results(self: Talker, comic: Comic, lst: list[BaseIssue]) -> list[any]:
+    def _get_hamming_results(
+        self: Talker, comic: Comic, lst: list[BaseIssue]
+    ) -> list[BaseIssue]:
         """Get the list of BaseIssue objects within the specified Hamming distance.
 
         This method filters the list of BaseIssue objects based on the Hamming distance between the comic cover hash
