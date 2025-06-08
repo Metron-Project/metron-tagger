@@ -1,10 +1,10 @@
 """Some miscellaneous functions"""
 
 __all__ = [
-    "get_settings_folder",
-    "create_print_title",
     "cleanup_string",
+    "create_print_title",
     "create_query_params",
+    "get_settings_folder",
 ]
 
 import platform
@@ -71,46 +71,79 @@ def cleanup_string(path_name: float | str | None) -> str | None:
     return path_name.replace("?", "")
 
 
-def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str, str] | None:
-    """Create query parameters for searching based on metadata.
+def _clean_series_name(name: str) -> str:
+    """Clean and normalize a series name for use in search queries.
 
-    This function prepares query parameters for searching based on the series name and issue number extracted from
-    the metadata dictionary.
+    This function removes certain punctuation and keywords from the series name to improve search accuracy.
 
     Args:
-        metadata: dict[str, str | tuple[str, ...]: A dictionary containing metadata information.
+        name: The original series name string.
 
     Returns:
-        dict[str, str]: The query parameters for searching.
+        str: The cleaned series name.
+    """
+    return (
+        name.replace(" - ", " ")
+        .replace(",", "")
+        .replace(" & ", " ")
+        .replace("HC", "")
+        .replace("TPB", "")
+        .replace("Digital Chapter", "")
+        .strip()
+    )
+
+
+def _clean_issue_number(number: any) -> str:
+    """Format and encode an issue number for search queries.
+
+    This function converts the issue number to a string, strips leading zeros, handles special cases, and URL-encodes
+    the result.
+
+    Args:
+        number: The issue number, which may be a string, tuple, or other type.
+
+    Returns:
+        str: The URL-encoded issue number as a string.
+    """
+    issue_str = (
+        " ".join(str(i) for i in number)
+        if isinstance(number, tuple)
+        else number
+        if isinstance(number, str)
+        else str(number)
+    )
+    issue_str = issue_str.lstrip("0") or "0"
+    return "½" if issue_str == ".5" else quote_plus(issue_str.encode("utf-8"))
+
+
+def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str, str] | None:
+    """Generate query parameters for searching based on provided metadata.
+
+    This function creates a dictionary of query parameters using series and issue information from the metadata. It
+    returns None if neither a series ID nor a series name is present.
+
+    Args:
+        metadata: A dictionary containing metadata information, such as series ID, series name, and issue number.
+
+    Returns:
+        dict[str, str] | None: The query parameters for searching, or None if required fields are missing.
     """
     params = {}
 
-    if "series_id" in metadata:
-        params["series_id"] = metadata["series_id"]
+    if series_id := metadata.get("series_id"):
+        params["series_id"] = str(series_id)
+    elif series := metadata.get("series"):
+        params["series_name"] = _clean_series_name(
+            series if isinstance(series, str) else str(series)
+        )
     else:
-        # Remove hyphen when searching for series name
-        try:
-            params["series_name"] = (
-                metadata["series"]
-                .replace(" - ", " ")
-                .replace(",", "")
-                .replace(" & ", " ")
-                .strip()
-            )
-        except KeyError:
-            LOGGER.error("Bad filename parsing: %s", metadata)  # NOQA: TRY400
-            return None
+        LOGGER.error("Bad filename parsing: %s", metadata)
+        return None
 
-    # If there isn't an issue number, let's assume it's "1".
-    params["number"] = (
-        quote_plus(metadata["issue"].encode("utf-8")) if "issue" in metadata else "1"
-    )
-
-    # Strip any leading zeros from the issue number for the API to correctly match.
-    params["number"] = params["number"].lstrip("0")
-
-    # Handle issues with #½
-    if params["number"] == ".5":
-        params["number"] = "½"
+    # Handle issue number
+    if issue := metadata.get("issue"):
+        params["number"] = _clean_issue_number(issue)
+    else:
+        params["number"] = "1"
 
     return params
