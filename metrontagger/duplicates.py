@@ -11,7 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import questionary
@@ -95,7 +95,7 @@ class Duplicates:
         self._data_frame: pd.DataFrame | None = None
         self._hash_cache: dict[str, list[dict[str, str | int]]] = defaultdict(list)
 
-    def __enter__(self) -> Self:
+    def __enter__(self):
         return self
 
     def __exit__(self, *_) -> None:
