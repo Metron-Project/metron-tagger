@@ -183,7 +183,7 @@ ban-relative-imports = "all"
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
-"tests/test_*.py" = ["ERA001", "S101", "SLF001", "PT001"]
+"tests/test_*.py" = ["ARG005", "ERA001", "S101", "SLF001", "PLR2004", "PT001"]
 
 [tool.ruff.lint.pycodestyle]
 ignore-overlong-task-comments = true
