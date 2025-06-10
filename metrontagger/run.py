@@ -374,6 +374,15 @@ class Runner:
                 if not comic.write_metadata(md, MetadataFormat.COMIC_RACK):
                     LOGGER.error("Could not write metadata to %s", comic)
 
+    @staticmethod
+    def _create_duplicate_statistics_msg(stats: dict[str, int]) -> str:
+        return (
+            f"Total Pages: {stats['total_pages']}\n"
+            f"Duplicate Pages: {stats['duplicate_pages']}\n"
+            f"Unique Hashes: {stats['unique_duplicate_hashes']}\n"
+            f"Comics Processed: {stats['comics_processed']}"
+        )
+
     def _remove_duplicates(self: Runner, file_list: list[Path]) -> None:
         """Remove duplicate images from comic archives.
 
@@ -439,7 +448,8 @@ class Runner:
                 and questionary.confirm("Do want to write your changes to the comics?").ask()
             ):
                 dup_objs.delete_comic_pages(duplicates_lst)
-                dup_objs.get_statistics()
+                msg = self._create_duplicate_statistics_msg(dup_objs.get_statistics())
+                questionary.print(msg, style=Styles.INFO)
             else:
                 questionary.print("No duplicate page changes to write.", style=Styles.SUCCESS)
 
