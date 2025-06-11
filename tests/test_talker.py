@@ -99,7 +99,7 @@ def create_read_md_story(resource: list[str]) -> list[Basic]:
 
 
 def test_map_resp_to_metadata(talker: Talker, test_issue: Issue) -> None:
-    md = talker._map_resp_to_metadata(test_issue)
+    md = talker.metadata_mapper.map_response_to_metadata(test_issue)
     assert md is not None
     assert md.stories == create_read_md_story(test_issue.story_titles)
     assert md.series.name == test_issue.series.name
@@ -126,7 +126,7 @@ def test_map_resp_to_metadata_with_no_story_name(
 ) -> None:
     test_data = test_issue
     test_data.story_titles = []
-    meta_data = talker._map_resp_to_metadata(test_data)
+    meta_data = talker.metadata_mapper.map_response_to_metadata(test_data)
     assert meta_data is not None
     assert len(meta_data.stories) == 0
     assert meta_data.series.name == test_issue.series.name
@@ -300,9 +300,9 @@ def test_retrieve_single_issue(
     ("primary_name", "primary_id", "alternatives", "expected"),
     [
         # Happy path tests
-        ("metron", 123, [], (InfoSource.metron, 123)),
-        ("comic vine", 456, [], (InfoSource.comic_vine, 456)),
-        ("anilist", 789, [InfoSources("metron", 321)], (InfoSource.metron, 321)),
+        ("metron", 123, [], (InfoSource.METRON, 123)),
+        ("comic vine", 456, [], (InfoSource.COMIC_VINE, 456)),
+        ("anilist", 789, [InfoSources("metron", 321)], (InfoSource.METRON, 321)),
         # Edge case
         ("anilist", 789, [], None),
     ],
@@ -313,12 +313,14 @@ def test_retrieve_single_issue(
         "edge_case_no_metron_or_comic_vine",
     ],
 )
-def test_get_id_from_metron_info(primary_name, primary_id, alternatives, expected):
+def test_get_id_from_metron_info(
+    talker: Talker, primary_name, primary_id, alternatives, expected
+):
     # Arrange
     md = Metadata(info_source=[InfoSources(primary_name, primary_id, True), *alternatives])
 
     # Act
-    result = Talker._get_id_from_metron_info(md)
+    result = talker.metadata_extractor.get_id_from_metron_info(md)
 
     # Assert
     assert result == expected
@@ -330,20 +332,20 @@ def test_get_id_from_metron_info(primary_name, primary_id, alternatives, expecte
         # Happy path tests
         (
             "Tagged with MetronTagger-2.6.0 using info from Metron on 2024-10-16 16:07:08. [issue_id:12345]",
-            (InfoSource.metron, 12345),
+            (InfoSource.METRON, 12345),
         ),
         (
             "Tagged with ComicTagger 1.3.2a5 using info from Comic Vine on 2022-04-16 15:52:26. [Issue ID 67890]",
-            (InfoSource.comic_vine, 67890),
+            (InfoSource.COMIC_VINE, 67890),
         ),
         # Edge cases
         (
             "Tagged with MetronTagger-2.6.0 using info from Metron on 2024-10-16 16:07:08. [issue_id:00001]",
-            (InfoSource.metron, 1),
+            (InfoSource.METRON, 1),
         ),
         (
             "Tagged with ComicTagger 1.3.2a5 using info from Comic Vine on 2022-04-16 15:52:26. [Issue ID 00000]",
-            (InfoSource.comic_vine, 0),
+            (InfoSource.COMIC_VINE, 0),
         ),
         # Error cases
         (
@@ -368,14 +370,14 @@ def test_get_id_from_metron_info(primary_name, primary_id, alternatives, expecte
         "no_notes",
     ],
 )
-def test_get_id_from_comic_info(notes, expected):
+def test_get_id_from_comic_info(talker: Talker, notes, expected):
     # Arrange
     md = Metadata(
         notes=Notes(comic_rack=notes) if notes else None, series=Series("Foo"), issue="2"
     )
 
     # Act
-    result = Talker._get_id_from_comic_info(md)
+    result = talker.metadata_extractor.get_id_from_comic_info(md)
 
     # Assert
     assert result == expected
