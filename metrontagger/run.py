@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import questionary
-from darkseid.comic import Comic, MetadataFormat
+from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
 from darkseid.metadata import Metadata, Notes
 from darkseid.utils import get_recursive_filelist
 from tqdm import tqdm
@@ -73,7 +73,13 @@ class Runner:
         questionary.print(msg, style=Styles.TITLE)
 
         for item in file_list:
-            comic = Comic(item)
+            try:
+                comic = Comic(item)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(item))
+                questionary.print(f"'{item.name}' is not a valid comic.'", style=Styles.ERROR)
+                return
+
             if comic.has_metadata(MetadataFormat.COMIC_RACK) and not comic.has_metadata(
                 MetadataFormat.METRON_INFO
             ):
@@ -110,7 +116,12 @@ class Runner:
         original_files_changed: list[Path] = []
         renamer = FileRenamer()
         for comic in file_list:
-            comic_archive = Comic(comic)
+            try:
+                comic_archive = Comic(comic)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(comic))
+                continue
+
             if comic_archive.has_metadata(MetadataFormat.METRON_INFO):
                 md = comic_archive.read_metadata(MetadataFormat.METRON_INFO)
             elif comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
@@ -163,24 +174,38 @@ class Runner:
         msg = create_print_title("Exporting to CBZ:")
         questionary.print(msg, style=Styles.TITLE)
         for comic in file_list:
-            ca = Comic(str(comic))
-            if ca.is_rar():
-                new_fn = Path(comic).with_suffix(".cbz")
-                if ca.export_as_zip(new_fn):
-                    questionary.print(
-                        f"Exported '{comic.name}' to a cbz archive.",
-                        style=Styles.SUCCESS,
-                    )
-                    if self.args.delete_original:
-                        questionary.print(f"Removing '{comic.name}'.", style=Styles.SUCCESS)
-                        comic.unlink()
-                else:
-                    questionary.print(f"Failed to export '{comic.name}'", style=Styles.ERROR)
-            else:
+            try:
+                ca = Comic(comic)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(comic))
                 questionary.print(
-                    f"'{comic.name}' is not a cbr archive. skipping...",
-                    style=Styles.WARNING,
+                    f"'{comic.name}' is not a valid comic. Skipping...", style=Styles.ERROR
                 )
+                continue
+
+            if not ca.is_rar():
+                questionary.print(
+                    f"'{comic.name}' is not a cbr archive. skipping...", style=Styles.WARNING
+                )
+                continue
+
+            new_fn = Path(comic).with_suffix(".cbz")
+            if ca.export_as_zip(new_fn):
+                questionary.print(
+                    f"Exported '{comic.name}' to a cbz archive.",
+                    style=Styles.SUCCESS,
+                )
+                if self.args.delete_original:
+                    questionary.print(f"Removing '{comic.name}'.", style=Styles.SUCCESS)
+                    try:
+                        comic.unlink()
+                    except OSError as e:
+                        LOGGER.warning("Failed to remove file %s: %s", comic.name, e)
+                        questionary.print(
+                            f"Failed to remove file: {comic.name}.", style=Styles.ERROR
+                        )
+            else:
+                questionary.print(f"Failed to export '{comic.name}'", style=Styles.ERROR)
 
     def _validate_comic_info(
         self: Runner, file_list: list[Path], remove_ci: bool = False
@@ -189,7 +214,15 @@ class Runner:
         msg = create_print_title("Validating ComicInfo:")
         questionary.print(msg, style=Styles.TITLE)
         for comic in file_list:
-            ca = Comic(comic)
+            try:
+                ca = Comic(comic)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(comic))
+                questionary.print(
+                    f"'{comic.name}' is not a valid comic. Skipping...", style=Styles.ERROR
+                )
+                continue
+
             has_comic_rack = ca.has_metadata(MetadataFormat.COMIC_RACK)
             has_metron_info = ca.has_metadata(MetadataFormat.METRON_INFO)
 
@@ -200,12 +233,13 @@ class Runner:
                 )
                 continue
 
+            # TODO: Move metadata validation to darkseid.
             if self.args.comicinfo and has_comic_rack:
-                xml = ca.archiver.read_file("ComicInfo.xml")
+                xml = ca._archiver.read_file("ComicInfo.xml")  # noqa: SLF001
                 self._check_if_xml_is_valid(ca, xml, MetadataFormat.COMIC_RACK, remove_ci)
 
             if self.args.metroninfo and has_metron_info:
-                xml = ca.archiver.read_file("MetronInfo.xml")
+                xml = ca._archiver.read_file("MetronInfo.xml")  # noqa: SLF001
                 self._check_if_xml_is_valid(ca, xml, MetadataFormat.METRON_INFO, remove_ci)
 
     @staticmethod
@@ -285,7 +319,15 @@ class Runner:
             return
 
         for comic in file_list:
-            comic_archive = Comic(str(comic))
+            try:
+                comic_archive = Comic(comic)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(comic))
+                questionary.print(
+                    f"'{comic.name}' is not a valid comic. Skipping...", style=Styles.ERROR
+                )
+                continue
+
             if (
                 self.args.comicinfo
                 and not comic_archive.has_metadata(MetadataFormat.COMIC_RACK)
@@ -309,16 +351,35 @@ class Runner:
         msg = create_print_title("Removing Metadata:")
         questionary.print(msg, style=Styles.TITLE)
         for item in file_list:
-            comic_archive = Comic(item)
+            try:
+                comic_archive = Comic(item)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(item))
+                questionary.print(
+                    f"'{item.name}' is not a valid comic. Skipping...", style=Styles.ERROR
+                )
+                continue
             formats_removed = []
 
             if self.args.comicinfo and comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
-                comic_archive.remove_metadata(MetadataFormat.COMIC_RACK)
-                formats_removed.append("'ComicInfo.xml'")
+                if not comic_archive.remove_metadata(MetadataFormat.COMIC_RACK):
+                    LOGGER.error("Failed to remove ComicInfo.xml from: %s", str(item))
+                    questionary.print(
+                        f"Failed to remove ComicInfo.xml from '{item.name}'",
+                        style=Styles.ERROR,
+                    )
+                else:
+                    formats_removed.append("'ComicInfo.xml'")
 
             if self.args.metroninfo and comic_archive.has_metadata(MetadataFormat.METRON_INFO):
-                comic_archive.remove_metadata(MetadataFormat.METRON_INFO)
-                formats_removed.append("'MetronInfo.xml'")
+                if not comic_archive.remove_metadata(MetadataFormat.METRON_INFO):
+                    LOGGER.error("Failed to remove MetronInfo.xml from: %s", str(item))
+                    questionary.print(
+                        f"Failed to remove MetronInfo.xml from '{item.name}'",
+                        style=Styles.ERROR,
+                    )
+                else:
+                    formats_removed.append("'MetronInfo.xml'")
 
             if formats_removed:
                 fmt = " and ".join(formats_removed)
@@ -365,7 +426,15 @@ class Runner:
         """
 
         for item in tqdm(file_list):
-            comic = Comic(item.path_)
+            try:
+                comic = Comic(item.path_)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(item))
+                questionary.print(
+                    f"'{item.path_}' is not a valid comic. Skipping...", style=Styles.ERROR
+                )
+                continue
+
             if comic.has_metadata(MetadataFormat.COMIC_RACK):
                 md = comic.read_metadata(MetadataFormat.COMIC_RACK)
                 new_md = Metadata()

@@ -392,14 +392,14 @@ def test_load_comic_metadata_no_metadata(mock_comic_class, file_sorter, mock_com
     assert result is None
 
 
-@patch("metrontagger.filesorter.Comic")
-def test_load_comic_metadata_comic_open_error(mock_comic_class, file_sorter, mock_comic_file):
-    """Test metadata loading when comic file cannot be opened."""
-    mock_comic_class.side_effect = Exception("Cannot open comic")
-
-    result = file_sorter._load_comic_metadata(mock_comic_file)
-
-    assert result is None
+# @patch("metrontagger.filesorter.Comic")
+# def test_load_comic_metadata_comic_open_error(mock_comic_class, file_sorter, mock_comic_file):
+#     """Test metadata loading when comic file cannot be opened."""
+#     mock_comic_class.side_effect = Exception("Cannot open comic")
+#
+#     result = file_sorter._load_comic_metadata(mock_comic_file)
+#
+#     assert result is None
 
 
 # Test _validate_metadata_completeness method

@@ -10,7 +10,8 @@ from shutil import Error as ShutilError, move
 from typing import TYPE_CHECKING, NamedTuple
 
 import questionary
-from darkseid.comic import Comic, MetadataFormat
+from darkseid.archivers import ArchiverReadError
+from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
 
 if TYPE_CHECKING:
     from darkseid.metadata import Metadata
@@ -273,8 +274,8 @@ class FileSorter:
         """
         try:
             comic_archive = Comic(comic_path)
-        except Exception:
-            logger.exception(f"Failed to open comic file {comic_path}")
+        except ComicArchiveError:
+            logger.exception("Failed to open comic: %s", str(comic_path))
             return None
 
         # Try MetronInfo first, then ComicRack
@@ -282,7 +283,7 @@ class FileSorter:
             if comic_archive.has_metadata(format_type):
                 try:
                     return comic_archive.read_metadata(format_type)
-                except Exception as e:
+                except ArchiverReadError as e:
                     logger.warning(
                         f"Failed to read {format_type} metadata from {comic_path}: {e}"
                     )
