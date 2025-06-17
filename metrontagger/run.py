@@ -21,10 +21,11 @@ if TYPE_CHECKING:
     from argparse import Namespace
 
     from metrontagger.settings import MetronTaggerSettings
+from darkseid.validate import SchemaVersion
+
 from metrontagger import __version__
 from metrontagger.styles import Styles
 from metrontagger.talker import Talker
-from metrontagger.validate import SchemaVersion, ValidateMetadata
 
 LOGGER = getLogger(__name__)
 
@@ -210,8 +211,8 @@ class Runner:
     def _validate_comic_info(
         self: Runner, file_list: list[Path], remove_ci: bool = False
     ) -> None:
-        """Validate ComicInfo metadata in comic archives."""
-        msg = create_print_title("Validating ComicInfo:")
+        """Validate metadata in comic archives."""
+        msg = create_print_title("Validating Metadata:")
         questionary.print(msg, style=Styles.TITLE)
         for comic in file_list:
             try:
@@ -233,30 +234,27 @@ class Runner:
                 )
                 continue
 
-            # TODO: Move metadata validation to darkseid.
             if self.args.comicinfo and has_comic_rack:
-                xml = ca._archiver.read_file("ComicInfo.xml")  # noqa: SLF001
-                self._check_if_xml_is_valid(ca, xml, MetadataFormat.COMIC_RACK, remove_ci)
+                self._check_if_xml_is_valid(ca, MetadataFormat.COMIC_RACK, remove_ci)
 
             if self.args.metroninfo and has_metron_info:
-                xml = ca._archiver.read_file("MetronInfo.xml")  # noqa: SLF001
-                self._check_if_xml_is_valid(ca, xml, MetadataFormat.METRON_INFO, remove_ci)
+                self._check_if_xml_is_valid(ca, MetadataFormat.METRON_INFO, remove_ci)
 
     @staticmethod
     def _check_if_xml_is_valid(
-        comic: Comic, xml: bytes, fmt: MetadataFormat, remove_metadata: bool
+        comic: Comic, fmt: MetadataFormat, remove_metadata: bool
     ) -> None:
-        result = ValidateMetadata(xml).validate()
+        result = comic.validate_metadata(fmt)
         messages = {
-            SchemaVersion.ci_v2: (
+            SchemaVersion.COMIC_INFO_V2: (
                 f"'{comic.path.name}' has a valid ComicInfo Version 2",
                 Styles.SUCCESS,
             ),
-            SchemaVersion.ci_v1: (
+            SchemaVersion.COMIC_INFO_V1: (
                 f"'{comic.path.name}' has a valid ComicInfo Version 1",
                 Styles.SUCCESS,
             ),
-            SchemaVersion.mi_v1: (
+            SchemaVersion.METRON_INFO_V1: (
                 f"'{comic.path.name}' has a valid MetronInfo Version 1",
                 Styles.SUCCESS,
             ),
