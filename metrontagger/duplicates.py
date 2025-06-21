@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 import questionary
-from darkseid.comic import Comic
+from darkseid.comic import Comic, ComicArchiveError
 from imagehash import average_hash
 from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
@@ -116,15 +116,15 @@ class Duplicates:
         for item in tqdm(self._file_lst, desc="Processing comics"):
             try:
                 comic = Comic(item)
-                if not comic.is_writable():
-                    LOGGER.warning("Comic %s is not writable, skipping", comic)
-                    continue
-
-                yield from self._process_comic_pages(comic)
-
-            except Exception as e:
-                LOGGER.error("Failed to process comic %s: %s", item, e)  # noqa: TRY400
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: '%s'", str(item))
                 continue
+
+            if not comic.is_writable():
+                LOGGER.warning("Comic %s is not writable, skipping", comic)
+                continue
+
+            yield from self._process_comic_pages(comic)
 
     def _process_comic_pages(
         self, comic: Comic
@@ -270,17 +270,15 @@ class Duplicates:
         for item in duplicates_list:
             try:
                 comic = Comic(item.path_)
-                # Sort pages in descending order to avoid index shifting issues
-                sorted_pages = sorted(item.pages_index, reverse=True)
-                success = comic.remove_pages(sorted_pages)
-                results[item.path_] = success
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(item))
+                continue
 
-                status_msg = "Removed" if success else "Failed to remove"
-                style = Styles.SUCCESS if success else Styles.WARNING
-                questionary.print(
-                    f"{status_msg} duplicate pages from {comic}",
-                    style=style,
-                )
+            # Sort pages in descending order to avoid index shifting issues
+            sorted_pages = sorted(item.pages_index, reverse=True)
+
+            try:
+                success = comic.remove_pages(sorted_pages)
             except Exception as e:
                 LOGGER.error("Error deleting pages from %s: %s", item.path_, e)  # noqa: TRY400
                 results[item.path_] = False
@@ -288,6 +286,13 @@ class Duplicates:
                     f"Error removing duplicate pages from {Path(item.path_).name}: {e}",
                     style=Styles.ERROR,
                 )
+                continue
+
+            results[item.path_] = success
+
+            status_msg = "Removed" if success else "Failed to remove"
+            style = Styles.SUCCESS if success else Styles.WARNING
+            questionary.print(f"{status_msg} duplicate pages from {comic}", style=style)
 
         return results
 
@@ -307,16 +312,24 @@ class Duplicates:
 
         try:
             comic = Comic(duplicate_issue.path_)
-            # Use first page index if multiple are available
-            page_index = duplicate_issue.pages_index[0]
-            img_data = comic.get_page(page_index)
+        except ComicArchiveError:
+            LOGGER.exception("Comic not valid: %s", duplicate_issue.path_)
+            return False
 
+        # Use first page index if multiple are available
+        page_index = duplicate_issue.pages_index[0]
+        try:
+            img_data = comic.get_page(page_index)
+        except (ValueError, OSError):
+            LOGGER.exception("Unable to retrieve page")
+            return False
+
+        try:
             with io.BytesIO(img_data) as img_io:
                 image = Image.open(img_io)
                 image.show()
                 return True
-
-        except (UnidentifiedImageError, OSError, IndexError) as e:
+        except (UnidentifiedImageError, ValueError, TypeError) as e:
             LOGGER.warning("Unable to show image from %s: %s", duplicate_issue.path_, e)
             questionary.print(
                 f"Unable to show image from {Path(duplicate_issue.path_).name}.",
