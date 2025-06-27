@@ -44,8 +44,7 @@ class MetronTaggerSettings:
             self.config.set("rename", "rename_use_smart_string_cleanup", "True")
 
         if not self.config.has_option("rename", "rename_template"):
-            rename_template = "%series% %format% v%volume% #%issue% (%year%)"
-            self.config.set("rename", "rename_template", rename_template)
+            self.config.set("rename", "rename_template", "")
 
         if not self.settings_file.exists():
             with self.settings_file.open("w") as f:
