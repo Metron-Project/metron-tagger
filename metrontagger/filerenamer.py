@@ -213,7 +213,7 @@ class FileRenamer:
 
         # Remove parts containing the token
         text_parts = [part for part in text_parts if token_str not in part]
-        return " ".join(text_parts)
+        return " ".join(text_parts).strip()
 
     @classmethod
     def _remove_empty_separators(cls, value: str) -> str:
