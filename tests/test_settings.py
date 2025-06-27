@@ -12,7 +12,7 @@ def test_settings(settings) -> None:
     assert not config["DEFAULT.sort_dir"]
     assert config["rename.rename_issue_number_padding"] == 3
     assert config["rename.rename_use_smart_string_cleanup"] is True
-    assert config["rename.rename_template"] == "%series% %format% v%volume% #%issue% (%year%)"
+    assert config["rename.rename_template"] == ""
 
     # Save the new values
     config["metron.user"] = user
