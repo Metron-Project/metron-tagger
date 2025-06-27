@@ -1,13 +1,16 @@
 """Functions for renaming files based on metadata"""
-
-# Copyright 2012-2014 Anthony Beville
 # Copyright 2020 Brian Pepple
+
 from __future__ import annotations
 
 __all__ = ["FileRenamer"]
+
+import contextlib
 import datetime
 import re
-from typing import TYPE_CHECKING
+from dataclasses import dataclass
+from enum import Enum
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -22,295 +25,366 @@ from metrontagger.styles import Styles
 from metrontagger.utils import cleanup_string
 
 
+class TokenType(Enum):
+    """Enumeration of available template tokens."""
+
+    SERIES = "%series%"
+    VOLUME = "%volume%"
+    ISSUE = "%issue%"
+    ISSUE_COUNT = "%issue_count%"
+    YEAR = "%year%"
+    MONTH = "%month%"
+    MONTH_NAME = "%month_name%"
+    PUBLISHER = "%publisher%"
+    IMPRINT = "%imprint%"
+    ALTERNATE_SERIES = "%alternate_series%"
+    ALTERNATE_NUMBER = "%alternate_number%"
+    ALTERNATE_COUNT = "%alternate_count%"
+    FORMAT = "%format%"
+    MATURITY_RATING = "%maturity_rating%"
+    SERIES_GROUP = "%series_group%"
+    SCAN_INFO = "%scan_info%"
+
+
+@dataclass(frozen=True)
+class FormatMapping:
+    """Immutable mapping for format conversions."""
+
+    MAPPING: dict[str, str] = None
+
+    def __post_init__(self):
+        if self.MAPPING is None:
+            object.__setattr__(
+                self,
+                "MAPPING",
+                {
+                    "Hard Cover": "HC",  # Old Metron Value
+                    "Hardcover": "HC",
+                    "Trade Paperback": "TPB",
+                    "Digital Chapters": "Digital Chapter",  # Old Metron Value
+                    "Digital Chapter": "Digital Chapter",
+                },
+            )
+
+    def get(self, key: str, default: str = "") -> str:
+        """Get format mapping with default value."""
+        return self.MAPPING.get(key, default)
+
+
 class FileRenamer:
     """A class for renaming comic book files based on metadata.
 
-    This class provides methods for setting metadata, customizing file naming templates, and renaming files according
-    to the specified rules.
-
-    Args:
-        metadata: Metadata | None: Optional metadata object to be used for file renaming.
-
-    Returns:
-        None
+    This class provides methods for setting metadata, customizing file naming templates,
+    and renaming files according to the specified rules.
     """
 
-    def __init__(self: FileRenamer, metadata: Metadata | None = None) -> None:
-        """Initialize the FileRenamer class with optional metadata and default settings.
+    # Class constants
+    DEFAULT_TEMPLATE: str = "%series% %format% v%volume% #%issue% (%year%)"
+    DEFAULT_ISSUE_PADDING: int = 3
+    HALF_ISSUE_SYMBOL: str = "½"
+    HALF_ISSUE_DECIMAL: str = "0.5"
+    MINIMUM_TOKEN_LENGTH: int = 2
+    MAXIMUM_MONTH_NUMBER: int = 12
 
-        This method sets the metadata, file naming template, smart cleanup option, and issue number zero padding.
+    # Regex patterns (compiled once for performance)
+    _EMPTY_SEPARATORS_PATTERN = re.compile(r"(\(\s*[-:]*\s*\)|\[\s*[-:]*\s*]|\{\s*[-:]*\s*})")
+    _DUPLICATE_SPACES_PATTERN = re.compile(r"\s+")
+    _DUPLICATE_HYPHEN_UNDERSCORE_PATTERN = re.compile(r"([-_]){2,}")
+    _TRAILING_DASH_PATTERN = re.compile(r"-{1,2}\s*$")
+
+    def __init__(self, metadata: Metadata | None = None) -> None:
+        """Initialize the FileRenamer with optional metadata and default settings.
 
         Args:
-            metadata: Metadata | None: Optional metadata object for file renaming.
-
-        Returns:
-            None
+            metadata: Optional metadata object for file renaming.
         """
+        self._metadata = metadata
+        self._template = self.DEFAULT_TEMPLATE
+        self._smart_cleanup = True
+        self._issue_zero_padding = self.DEFAULT_ISSUE_PADDING
+        self._format_mapping = FormatMapping()
 
-        self.metadata: Metadata | None = metadata
-        self.template: str = "%series% v%volume% #%issue% (of %issuecount%) (%year%)"
-        self.smart_cleanup: bool = True
-        self.issue_zero_padding: int = 3
+    @property
+    def metadata(self) -> Metadata | None:
+        """Get the current metadata."""
+        return self._metadata
 
-    def set_smart_cleanup(self: FileRenamer, on: bool) -> None:
+    @property
+    def template(self) -> str:
+        """Get the current template."""
+        return self._template
+
+    @property
+    def smart_cleanup(self) -> bool:
+        """Get the smart cleanup setting."""
+        return self._smart_cleanup
+
+    @property
+    def issue_zero_padding(self) -> int:
+        """Get the issue zero padding setting."""
+        return self._issue_zero_padding
+
+    def set_smart_cleanup(self, enabled: bool) -> None:
         """Set the smart cleanup option for file renaming.
 
-        This method toggles the smart cleanup feature based on the provided boolean value.
-
         Args:
-            on: bool: A boolean value to enable or disable smart cleanup.
-
-        Returns:
-            None
+            enabled: Boolean to enable or disable smart cleanup.
         """
+        self._smart_cleanup = enabled
 
-        self.smart_cleanup = on
-
-    def set_metadata(self: FileRenamer, metadata: Metadata) -> None:
+    def set_metadata(self, metadata: Metadata) -> None:
         """Set the metadata for file renaming.
 
-        This method updates the metadata used for file renaming to the provided Metadata object.
-
         Args:
-            metadata: Metadata: The Metadata object to be set for file renaming.
-
-        Returns:
-            None
+            metadata: The Metadata object to be set for file renaming.
         """
+        self._metadata = metadata
 
-        self.metadata = metadata
-
-    def set_issue_zero_padding(self: FileRenamer, count: int) -> None:
+    def set_issue_zero_padding(self, count: int) -> None:
         """Set the padding for the issue number in file renaming.
 
-        This method updates the padding count used for formatting issue numbers in file names.
-
         Args:
-            count: int: The number of digits to pad the issue number with.
+            count: The number of digits to pad the issue number with.
 
-        Returns:
-            None
+        Raises:
+            ValueError: If count is negative.
         """
+        if count < 0:
+            msg = "Issue zero padding must be non-negative"
+            raise ValueError(msg)
+        self._issue_zero_padding = count
 
-        self.issue_zero_padding = count
-
-    def set_template(self: FileRenamer, template: str) -> None:
+    def set_template(self, template: str) -> None:
         """Set a custom file naming template.
 
-        This method updates the file naming template used for renaming files to the provided string.
+        Args:
+            template: The custom file naming template to be used.
 
+        Raises:
+            ValueError: If template is empty.
+        """
+        if not template.strip():
+            msg = "Template cannot be empty"
+            raise ValueError(msg)
+        self._template = template
+
+    def _is_token(self, text: str) -> bool:
+        """Check if a string is a token.
 
         Args:
-            template: str: The custom file naming template to be used.
+            text: The string to check.
 
         Returns:
-            None
+            True if the string is a token, False otherwise.
         """
+        return (
+            len(text) >= self.MINIMUM_TOKEN_LENGTH
+            and text.startswith("%")
+            and text.endswith("%")
+        )
 
-        self.template = template
-
-    def replace_token(
-        self: FileRenamer, text: str, value: int | str | None, token: str
-    ) -> str:
+    def _replace_token(self, text: str, value: Any, token: TokenType) -> str:
         """Replace a token in the text with a value.
 
-        This method replaces a token in the text with the provided value, handling smart cleanup if enabled.
-
         Args:
-            text: str: The text containing the token to be replaced.
-            value: int | str | None: The value to replace the token with.
-            token: str: The token to be replaced in the text.
+            text: The text containing the token to be replaced.
+            value: The value to replace the token with.
+            token: The token to be replaced in the text.
 
         Returns:
-            str: The text with the token replaced by the value.
+            The text with the token replaced by the value.
         """
-
-        # helper func
-        def is_token(txt: str) -> bool:
-            """Check if a string is a token.
-
-            This function determines if a string is a token by checking if it starts and ends with '%'.
-
-            Args:
-                txt: str: The string to check if it is a token.
-
-            Returns:
-                bool: True if the string is a token, False otherwise.
-            """
-
-            return txt[0] == "%" and txt.endswith("%")
+        token_str = token.value
 
         if value is not None:
-            return text.replace(token, str(value))
+            return text.replace(token_str, str(value))
 
-        if self.smart_cleanup:
-            # smart cleanup means we want to remove anything appended to token if it's empty
-            # (e.g "#%issue%"  or "v%volume%")
-            text_list = text.split()
+        if not self._smart_cleanup:
+            return text.replace(token_str, "")
 
-            # special case for issuecount, remove preceding non-token word,
-            # as in "...(of %issuecount%)..."
-            if token == "%issuecount%":  # noqa: S105
-                for idx, word in enumerate(text_list):
-                    if token in word and not is_token(text_list[idx - 1]):
-                        text_list[idx - 1] = ""
+        # Smart cleanup: remove associated text when token is empty
+        text_parts = text.split()
 
-            text_list = [x for x in text_list if token not in x]
-            return " ".join(text_list)
+        # Special case for issue_count: remove preceding non-token word
+        if token == TokenType.ISSUE_COUNT:
+            for idx, word in enumerate(text_parts):
+                if token_str in word and idx > 0 and not self._is_token(text_parts[idx - 1]):
+                    text_parts[idx - 1] = ""
 
-        return text.replace(token, "")
+        # Remove parts containing the token
+        text_parts = [part for part in text_parts if token_str not in part]
+        return " ".join(text_parts).strip()
 
-    @staticmethod
-    def _remove_empty_separators(value: str) -> str:
+    @classmethod
+    def _remove_empty_separators(cls, value: str) -> str:
         """Remove empty separators from the provided value.
 
-        This static method removes empty parentheses, brackets, and braces from the input string.
-
         Args:
-            value: str: The input string containing separators to be removed.
+            value: The input string containing separators to be removed.
 
         Returns:
-            str: The string with empty separators removed.
+            The string with empty separators removed.
         """
-        pattern = r"(\(\s*[-:]*\s*\)|\[\s*[-:]*\s*]|\{\s*[-:]*\s*})"
-        return re.sub(pattern, "", value).strip()
+        return cls._EMPTY_SEPARATORS_PATTERN.sub("", value).strip()
 
-    @staticmethod
-    def _remove_duplicate_hyphen_underscore(value: str) -> str:
+    @classmethod
+    def _remove_duplicate_hyphen_underscore(cls, value: str) -> str:
         """Remove duplicate hyphens and underscores from the provided value.
 
-        This static method cleans up the input string by replacing multiple hyphens and underscores with a single
-        instance.
-
         Args:
-            value: str: The string to remove duplicate hyphens and underscores from.
+            value: The string to clean up.
 
         Returns:
-            str: The string with duplicate hyphens and underscores cleaned up.
+            The string with duplicate hyphens and underscores cleaned up.
         """
-        return re.sub(r"([-_]){2,}", r"\1", value)
+        return cls._DUPLICATE_HYPHEN_UNDERSCORE_PATTERN.sub(r"\1", value)
 
-    def smart_cleanup_string(self: FileRenamer, new_name: str) -> str:
-        """Perform smart cleanup on the provided new name string.
-
-        This method applies various cleanup operations to the input string, including removing empty separators,
-        duplicate spaces, duplicate hyphens and underscores, trailing dashes, and extra spaces.
+    def _smart_cleanup_string(self, text: str) -> str:
+        """Perform smart cleanup on the provided text string.
 
         Args:
-            new_name: str: The input string to be cleaned up.
+            text: The input string to be cleaned up.
 
         Returns:
-            str: The cleaned up string after applying smart cleanup operations.
+            The cleaned up string after applying smart cleanup operations.
         """
+        # Remove empty braces, brackets, parentheses
+        text = self._remove_empty_separators(text)
 
-        # remove empty braces, brackets, parentheses
-        new_name = self._remove_empty_separators(new_name)
+        # Remove duplicate spaces
+        text = self._DUPLICATE_SPACES_PATTERN.sub(" ", text)
 
-        # remove duplicate spaces, duplicate hyphens and underscores, and trailing dashes
-        new_name = re.sub(r"\s+", " ", new_name)  # remove duplicate spaces
-        new_name = self._remove_duplicate_hyphen_underscore(new_name)
-        new_name = re.sub(
-            r"-{1,2}\s*$", "", new_name
-        )  # remove dash or double dash at end of line
+        # Remove duplicate hyphens and underscores
+        text = self._remove_duplicate_hyphen_underscore(text)
 
-        return new_name.strip()
+        # Remove trailing dashes
+        text = self._TRAILING_DASH_PATTERN.sub("", text)
 
-    def determine_name(self: FileRenamer, filename: Path) -> str | None:
+        return text.strip()
+
+    def _format_issue_string(self, issue: str | None) -> str | None:
+        """Format issue string with proper padding.
+
+        Args:
+            issue: The issue string to format.
+
+        Returns:
+            The formatted issue string or None if issue is None.
+        """
+        if issue is None:
+            return None
+
+        if issue == self.HALF_ISSUE_SYMBOL:
+            return IssueString(self.HALF_ISSUE_DECIMAL).as_string(pad=self._issue_zero_padding)
+
+        return IssueString(issue).as_string(pad=self._issue_zero_padding)
+
+    def _get_month_name(self, month: int | str) -> str | None:
+        """Get month name from month number.
+
+        Args:
+            month: Month number (1-12).
+
+        Returns:
+            Month name or None if invalid.
+        """
+        with contextlib.suppress(ValueError, TypeError):
+            month_int = int(month)
+            if 1 <= month_int <= self.MAXIMUM_MONTH_NUMBER:
+                return datetime.datetime(
+                    1970, month_int, 1, tzinfo=datetime.timezone.utc
+                ).strftime("%B")
+        return None
+
+    def _extract_metadata_values(self) -> dict[TokenType, Any]:
+        """Extract values from metadata for all tokens.
+
+        Returns:
+            Dictionary mapping tokens to their values.
+        """
+        if not self._metadata:
+            return {}
+
+        md = self._metadata
+        values = {}
+
+        # Series information
+        if md.series:
+            values[TokenType.SERIES] = md.series.name
+            values[TokenType.VOLUME] = md.series.volume
+            values[TokenType.ISSUE_COUNT] = md.series.issue_count
+            values[TokenType.FORMAT] = self._format_mapping.get(md.series.format)
+        else:
+            values[TokenType.SERIES] = "Unknown"
+            values[TokenType.VOLUME] = 0
+
+        # Issue information
+        values[TokenType.ISSUE] = self._format_issue_string(md.issue)
+
+        # Date information
+        if md.cover_date:
+            values[TokenType.YEAR] = md.cover_date.year
+            values[TokenType.MONTH] = md.cover_date.month
+            values[TokenType.MONTH_NAME] = self._get_month_name(md.cover_date.month)
+        else:
+            values[TokenType.YEAR] = "Unknown"
+
+        # Publisher information
+        if md.publisher:
+            values[TokenType.PUBLISHER] = md.publisher.name
+            if md.publisher.imprint:
+                values[TokenType.IMPRINT] = md.publisher.imprint.name
+        else:
+            values[TokenType.PUBLISHER] = "Unknown"
+
+        # Additional metadata
+        values[TokenType.ALTERNATE_SERIES] = md.alternate_series
+        values[TokenType.ALTERNATE_NUMBER] = md.alternate_number
+        values[TokenType.ALTERNATE_COUNT] = md.alternate_count
+        values[TokenType.MATURITY_RATING] = md.age_rating
+        values[TokenType.SERIES_GROUP] = md.series_group
+        values[TokenType.SCAN_INFO] = md.scan_info
+
+        return values
+
+    def determine_name(self, filename: Path) -> str | None:
         """Determine the new filename based on metadata.
 
-        This method constructs a new filename using the provided metadata and the file naming template,
-        applying various replacements and cleanup operations.
-
         Args:
-            filename: Path: The original filename path.
+            filename: The original filename path.
 
         Returns:
-            str | None: The new filename generated based on the metadata, or None if metadata is not set.
+            The new filename generated based on the metadata, or None if metadata is not set.
         """
-
-        if not self.metadata:
+        if not self._metadata:
             return None
-        md = self.metadata
-        new_name = self.template
 
-        series_name = md.series.name if md.series else "Unknown"
-        series_volume = md.series.volume if md.series else 0
-        new_name = self.replace_token(new_name, series_name, "%series%")
-        new_name = self.replace_token(new_name, series_volume, "%volume%")
+        new_name = self._template
+        values = self._extract_metadata_values()
 
-        if md.issue is None:
-            issue_str = None
-        elif md.issue == "½":
-            issue_str = IssueString("0.5").as_string(pad=self.issue_zero_padding)
-        else:
-            issue_str = IssueString(md.issue).as_string(pad=self.issue_zero_padding)
-        new_name = self.replace_token(new_name, issue_str, "%issue%")
+        # Replace all tokens with their values
+        for token, value in values.items():
+            new_name = self._replace_token(new_name, value, token)
 
-        new_name = self.replace_token(new_name, md.series.issue_count, "%issuecount%")
-        new_name = self.replace_token(
-            new_name, md.cover_date.year if md.cover_date else "Unknown", "%year%"
-        )
-        new_name = self.replace_token(
-            new_name, "Unknown" if md.publisher is None else md.publisher.name, "%publisher%"
-        )
+        # Apply smart cleanup if enabled
+        if self._smart_cleanup:
+            new_name = self._smart_cleanup_string(new_name)
 
-        if md.cover_date:
-            new_name = self.replace_token(new_name, md.cover_date.month, "%month%")
-            if (
-                isinstance(md.cover_date.month, str | int)
-                and 1 <= int(md.cover_date.month) <= 12  # noqa: PLR2004
-            ):
-                month_name = datetime.datetime(1970, int(md.cover_date.month), 1).strftime(  # noqa: DTZ001
-                    "%B"
-                )
-            else:
-                month_name = None
-            new_name = self.replace_token(new_name, month_name, "%month_name%")
-
-        new_name = self.replace_token(new_name, md.alternate_series, "%alternateseries%")
-        new_name = self.replace_token(new_name, md.alternate_number, "%alternatenumber%")
-        new_name = self.replace_token(new_name, md.alternate_count, "%alternatecount%")
-        if md.publisher is not None and md.publisher.imprint is not None:
-            new_name = self.replace_token(new_name, md.publisher.imprint.name, "%imprint%")
-
-        if md.series:
-            format_mapping = {
-                "Hard Cover": "HC",  # Old Metron Value
-                "Hardcover": "HC",
-                "Trade Paperback": "TPB",
-                "Digital Chapters": "Digital Chapter",  # Old Metron Value
-                "Digital Chapter": "Digital Chapter",
-            }
-            format_value = format_mapping.get(md.series.format, "")
-            new_name = self.replace_token(new_name, format_value, "%format%")
-
-        new_name = self.replace_token(new_name, md.age_rating, "%maturityrating%")
-        new_name = self.replace_token(new_name, md.series_group, "%seriesgroup%")
-        new_name = self.replace_token(new_name, md.scan_info, "%scaninfo%")
-
-        if self.smart_cleanup:
-            new_name = self.smart_cleanup_string(new_name)
-
-        ext = filename.suffix
-        new_name += ext
+        # Add file extension
+        new_name += filename.suffix
 
         return cleanup_string(new_name)
 
-    def rename_file(self: FileRenamer, comic: Path) -> Path | None:
+    def rename_file(self, comic: Path) -> Path | None:
         """Rename a comic file based on metadata.
 
-        This method renames the comic file using the metadata and file naming template, ensuring a unique filename.
-        If metadata is not set, the function will skip the renaming process.
-
         Args:
-            comic: Path: The path to the comic file to be renamed.
+            comic: The path to the comic file to be renamed.
 
         Returns:
-            Path | None: The path to the renamed comic file, or None if the renaming process is skipped.
+            The path to the renamed comic file, or None if the renaming process is skipped.
         """
-
-        # This shouldn't happen, but just in case let's make sure there is metadata.
-        if self.metadata is None:
+        if self._metadata is None:
             questionary.print(
                 f"Metadata hasn't been set for {comic}. Skipping...",
                 style=Styles.WARNING,
@@ -328,7 +402,14 @@ class FileRenamer:
             )
             return None
 
-        unique_name = unique_file(comic.parent / new_name)
-        comic.rename(unique_name)
-
-        return unique_name
+        try:
+            unique_name = unique_file(comic.parent / new_name)
+            comic.rename(unique_name)
+        except OSError as e:
+            questionary.print(
+                f"Failed to rename '{comic.name}': {e}",
+                style=Styles.WARNING,
+            )
+            return None
+        else:
+            return unique_name
