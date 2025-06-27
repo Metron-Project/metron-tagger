@@ -97,6 +97,31 @@ class Runner:
                         style=Styles.ERROR,
                     )
 
+    def _create_file_renamer(self) -> FileRenamer:
+        """Set options for file renaming."""
+        renamer = FileRenamer()
+        if rename_template := self.config["rename.rename_template"]:
+            try:
+                renamer.set_template(rename_template)
+            except ValueError:
+                LOGGER.exception("Failed to set rename template.")
+        if number_padding := self.config["rename.rename_issue_number_padding"]:
+            try:
+                renamer.set_issue_zero_padding(number_padding)
+            except ValueError:
+                LOGGER.exception("Failed to set issue number padding.")
+        renamer.set_smart_cleanup(self.config["rename.rename_use_smart_string_cleanup"])
+        return renamer
+
+    @staticmethod
+    def _get_comic_metadata(comic: Comic) -> Metadata | None:
+        # Prefer MetronInfo and if not present use ComicRack
+        if comic.has_metadata(MetadataFormat.METRON_INFO):
+            return comic.read_metadata(MetadataFormat.METRON_INFO)
+        if comic.has_metadata(MetadataFormat.COMIC_RACK):
+            return comic.read_metadata(MetadataFormat.COMIC_RACK)
+        return None
+
     def rename_comics(self: Runner, file_list: list[Path]) -> list[Path]:
         """Rename comic archives based on metadata.
 
@@ -115,7 +140,9 @@ class Runner:
         # Lists to track filename changes
         new_file_names: list[Path] = []
         original_files_changed: list[Path] = []
-        renamer = FileRenamer()
+        # Create & set the FileRenamer options
+        renamer = self._create_file_renamer()
+
         for comic in file_list:
             try:
                 comic_archive = Comic(comic)
@@ -123,11 +150,9 @@ class Runner:
                 LOGGER.exception("Comic not valid: %s", str(comic))
                 continue
 
-            if comic_archive.has_metadata(MetadataFormat.METRON_INFO):
-                md = comic_archive.read_metadata(MetadataFormat.METRON_INFO)
-            elif comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
-                md = comic_archive.read_metadata(MetadataFormat.COMIC_RACK)
-            else:
+            # Retrieve the metadata from the comic
+            md = self._get_comic_metadata(comic_archive)
+            if md is None:
                 questionary.print(
                     f"skipping '{comic.name}'. no metadata available.",
                     style=Styles.WARNING,
@@ -135,9 +160,6 @@ class Runner:
                 continue
 
             renamer.set_metadata(md)
-            renamer.set_template(self.config["rename.rename_template"])
-            renamer.set_issue_zero_padding(self.config["rename.rename_issue_number_padding"])
-            renamer.set_smart_cleanup(self.config["rename.rename_use_smart_string_cleanup"])
 
             unique_name = renamer.rename_file(comic)
             if unique_name is None:
