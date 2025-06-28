@@ -463,20 +463,12 @@ class Runner:
                 if not comic.write_metadata(md, MetadataFormat.COMIC_RACK):
                     LOGGER.error("Could not write metadata to %s", comic)
 
-    @staticmethod
-    def _create_duplicate_statistics_msg(stats: dict[str, int]) -> str:
-        return (
-            f"Total Pages: {stats['total_pages']}\n"
-            f"Duplicate Pages: {stats['duplicate_pages']}\n"
-            f"Unique Hashes: {stats['unique_duplicate_hashes']}\n"
-            f"Comics Processed: {stats['comics_processed']}"
-        )
-
-    def _remove_duplicates(self: Runner, file_list: list[Path]) -> None:
-        """Remove duplicate images from comic archives.
+    def _remove_duplicates(self: Runner, file_list: list[Path]) -> None:  # noqa: PLR0912
+        """Remove duplicate images from comic archives with size tracking.
 
         This method identifies and allows the user to review and remove duplicate images from the provided list of
-        comic archives, with options to delete pages per book and update the ComicInfo metadata.
+        comic archives, with options to delete pages per book and update the ComicInfo metadata. It now tracks
+        and displays file size savings after duplicate removal.
 
         Args:
             file_list: list[Path]: The list of comic archive file paths to check for duplicates.
@@ -521,35 +513,179 @@ class Runner:
                             )
                             if dup_entry_idx is not None:
                                 di: DuplicateIssue = duplicates_lst[dup_entry_idx]
-                                di.pages_index.append(comic.pages_index[0])
+                                di.add_page_index(comic.pages_index[0])
                             else:
-                                duplicates_lst.append(
-                                    DuplicateIssue(comic.path_, [comic.pages_index[0]]),
-                                )
+                                # Create new DuplicateIssue with automatic size tracking
+                                new_dup = DuplicateIssue(comic.path_, [comic.pages_index[0]])
+                                duplicates_lst.append(new_dup)
                         else:
-                            duplicates_lst.append(
-                                DuplicateIssue(comic.path_, [comic.pages_index[0]]),
-                            )
+                            # Create new DuplicateIssue with automatic size tracking
+                            new_dup = DuplicateIssue(comic.path_, [comic.pages_index[0]])
+                            duplicates_lst.append(new_dup)
 
             # After building the list let's ask the user if they want to write the changes.
             if (
                 duplicates_lst
                 and questionary.confirm("Do want to write your changes to the comics?").ask()
             ):
-                dup_objs.delete_comic_pages(duplicates_lst)
-                msg = self._create_duplicate_statistics_msg(dup_objs.get_statistics())
-                questionary.print(msg, style=Styles.INFO)
+                # Display before processing summary
+                self._display_pre_processing_summary(duplicates_lst)
+
+                # Process the duplicates and get results
+                results = dup_objs.delete_comic_pages(duplicates_lst)
+
+                # Update ending sizes for all processed files
+                for duplicate_issue in duplicates_lst:
+                    if results.get(
+                        duplicate_issue.path_, False
+                    ):  # Only update if processing was successful
+                        duplicate_issue.update_ending_size()
+
+                # Display post-processing summary with size savings
+                self._display_post_processing_summary(duplicates_lst, results)
+
+                # Display overall statistics
+                stats_msg = self._create_duplicate_statistics_msg(dup_objs.get_statistics())
+                questionary.print(stats_msg, style=Styles.INFO)
             else:
                 questionary.print("No duplicate page changes to write.", style=Styles.SUCCESS)
 
         # Ask user if they want to update ComicInfo.xml pages for changes. Not necessary for MetronInfo.xml
         if (
             self.args.comicinfo
+            and duplicates_lst
             and questionary.confirm(
                 "Do you want to update the comic's 'comicinfo.xml' for the changes?",
             ).ask()
         ):
             self._update_ci_xml(duplicates_lst)
+
+    @staticmethod
+    def _display_pre_processing_summary(duplicates_lst: list[DuplicateIssue]) -> None:
+        """Display a summary before processing duplicate removal.
+
+        Args:
+            duplicates_lst: list[DuplicateIssue]: List of duplicate issues to be processed.
+        """
+        if not duplicates_lst:
+            return
+
+        total_pages_to_remove = sum(len(dup.pages_index) for dup in duplicates_lst)
+        total_starting_size = sum(
+            dup.starting_size_bytes
+            for dup in duplicates_lst
+            if dup.starting_size_bytes is not None
+        )
+
+        questionary.print("\n" + "=" * 60, style=Styles.INFO)
+        questionary.print("DUPLICATE REMOVAL SUMMARY", style=Styles.TITLE)
+        questionary.print("=" * 60, style=Styles.INFO)
+        questionary.print(f"Comics to process: {len(duplicates_lst)}", style=Styles.INFO)
+        questionary.print(
+            f"Total duplicate pages to remove: {total_pages_to_remove}", style=Styles.INFO
+        )
+        questionary.print(
+            f"Total starting size: {DuplicateIssue.format_file_size(total_starting_size)}",
+            style=Styles.INFO,
+        )
+        questionary.print("=" * 60 + "\n", style=Styles.INFO)
+
+    @staticmethod
+    def _display_post_processing_summary(
+        duplicates_lst: list[DuplicateIssue], results: dict[str, bool]
+    ) -> None:
+        """Display a summary after processing duplicate removal with size savings.
+
+        Args:
+            duplicates_lst: list[DuplicateIssue]: List of processed duplicate issues.
+            results: dict[str, bool]: Results of the duplicate removal process.
+        """
+        if not duplicates_lst:
+            return
+
+        successful_removals = []
+        failed_removals = []
+
+        for duplicate_issue in duplicates_lst:
+            if results.get(duplicate_issue.path_, False):
+                successful_removals.append(duplicate_issue)
+            else:
+                failed_removals.append(duplicate_issue)
+
+        questionary.print("\n" + "=" * 60, style=Styles.INFO)
+        questionary.print("DUPLICATE REMOVAL RESULTS", style=Styles.TITLE)
+        questionary.print("=" * 60, style=Styles.INFO)
+
+        if successful_removals:
+            questionary.print("✅ SUCCESSFULLY PROCESSED:", style=Styles.SUCCESS)
+            questionary.print("-" * 40, style=Styles.INFO)
+
+            total_pages_removed = 0
+            total_size_saved = 0
+
+            for dup in successful_removals:
+                pages_removed = len(dup.pages_index)
+                total_pages_removed += pages_removed
+
+                size_info = ""
+                if dup.starting_size_bytes is not None and dup.ending_size_bytes is not None:
+                    size_reduction = dup.get_size_reduction()
+                    if size_reduction and size_reduction > 0:
+                        total_size_saved += size_reduction
+                        percentage = dup.get_size_reduction_percentage()
+                        size_info = f" (Saved: {dup.size_reduction_formatted}"
+                        size_info += f", {percentage:.1f}%)" if percentage else ")"
+                questionary.print(
+                    f"  📁 {Path(dup.path_).name} - Removed {pages_removed} page{'s' if pages_removed != 1 else ''}{size_info}",
+                    style=Styles.SUCCESS,
+                )
+
+            questionary.print("-" * 40, style=Styles.INFO)
+            questionary.print(
+                f"📊 Total pages removed: {total_pages_removed}", style=Styles.SUCCESS
+            )
+            questionary.print(
+                f"💾 Total space saved: {DuplicateIssue.format_file_size(total_size_saved)}",
+                style=Styles.SUCCESS,
+            )
+
+            if total_size_saved > 0:
+                # Calculate average space saved per comic
+                avg_saved = total_size_saved / len(successful_removals)
+                questionary.print(
+                    f"📈 Average space saved per comic: {DuplicateIssue.format_file_size(int(avg_saved))}",
+                    style=Styles.SUCCESS,
+                )
+
+        if failed_removals:
+            questionary.print("\n❌ FAILED TO PROCESS:", style=Styles.ERROR)
+            questionary.print("-" * 40, style=Styles.INFO)
+            for dup in failed_removals:
+                pages_attempted = len(dup.pages_index)
+                questionary.print(
+                    f"  📁 {Path(dup.path_).name} - Failed to remove {pages_attempted} page{'s' if pages_attempted != 1 else ''}",
+                    style=Styles.ERROR,
+                )
+
+        questionary.print("=" * 60 + "\n", style=Styles.INFO)
+
+    @staticmethod
+    def _create_duplicate_statistics_msg(stats: dict[str, int]) -> str:
+        """Create a formatted statistics message for duplicate processing.
+
+        Args:
+            stats: dict[str, int]: Statistics dictionary from duplicate processing.
+
+        Returns:
+            str: Formatted statistics message.
+        """
+        return (
+            f"📈 PROCESSING STATISTICS:\n"
+            f"  • Total Pages Scanned: {stats['total_pages']:,}\n"
+            f"  • Duplicate Pages Found: {stats['duplicate_pages']:,}\n"
+            f"  • Unique Duplicate Images: {stats['unique_duplicate_hashes']:,}\n"
+            f"  • Comics Processed: {stats['comics_processed']:,}"
+        )
 
     def _no_md_fmt_set(self: Runner) -> bool:
         if not self.args.metroninfo and not self.args.comicinfo:
