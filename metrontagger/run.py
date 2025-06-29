@@ -306,20 +306,20 @@ class Runner:
             None
         """
 
-        if not self.config["DEFAULT.sort_dir"]:
-            questionary.print(
-                "\nUnable to sort files. No destination directory was provided.",
-                style=Styles.ERROR,
-            )
+        if sort_dir := self.config["sort.directory"]:
+            msg = create_print_title("Starting Sorting of Comic Archives:")
+            questionary.print(msg, style=Styles.TITLE)
+            file_sorter = FileSorter(sort_dir)
+            for comic in file_list:
+                result = file_sorter.sort_comics(comic)
+                if not result:
+                    questionary.print(f"Unable to move '{comic.name}'.", style=Styles.ERROR)
             return
-
-        msg = create_print_title("Starting Sorting of Comic Archives:")
-        questionary.print(msg, style=Styles.TITLE)
-        file_sorter = FileSorter(self.config["DEFAULT.sort_dir"])
-        for comic in file_list:
-            result = file_sorter.sort_comics(comic)
-            if not result:
-                questionary.print(f"Unable to move '{comic.name}'.", style=Styles.ERROR)
+        # Sort directory not set.
+        questionary.print(
+            "\nUnable to sort files. No destination directory was provided.",
+            style=Styles.ERROR,
+        )
 
     def _comics_with_no_metadata(self: Runner, file_list: list[Path]) -> None:
         """Display files without metadata.
