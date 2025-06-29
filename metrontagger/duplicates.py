@@ -8,14 +8,14 @@ __all__ = ["DuplicateIssue", "Duplicates"]
 import io
 import warnings
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
 import questionary
-from darkseid.comic import Comic
+from darkseid.comic import Comic, ComicArchiveError
 from imagehash import average_hash
 from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
@@ -32,31 +32,171 @@ warnings.filterwarnings(
     "ignore", category=UserWarning
 )  # Ignore 'UserWarning: Corrupt EXIF data' warnings
 
+# Constants
+KB_SIZE = 1024
+ROUND_TO_TENTH_PLACE = 10
+ROUND_TO_HUNDREDTH_PLACE = 100
+
+"""Enhanced DuplicateIssue class with file size tracking."""
+
 
 @dataclass
 class DuplicateIssue:
-    """A data class representing a duplicate issue.
+    """A data class representing a duplicate issue with file size tracking.
 
-    This class stores information about a duplicate issue, including the path to the file and a list of page indices.
+    This class stores information about a duplicate issue, including the path to the file,
+    a list of page indices, and file sizes before and after processing.
 
     Args:
         path_: str: The path to the file with the duplicate issue.
         pages_index: list[int]: A list of page indices where the duplicate issue occurs.
+        starting_size_bytes: Optional[int]: The original file size in bytes (auto-calculated if None).
+        ending_size_bytes: Optional[int]: The file size after processing in bytes.
 
     Returns:
         str: A string representation of the DuplicateIssue object.
     """
 
     path_: str
-    pages_index: list[int]
+    pages_index: list[int] = field(default_factory=list)
+    starting_size_bytes: int | None = field(default=None, init=False)
+    ending_size_bytes: int | None = field(default=None)
+
+    def __post_init__(self) -> None:
+        """Initialize starting file size after object creation."""
+        if self.starting_size_bytes is None:
+            self.starting_size_bytes = self._get_current_file_size()
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(name={Path(self.path_).name})"
+        size_info = ""
+        if self.starting_size_bytes is not None:
+            size_info = f", size={self.format_file_size(self.starting_size_bytes)}"
+        return f"{self.__class__.__name__}(name={Path(self.path_).name}{size_info})"
+
+    def __str__(self) -> str:
+        """Provide a detailed string representation with size information."""
+        file_name = Path(self.path_).name
+        pages_count = len(self.pages_index)
+
+        size_info = ""
+        if self.starting_size_bytes is not None:
+            start_size = self.format_file_size(self.starting_size_bytes)
+            if self.ending_size_bytes is not None:
+                end_size = self.format_file_size(self.ending_size_bytes)
+                saved_bytes = self.starting_size_bytes - self.ending_size_bytes
+                saved_size = self.format_file_size(saved_bytes)
+                size_info = f" (Size: {start_size} → {end_size}, Saved: {saved_size})"
+            else:
+                size_info = f" (Size: {start_size})"
+
+        return f"{file_name} - {pages_count} duplicate page(s){size_info}"
+
+    def _get_current_file_size(self) -> int | None:
+        """Get the current file size in bytes."""
+        try:
+            return Path(self.path_).stat().st_size
+        except OSError:
+            return None
 
     def add_page_index(self, index: int) -> None:
         """Add a page index to the list of duplicate pages."""
         if index not in self.pages_index:
             self.pages_index.append(index)
+
+    def update_ending_size(self) -> None:
+        """Update the ending file size after processing."""
+        self.ending_size_bytes = self._get_current_file_size()
+
+    def get_size_reduction(self) -> int | None:
+        """Get the size reduction in bytes.
+
+        Returns:
+            Optional[int]: Size reduction in bytes, or None if sizes unavailable.
+        """
+        if self.starting_size_bytes is not None and self.ending_size_bytes is not None:
+            return self.starting_size_bytes - self.ending_size_bytes
+        return None
+
+    def get_size_reduction_percentage(self) -> float | None:
+        """Get the size reduction as a percentage.
+
+        Returns:
+            Optional[float]: Size reduction percentage, or None if sizes unavailable.
+        """
+        reduction = self.get_size_reduction()
+        if reduction is not None and self.starting_size_bytes and self.starting_size_bytes > 0:
+            return (reduction / self.starting_size_bytes) * 100
+        return None
+
+    @staticmethod
+    def format_file_size(size_bytes: int) -> str:
+        """Format file size in human-readable format.
+
+        Args:
+            size_bytes: int: Size in bytes.
+
+        Returns:
+            str: Formatted size string (e.g., "1.5 MB", "234 KB").
+        """
+        if size_bytes == 0:
+            return "0 B"
+
+        units = ["B", "KB", "MB", "GB", "TB"]
+        size = float(size_bytes)
+        unit_index = 0
+
+        while size >= KB_SIZE and unit_index < len(units) - 1:
+            size /= KB_SIZE
+            unit_index += 1
+
+        # Format with appropriate decimal places
+        if unit_index == 0:  # Bytes
+            return f"{int(size)} {units[unit_index]}"
+        if size >= ROUND_TO_HUNDREDTH_PLACE:
+            return f"{size:.0f} {units[unit_index]}"
+        if size >= ROUND_TO_TENTH_PLACE:
+            return f"{size:.1f} {units[unit_index]}"
+        return f"{size:.2f} {units[unit_index]}"
+
+    @property
+    def starting_size_formatted(self) -> str:
+        """Get formatted starting file size."""
+        if self.starting_size_bytes is not None:
+            return self.format_file_size(self.starting_size_bytes)
+        return "Unknown"
+
+    @property
+    def ending_size_formatted(self) -> str:
+        """Get formatted ending file size."""
+        if self.ending_size_bytes is not None:
+            return self.format_file_size(self.ending_size_bytes)
+        return "Unknown"
+
+    @property
+    def size_reduction_formatted(self) -> str:
+        """Get formatted size reduction."""
+        reduction = self.get_size_reduction()
+        return self.format_file_size(reduction) if reduction is not None else "Unknown"
+
+    def get_summary(self) -> dict[str, str | int | float | None]:
+        """Get a summary dictionary of the duplicate issue.
+
+        Returns:
+            dict: Summary information including file details and size metrics.
+        """
+        return {
+            "file_name": Path(self.path_).name,
+            "file_path": self.path_,
+            "duplicate_pages_count": len(self.pages_index),
+            "duplicate_page_indices": self.pages_index.copy(),
+            "starting_size_bytes": self.starting_size_bytes,
+            "ending_size_bytes": self.ending_size_bytes,
+            "starting_size_formatted": self.starting_size_formatted,
+            "ending_size_formatted": self.ending_size_formatted,
+            "size_reduction_bytes": self.get_size_reduction(),
+            "size_reduction_formatted": self.size_reduction_formatted,
+            "size_reduction_percentage": self.get_size_reduction_percentage(),
+        }
 
 
 class DuplicateProcessingError(Exception):
@@ -116,15 +256,15 @@ class Duplicates:
         for item in tqdm(self._file_lst, desc="Processing comics"):
             try:
                 comic = Comic(item)
-                if not comic.is_writable():
-                    LOGGER.warning("Comic %s is not writable, skipping", comic)
-                    continue
-
-                yield from self._process_comic_pages(comic)
-
-            except Exception as e:
-                LOGGER.error("Failed to process comic %s: %s", item, e)  # noqa: TRY400
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: '%s'", str(item))
                 continue
+
+            if not comic.is_writable():
+                LOGGER.warning("Comic %s is not writable, skipping", comic)
+                continue
+
+            yield from self._process_comic_pages(comic)
 
     def _process_comic_pages(
         self, comic: Comic
@@ -270,17 +410,15 @@ class Duplicates:
         for item in duplicates_list:
             try:
                 comic = Comic(item.path_)
-                # Sort pages in descending order to avoid index shifting issues
-                sorted_pages = sorted(item.pages_index, reverse=True)
-                success = comic.remove_pages(sorted_pages)
-                results[item.path_] = success
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(item))
+                continue
 
-                status_msg = "Removed" if success else "Failed to remove"
-                style = Styles.SUCCESS if success else Styles.WARNING
-                questionary.print(
-                    f"{status_msg} duplicate pages from {comic}",
-                    style=style,
-                )
+            # Sort pages in descending order to avoid index shifting issues
+            sorted_pages = sorted(item.pages_index, reverse=True)
+
+            try:
+                success = comic.remove_pages(sorted_pages)
             except Exception as e:
                 LOGGER.error("Error deleting pages from %s: %s", item.path_, e)  # noqa: TRY400
                 results[item.path_] = False
@@ -288,6 +426,16 @@ class Duplicates:
                     f"Error removing duplicate pages from {Path(item.path_).name}: {e}",
                     style=Styles.ERROR,
                 )
+                continue
+
+            if success:
+                item.update_ending_size()
+
+            results[item.path_] = success
+
+            status_msg = "Removed" if success else "Failed to remove"
+            style = Styles.SUCCESS if success else Styles.WARNING
+            questionary.print(f"{status_msg} duplicate pages from {comic}", style=style)
 
         return results
 
@@ -307,16 +455,24 @@ class Duplicates:
 
         try:
             comic = Comic(duplicate_issue.path_)
-            # Use first page index if multiple are available
-            page_index = duplicate_issue.pages_index[0]
-            img_data = comic.get_page(page_index)
+        except ComicArchiveError:
+            LOGGER.exception("Comic not valid: %s", duplicate_issue.path_)
+            return False
 
+        # Use first page index if multiple are available
+        page_index = duplicate_issue.pages_index[0]
+        try:
+            img_data = comic.get_page(page_index)
+        except (ValueError, OSError):
+            LOGGER.exception("Unable to retrieve page")
+            return False
+
+        try:
             with io.BytesIO(img_data) as img_io:
                 image = Image.open(img_io)
                 image.show()
                 return True
-
-        except (UnidentifiedImageError, OSError, IndexError) as e:
+        except (UnidentifiedImageError, ValueError, TypeError) as e:
             LOGGER.warning("Unable to show image from %s: %s", duplicate_issue.path_, e)
             questionary.print(
                 f"Unable to show image from {Path(duplicate_issue.path_).name}.",

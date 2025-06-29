@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import questionary
-from darkseid.comic import Comic, MetadataFormat
+from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
 from darkseid.metadata import Metadata, Notes
 from darkseid.utils import get_recursive_filelist
 from tqdm import tqdm
@@ -21,10 +21,11 @@ if TYPE_CHECKING:
     from argparse import Namespace
 
     from metrontagger.settings import MetronTaggerSettings
+from darkseid.validate import SchemaVersion
+
 from metrontagger import __version__
 from metrontagger.styles import Styles
 from metrontagger.talker import Talker
-from metrontagger.validate import SchemaVersion, ValidateMetadata
 
 LOGGER = getLogger(__name__)
 
@@ -73,11 +74,17 @@ class Runner:
         questionary.print(msg, style=Styles.TITLE)
 
         for item in file_list:
-            comic = Comic(item)
-            if comic.has_metadata(MetadataFormat.COMIC_RACK) and not comic.has_metadata(
+            try:
+                comic = Comic(item)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(item))
+                questionary.print(f"'{item.name}' is not a valid comic.'", style=Styles.ERROR)
+                return
+
+            if comic.has_metadata(MetadataFormat.COMIC_INFO) and not comic.has_metadata(
                 MetadataFormat.METRON_INFO
             ):
-                md = comic.read_metadata(MetadataFormat.COMIC_RACK)
+                md = comic.read_metadata(MetadataFormat.COMIC_INFO)
                 md = create_mi_note(md)
                 if comic.write_metadata(md, MetadataFormat.METRON_INFO):
                     questionary.print(
@@ -89,6 +96,31 @@ class Runner:
                         f"There was an error writing MetronInfo.xml for '{comic}'",
                         style=Styles.ERROR,
                     )
+
+    def _create_file_renamer(self) -> FileRenamer:
+        """Set options for file renaming."""
+        renamer = FileRenamer()
+        if rename_template := self.config["rename.rename_template"]:
+            try:
+                renamer.set_template(rename_template)
+            except ValueError:
+                LOGGER.exception("Failed to set rename template.")
+        if number_padding := self.config["rename.rename_issue_number_padding"]:
+            try:
+                renamer.set_issue_zero_padding(number_padding)
+            except ValueError:
+                LOGGER.exception("Failed to set issue number padding.")
+        renamer.set_smart_cleanup(self.config["rename.rename_use_smart_string_cleanup"])
+        return renamer
+
+    @staticmethod
+    def _get_comic_metadata(comic: Comic) -> Metadata | None:
+        # Prefer MetronInfo and if not present use ComicRack
+        if comic.has_metadata(MetadataFormat.METRON_INFO):
+            return comic.read_metadata(MetadataFormat.METRON_INFO)
+        if comic.has_metadata(MetadataFormat.COMIC_INFO):
+            return comic.read_metadata(MetadataFormat.COMIC_INFO)
+        return None
 
     def rename_comics(self: Runner, file_list: list[Path]) -> list[Path]:
         """Rename comic archives based on metadata.
@@ -108,14 +140,19 @@ class Runner:
         # Lists to track filename changes
         new_file_names: list[Path] = []
         original_files_changed: list[Path] = []
-        renamer = FileRenamer()
+        # Create & set the FileRenamer options
+        renamer = self._create_file_renamer()
+
         for comic in file_list:
-            comic_archive = Comic(comic)
-            if comic_archive.has_metadata(MetadataFormat.METRON_INFO):
-                md = comic_archive.read_metadata(MetadataFormat.METRON_INFO)
-            elif comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
-                md = comic_archive.read_metadata(MetadataFormat.COMIC_RACK)
-            else:
+            try:
+                comic_archive = Comic(comic)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(comic))
+                continue
+
+            # Retrieve the metadata from the comic
+            md = self._get_comic_metadata(comic_archive)
+            if md is None:
                 questionary.print(
                     f"skipping '{comic.name}'. no metadata available.",
                     style=Styles.WARNING,
@@ -123,9 +160,6 @@ class Runner:
                 continue
 
             renamer.set_metadata(md)
-            renamer.set_template(self.config["rename.rename_template"])
-            renamer.set_issue_zero_padding(self.config["rename.rename_issue_number_padding"])
-            renamer.set_smart_cleanup(self.config["rename.rename_use_smart_string_cleanup"])
 
             unique_name = renamer.rename_file(comic)
             if unique_name is None:
@@ -163,34 +197,56 @@ class Runner:
         msg = create_print_title("Exporting to CBZ:")
         questionary.print(msg, style=Styles.TITLE)
         for comic in file_list:
-            ca = Comic(str(comic))
-            if ca.is_rar():
-                new_fn = Path(comic).with_suffix(".cbz")
-                if ca.export_as_zip(new_fn):
-                    questionary.print(
-                        f"Exported '{comic.name}' to a cbz archive.",
-                        style=Styles.SUCCESS,
-                    )
-                    if self.args.delete_original:
-                        questionary.print(f"Removing '{comic.name}'.", style=Styles.SUCCESS)
-                        comic.unlink()
-                else:
-                    questionary.print(f"Failed to export '{comic.name}'", style=Styles.ERROR)
-            else:
+            try:
+                ca = Comic(comic)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(comic))
                 questionary.print(
-                    f"'{comic.name}' is not a cbr archive. skipping...",
-                    style=Styles.WARNING,
+                    f"'{comic.name}' is not a valid comic. Skipping...", style=Styles.ERROR
                 )
+                continue
+
+            if not ca.is_rar():
+                questionary.print(
+                    f"'{comic.name}' is not a cbr archive. skipping...", style=Styles.WARNING
+                )
+                continue
+
+            new_fn = Path(comic).with_suffix(".cbz")
+            if ca.export_as_zip(new_fn):
+                questionary.print(
+                    f"Exported '{comic.name}' to a cbz archive.",
+                    style=Styles.SUCCESS,
+                )
+                if self.args.delete_original:
+                    questionary.print(f"Removing '{comic.name}'.", style=Styles.SUCCESS)
+                    try:
+                        comic.unlink()
+                    except OSError as e:
+                        LOGGER.warning("Failed to remove file %s: %s", comic.name, e)
+                        questionary.print(
+                            f"Failed to remove file: {comic.name}.", style=Styles.ERROR
+                        )
+            else:
+                questionary.print(f"Failed to export '{comic.name}'", style=Styles.ERROR)
 
     def _validate_comic_info(
         self: Runner, file_list: list[Path], remove_ci: bool = False
     ) -> None:
-        """Validate ComicInfo metadata in comic archives."""
-        msg = create_print_title("Validating ComicInfo:")
+        """Validate metadata in comic archives."""
+        msg = create_print_title("Validating Metadata:")
         questionary.print(msg, style=Styles.TITLE)
         for comic in file_list:
-            ca = Comic(comic)
-            has_comic_rack = ca.has_metadata(MetadataFormat.COMIC_RACK)
+            try:
+                ca = Comic(comic)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(comic))
+                questionary.print(
+                    f"'{comic.name}' is not a valid comic. Skipping...", style=Styles.ERROR
+                )
+                continue
+
+            has_comic_rack = ca.has_metadata(MetadataFormat.COMIC_INFO)
             has_metron_info = ca.has_metadata(MetadataFormat.METRON_INFO)
 
             if not has_comic_rack and not has_metron_info:
@@ -201,28 +257,26 @@ class Runner:
                 continue
 
             if self.args.comicinfo and has_comic_rack:
-                xml = ca.archiver.read_file("ComicInfo.xml")
-                self._check_if_xml_is_valid(ca, xml, MetadataFormat.COMIC_RACK, remove_ci)
+                self._check_if_xml_is_valid(ca, MetadataFormat.COMIC_INFO, remove_ci)
 
             if self.args.metroninfo and has_metron_info:
-                xml = ca.archiver.read_file("MetronInfo.xml")
-                self._check_if_xml_is_valid(ca, xml, MetadataFormat.METRON_INFO, remove_ci)
+                self._check_if_xml_is_valid(ca, MetadataFormat.METRON_INFO, remove_ci)
 
     @staticmethod
     def _check_if_xml_is_valid(
-        comic: Comic, xml: bytes, fmt: MetadataFormat, remove_metadata: bool
+        comic: Comic, fmt: MetadataFormat, remove_metadata: bool
     ) -> None:
-        result = ValidateMetadata(xml).validate()
+        result = comic.validate_metadata(fmt)
         messages = {
-            SchemaVersion.ci_v2: (
+            SchemaVersion.COMIC_INFO_V2: (
                 f"'{comic.path.name}' has a valid ComicInfo Version 2",
                 Styles.SUCCESS,
             ),
-            SchemaVersion.ci_v1: (
+            SchemaVersion.COMIC_INFO_V1: (
                 f"'{comic.path.name}' has a valid ComicInfo Version 1",
                 Styles.SUCCESS,
             ),
-            SchemaVersion.mi_v1: (
+            SchemaVersion.METRON_INFO_V1: (
                 f"'{comic.path.name}' has a valid MetronInfo Version 1",
                 Styles.SUCCESS,
             ),
@@ -252,20 +306,20 @@ class Runner:
             None
         """
 
-        if not self.config["DEFAULT.sort_dir"]:
-            questionary.print(
-                "\nUnable to sort files. No destination directory was provided.",
-                style=Styles.ERROR,
-            )
+        if sort_dir := self.config["sort.directory"]:
+            msg = create_print_title("Starting Sorting of Comic Archives:")
+            questionary.print(msg, style=Styles.TITLE)
+            file_sorter = FileSorter(sort_dir)
+            for comic in file_list:
+                result = file_sorter.sort_comics(comic)
+                if not result:
+                    questionary.print(f"Unable to move '{comic.name}'.", style=Styles.ERROR)
             return
-
-        msg = create_print_title("Starting Sorting of Comic Archives:")
-        questionary.print(msg, style=Styles.TITLE)
-        file_sorter = FileSorter(self.config["DEFAULT.sort_dir"])
-        for comic in file_list:
-            result = file_sorter.sort_comics(comic)
-            if not result:
-                questionary.print(f"Unable to move '{comic.name}'.", style=Styles.ERROR)
+        # Sort directory not set.
+        questionary.print(
+            "\nUnable to sort files. No destination directory was provided.",
+            style=Styles.ERROR,
+        )
 
     def _comics_with_no_metadata(self: Runner, file_list: list[Path]) -> None:
         """Display files without metadata.
@@ -285,10 +339,18 @@ class Runner:
             return
 
         for comic in file_list:
-            comic_archive = Comic(str(comic))
+            try:
+                comic_archive = Comic(comic)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(comic))
+                questionary.print(
+                    f"'{comic.name}' is not a valid comic. Skipping...", style=Styles.ERROR
+                )
+                continue
+
             if (
                 self.args.comicinfo
-                and not comic_archive.has_metadata(MetadataFormat.COMIC_RACK)
+                and not comic_archive.has_metadata(MetadataFormat.COMIC_INFO)
             ) or (
                 self.args.metroninfo
                 and not comic_archive.has_metadata(MetadataFormat.METRON_INFO)
@@ -309,16 +371,35 @@ class Runner:
         msg = create_print_title("Removing Metadata:")
         questionary.print(msg, style=Styles.TITLE)
         for item in file_list:
-            comic_archive = Comic(item)
+            try:
+                comic_archive = Comic(item)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(item))
+                questionary.print(
+                    f"'{item.name}' is not a valid comic. Skipping...", style=Styles.ERROR
+                )
+                continue
             formats_removed = []
 
-            if self.args.comicinfo and comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
-                comic_archive.remove_metadata(MetadataFormat.COMIC_RACK)
-                formats_removed.append("'ComicInfo.xml'")
+            if self.args.comicinfo and comic_archive.has_metadata(MetadataFormat.COMIC_INFO):
+                if not comic_archive.remove_metadata(MetadataFormat.COMIC_INFO):
+                    LOGGER.error("Failed to remove ComicInfo.xml from: %s", str(item))
+                    questionary.print(
+                        f"Failed to remove ComicInfo.xml from '{item.name}'",
+                        style=Styles.ERROR,
+                    )
+                else:
+                    formats_removed.append("'ComicInfo.xml'")
 
             if self.args.metroninfo and comic_archive.has_metadata(MetadataFormat.METRON_INFO):
-                comic_archive.remove_metadata(MetadataFormat.METRON_INFO)
-                formats_removed.append("'MetronInfo.xml'")
+                if not comic_archive.remove_metadata(MetadataFormat.METRON_INFO):
+                    LOGGER.error("Failed to remove MetronInfo.xml from: %s", str(item))
+                    questionary.print(
+                        f"Failed to remove MetronInfo.xml from '{item.name}'",
+                        style=Styles.ERROR,
+                    )
+                else:
+                    formats_removed.append("'MetronInfo.xml'")
 
             if formats_removed:
                 fmt = " and ".join(formats_removed)
@@ -365,29 +446,29 @@ class Runner:
         """
 
         for item in tqdm(file_list):
-            comic = Comic(item.path_)
-            if comic.has_metadata(MetadataFormat.COMIC_RACK):
-                md = comic.read_metadata(MetadataFormat.COMIC_RACK)
+            try:
+                comic = Comic(item.path_)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(item))
+                questionary.print(
+                    f"'{item.path_}' is not a valid comic. Skipping...", style=Styles.ERROR
+                )
+                continue
+
+            if comic.has_metadata(MetadataFormat.COMIC_INFO):
+                md = comic.read_metadata(MetadataFormat.COMIC_INFO)
                 new_md = Metadata()
                 new_md.set_default_page_list(comic.get_number_of_pages())
                 md.overlay(new_md)
-                if not comic.write_metadata(md, MetadataFormat.COMIC_RACK):
+                if not comic.write_metadata(md, MetadataFormat.COMIC_INFO):
                     LOGGER.error("Could not write metadata to %s", comic)
 
-    @staticmethod
-    def _create_duplicate_statistics_msg(stats: dict[str, int]) -> str:
-        return (
-            f"Total Pages: {stats['total_pages']}\n"
-            f"Duplicate Pages: {stats['duplicate_pages']}\n"
-            f"Unique Hashes: {stats['unique_duplicate_hashes']}\n"
-            f"Comics Processed: {stats['comics_processed']}"
-        )
-
-    def _remove_duplicates(self: Runner, file_list: list[Path]) -> None:
-        """Remove duplicate images from comic archives.
+    def _remove_duplicates(self: Runner, file_list: list[Path]) -> None:  # noqa: PLR0912
+        """Remove duplicate images from comic archives with size tracking.
 
         This method identifies and allows the user to review and remove duplicate images from the provided list of
-        comic archives, with options to delete pages per book and update the ComicInfo metadata.
+        comic archives, with options to delete pages per book and update the ComicInfo metadata. It now tracks
+        and displays file size savings after duplicate removal.
 
         Args:
             file_list: list[Path]: The list of comic archive file paths to check for duplicates.
@@ -432,35 +513,179 @@ class Runner:
                             )
                             if dup_entry_idx is not None:
                                 di: DuplicateIssue = duplicates_lst[dup_entry_idx]
-                                di.pages_index.append(comic.pages_index[0])
+                                di.add_page_index(comic.pages_index[0])
                             else:
-                                duplicates_lst.append(
-                                    DuplicateIssue(comic.path_, [comic.pages_index[0]]),
-                                )
+                                # Create new DuplicateIssue with automatic size tracking
+                                new_dup = DuplicateIssue(comic.path_, [comic.pages_index[0]])
+                                duplicates_lst.append(new_dup)
                         else:
-                            duplicates_lst.append(
-                                DuplicateIssue(comic.path_, [comic.pages_index[0]]),
-                            )
+                            # Create new DuplicateIssue with automatic size tracking
+                            new_dup = DuplicateIssue(comic.path_, [comic.pages_index[0]])
+                            duplicates_lst.append(new_dup)
 
             # After building the list let's ask the user if they want to write the changes.
             if (
                 duplicates_lst
                 and questionary.confirm("Do want to write your changes to the comics?").ask()
             ):
-                dup_objs.delete_comic_pages(duplicates_lst)
-                msg = self._create_duplicate_statistics_msg(dup_objs.get_statistics())
-                questionary.print(msg, style=Styles.INFO)
+                # Display before processing summary
+                self._display_pre_processing_summary(duplicates_lst)
+
+                # Process the duplicates and get results
+                results = dup_objs.delete_comic_pages(duplicates_lst)
+
+                # Update ending sizes for all processed files
+                for duplicate_issue in duplicates_lst:
+                    if results.get(
+                        duplicate_issue.path_, False
+                    ):  # Only update if processing was successful
+                        duplicate_issue.update_ending_size()
+
+                # Display post-processing summary with size savings
+                self._display_post_processing_summary(duplicates_lst, results)
+
+                # Display overall statistics
+                stats_msg = self._create_duplicate_statistics_msg(dup_objs.get_statistics())
+                questionary.print(stats_msg, style=Styles.INFO)
             else:
                 questionary.print("No duplicate page changes to write.", style=Styles.SUCCESS)
 
         # Ask user if they want to update ComicInfo.xml pages for changes. Not necessary for MetronInfo.xml
         if (
             self.args.comicinfo
+            and duplicates_lst
             and questionary.confirm(
                 "Do you want to update the comic's 'comicinfo.xml' for the changes?",
             ).ask()
         ):
             self._update_ci_xml(duplicates_lst)
+
+    @staticmethod
+    def _display_pre_processing_summary(duplicates_lst: list[DuplicateIssue]) -> None:
+        """Display a summary before processing duplicate removal.
+
+        Args:
+            duplicates_lst: list[DuplicateIssue]: List of duplicate issues to be processed.
+        """
+        if not duplicates_lst:
+            return
+
+        total_pages_to_remove = sum(len(dup.pages_index) for dup in duplicates_lst)
+        total_starting_size = sum(
+            dup.starting_size_bytes
+            for dup in duplicates_lst
+            if dup.starting_size_bytes is not None
+        )
+
+        questionary.print("\n" + "=" * 60, style=Styles.INFO)
+        questionary.print("DUPLICATE REMOVAL SUMMARY", style=Styles.TITLE)
+        questionary.print("=" * 60, style=Styles.INFO)
+        questionary.print(f"Comics to process: {len(duplicates_lst)}", style=Styles.INFO)
+        questionary.print(
+            f"Total duplicate pages to remove: {total_pages_to_remove}", style=Styles.INFO
+        )
+        questionary.print(
+            f"Total starting size: {DuplicateIssue.format_file_size(total_starting_size)}",
+            style=Styles.INFO,
+        )
+        questionary.print("=" * 60 + "\n", style=Styles.INFO)
+
+    @staticmethod
+    def _display_post_processing_summary(
+        duplicates_lst: list[DuplicateIssue], results: dict[str, bool]
+    ) -> None:
+        """Display a summary after processing duplicate removal with size savings.
+
+        Args:
+            duplicates_lst: list[DuplicateIssue]: List of processed duplicate issues.
+            results: dict[str, bool]: Results of the duplicate removal process.
+        """
+        if not duplicates_lst:
+            return
+
+        successful_removals = []
+        failed_removals = []
+
+        for duplicate_issue in duplicates_lst:
+            if results.get(duplicate_issue.path_, False):
+                successful_removals.append(duplicate_issue)
+            else:
+                failed_removals.append(duplicate_issue)
+
+        questionary.print("\n" + "=" * 60, style=Styles.INFO)
+        questionary.print("DUPLICATE REMOVAL RESULTS", style=Styles.TITLE)
+        questionary.print("=" * 60, style=Styles.INFO)
+
+        if successful_removals:
+            questionary.print("✅ SUCCESSFULLY PROCESSED:", style=Styles.SUCCESS)
+            questionary.print("-" * 40, style=Styles.INFO)
+
+            total_pages_removed = 0
+            total_size_saved = 0
+
+            for dup in successful_removals:
+                pages_removed = len(dup.pages_index)
+                total_pages_removed += pages_removed
+
+                size_info = ""
+                if dup.starting_size_bytes is not None and dup.ending_size_bytes is not None:
+                    size_reduction = dup.get_size_reduction()
+                    if size_reduction and size_reduction > 0:
+                        total_size_saved += size_reduction
+                        percentage = dup.get_size_reduction_percentage()
+                        size_info = f" (Saved: {dup.size_reduction_formatted}"
+                        size_info += f", {percentage:.1f}%)" if percentage else ")"
+                questionary.print(
+                    f"  📁 {Path(dup.path_).name} - Removed {pages_removed} page{'s' if pages_removed != 1 else ''}{size_info}",
+                    style=Styles.SUCCESS,
+                )
+
+            questionary.print("-" * 40, style=Styles.INFO)
+            questionary.print(
+                f"📊 Total pages removed: {total_pages_removed}", style=Styles.SUCCESS
+            )
+            questionary.print(
+                f"💾 Total space saved: {DuplicateIssue.format_file_size(total_size_saved)}",
+                style=Styles.SUCCESS,
+            )
+
+            if total_size_saved > 0:
+                # Calculate average space saved per comic
+                avg_saved = total_size_saved / len(successful_removals)
+                questionary.print(
+                    f"📈 Average space saved per comic: {DuplicateIssue.format_file_size(int(avg_saved))}",
+                    style=Styles.SUCCESS,
+                )
+
+        if failed_removals:
+            questionary.print("\n❌ FAILED TO PROCESS:", style=Styles.ERROR)
+            questionary.print("-" * 40, style=Styles.INFO)
+            for dup in failed_removals:
+                pages_attempted = len(dup.pages_index)
+                questionary.print(
+                    f"  📁 {Path(dup.path_).name} - Failed to remove {pages_attempted} page{'s' if pages_attempted != 1 else ''}",
+                    style=Styles.ERROR,
+                )
+
+        questionary.print("=" * 60 + "\n", style=Styles.INFO)
+
+    @staticmethod
+    def _create_duplicate_statistics_msg(stats: dict[str, int]) -> str:
+        """Create a formatted statistics message for duplicate processing.
+
+        Args:
+            stats: dict[str, int]: Statistics dictionary from duplicate processing.
+
+        Returns:
+            str: Formatted statistics message.
+        """
+        return (
+            f"📈 PROCESSING STATISTICS:\n"
+            f"  • Total Pages Scanned: {stats['total_pages']:,}\n"
+            f"  • Duplicate Pages Found: {stats['duplicate_pages']:,}\n"
+            f"  • Unique Duplicate Images: {stats['unique_duplicate_hashes']:,}\n"
+            f"  • Comics Processed: {stats['comics_processed']:,}"
+        )
 
     def _no_md_fmt_set(self: Runner) -> bool:
         if not self.args.metroninfo and not self.args.comicinfo:

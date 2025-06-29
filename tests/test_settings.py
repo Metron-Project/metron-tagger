@@ -9,10 +9,10 @@ def test_settings(settings) -> None:
     # Make sure initial values are correct
     assert not config["metron.user"]
     assert not config["metron.password"]
-    assert not config["DEFAULT.sort_dir"]
+    assert not config["sort.directory"]
     assert config["rename.rename_issue_number_padding"] == 3
     assert config["rename.rename_use_smart_string_cleanup"] is True
-    assert config["rename.rename_template"] == "%series% %format% v%volume% #%issue% (%year%)"
+    assert config["rename.rename_template"] == ""
 
     # Save the new values
     config["metron.user"] = user
@@ -20,12 +20,12 @@ def test_settings(settings) -> None:
     config["rename.rename_issue_number_padding"] = padding
     config["rename.rename_use_smart_string_cleanup"] = str(cleanup)
     config["rename.rename_template"] = file_template
-    config["DEFAULT.sort_dir"] = "/tmp/foo"  # NOQA: S108
+    config["sort.directory"] = "/tmp/foo"  # NOQA: S108
     # Now load that file and verify the contents
     new_config = settings
     assert new_config["metron.user"] == user
     assert new_config["metron.password"] == dummy
-    assert new_config["DEFAULT.sort_dir"] == "/tmp/foo"  # NOQA: S108
+    assert new_config["sort.directory"] == "/tmp/foo"  # NOQA: S108
     assert new_config["rename.rename_issue_number_padding"] == padding
     assert new_config["rename.rename_use_smart_string_cleanup"] == cleanup
     assert new_config["rename.rename_template"] == file_template

@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 import mokkari
 import questionary
 from comicfn2dict import comicfn2dict
-from darkseid.comic import Comic, MetadataFormat
+from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
 from darkseid.issue_string import IssueString
 from darkseid.metadata import (
     AgeRatings,
@@ -355,7 +355,7 @@ class Talker:
         """Get existing metadata ID from comic if available."""
         metadata_formats = [
             (MetadataFormat.METRON_INFO, self.metadata_extractor.get_id_from_metron_info),
-            (MetadataFormat.COMIC_RACK, self.metadata_extractor.get_id_from_comic_info),
+            (MetadataFormat.COMIC_INFO, self.metadata_extractor.get_id_from_comic_info),
         ]
 
         for format_type, extractor_func in metadata_formats:
@@ -475,7 +475,11 @@ class Talker:
         self, fn: Path, accept_only: bool = False, series_id: int | None = None
     ) -> tuple[int | None, bool]:
         """Process a comic file for metadata."""
-        comic = Comic(fn)
+        try:
+            comic = Comic(fn)
+        except ComicArchiveError:
+            LOGGER.exception("Comic not valid: %s", str(fn))
+            return None, False
 
         if not comic.is_writable() and not comic.seems_to_be_a_comic_archive():
             questionary.print(
@@ -525,7 +529,7 @@ class Talker:
         written_formats = []
 
         format_configs = [
-            (MetadataFormat.COMIC_RACK, "'ComicInfo.xml'", self.comic_info),
+            (MetadataFormat.COMIC_INFO, "'ComicInfo.xml'", self.comic_info),
             (MetadataFormat.METRON_INFO, "'MetronInfo.xml'", self.metron_info),
         ]
 
@@ -547,7 +551,15 @@ class Talker:
             questionary.print(f"Failed to retrieve data: {e!r}", style=Styles.ERROR)
             return
 
-        comic = Comic(filename)
+        try:
+            comic = Comic(filename)
+        except ComicArchiveError:
+            LOGGER.exception("Comic not valid: %s", str(filename))
+            questionary.print(
+                f"{filename.name} appears not to be a comic. Skipping...", style=Styles.ERROR
+            )
+            return
+
         meta_data = Metadata()
         meta_data.set_default_page_list(comic.get_number_of_pages())
 
@@ -575,7 +587,7 @@ class Talker:
         if not args.ignore_existing:
             return False
 
-        has_comic_rack = comic.has_metadata(MetadataFormat.COMIC_RACK)
+        has_comic_rack = comic.has_metadata(MetadataFormat.COMIC_INFO)
         has_metron_info = comic.has_metadata(MetadataFormat.METRON_INFO)
 
         return (has_comic_rack and self.comic_info) or (has_metron_info and self.metron_info)
@@ -587,7 +599,14 @@ class Talker:
         questionary.print(msg, style=Styles.TITLE)
 
         for fn in file_list:
-            comic = Comic(fn)
+            try:
+                comic = Comic(fn)
+            except ComicArchiveError:
+                LOGGER.exception("Comic not valid: %s", str(fn))
+                questionary.print(
+                    f"{fn.name} appears not to be a comic. Skipping...", style=Styles.ERROR
+                )
+                continue
 
             if self._should_skip_existing_metadata(args, comic):
                 questionary.print(
