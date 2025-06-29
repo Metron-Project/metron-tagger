@@ -1,13 +1,13 @@
 [project]
 name = "metron-tagger"
-version = "3.6.0"
+version = "4.0.0"
 description = "A program to write metadata from metron.cloud to a comic archive"
 authors = [{ name = "Brian Pepple", email = "bpepple@metron.cloud" }]
 requires-python = ">=3.10"
 readme = "README.rst"
 license = "GPL-3.0-or-later"
 maintainers = [{ name = "Brian Pepple", email = "bpepple@metron.cloud" }]
-keywords = ["comics", "comic", "metadata", "tagging", "tagger"]
+keywords = ["comic", "cbz", "cbr", "metadata", "comicinfo", "metroninfo", "tagging", "tagger"]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
