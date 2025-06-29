@@ -355,7 +355,7 @@ class Talker:
         """Get existing metadata ID from comic if available."""
         metadata_formats = [
             (MetadataFormat.METRON_INFO, self.metadata_extractor.get_id_from_metron_info),
-            (MetadataFormat.COMIC_RACK, self.metadata_extractor.get_id_from_comic_info),
+            (MetadataFormat.COMIC_INFO, self.metadata_extractor.get_id_from_comic_info),
         ]
 
         for format_type, extractor_func in metadata_formats:
@@ -529,7 +529,7 @@ class Talker:
         written_formats = []
 
         format_configs = [
-            (MetadataFormat.COMIC_RACK, "'ComicInfo.xml'", self.comic_info),
+            (MetadataFormat.COMIC_INFO, "'ComicInfo.xml'", self.comic_info),
             (MetadataFormat.METRON_INFO, "'MetronInfo.xml'", self.metron_info),
         ]
 
@@ -587,7 +587,7 @@ class Talker:
         if not args.ignore_existing:
             return False
 
-        has_comic_rack = comic.has_metadata(MetadataFormat.COMIC_RACK)
+        has_comic_rack = comic.has_metadata(MetadataFormat.COMIC_INFO)
         has_metron_info = comic.has_metadata(MetadataFormat.METRON_INFO)
 
         return (has_comic_rack and self.comic_info) or (has_metron_info and self.metron_info)

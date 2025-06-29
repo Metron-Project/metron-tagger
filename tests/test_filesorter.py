@@ -367,7 +367,7 @@ def test_load_comic_metadata_success_comic_rack(
 ):
     """Test successful metadata loading with ComicRack format."""
     mock_comic = Mock()
-    mock_comic.has_metadata.side_effect = lambda fmt: fmt == MetadataFormat.COMIC_RACK
+    mock_comic.has_metadata.side_effect = lambda fmt: fmt == MetadataFormat.COMIC_INFO
     mock_comic.read_metadata.return_value = Mock(spec=Metadata)
     mock_comic_class.return_value = mock_comic
 
@@ -375,9 +375,9 @@ def test_load_comic_metadata_success_comic_rack(
 
     assert result is not None
     mock_comic.has_metadata.assert_has_calls(
-        [call(MetadataFormat.METRON_INFO), call(MetadataFormat.COMIC_RACK)]
+        [call(MetadataFormat.METRON_INFO), call(MetadataFormat.COMIC_INFO)]
     )
-    mock_comic.read_metadata.assert_called_with(MetadataFormat.COMIC_RACK)
+    mock_comic.read_metadata.assert_called_with(MetadataFormat.COMIC_INFO)
 
 
 @patch("metrontagger.filesorter.Comic")

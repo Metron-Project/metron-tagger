@@ -81,10 +81,10 @@ class Runner:
                 questionary.print(f"'{item.name}' is not a valid comic.'", style=Styles.ERROR)
                 return
 
-            if comic.has_metadata(MetadataFormat.COMIC_RACK) and not comic.has_metadata(
+            if comic.has_metadata(MetadataFormat.COMIC_INFO) and not comic.has_metadata(
                 MetadataFormat.METRON_INFO
             ):
-                md = comic.read_metadata(MetadataFormat.COMIC_RACK)
+                md = comic.read_metadata(MetadataFormat.COMIC_INFO)
                 md = create_mi_note(md)
                 if comic.write_metadata(md, MetadataFormat.METRON_INFO):
                     questionary.print(
@@ -118,8 +118,8 @@ class Runner:
         # Prefer MetronInfo and if not present use ComicRack
         if comic.has_metadata(MetadataFormat.METRON_INFO):
             return comic.read_metadata(MetadataFormat.METRON_INFO)
-        if comic.has_metadata(MetadataFormat.COMIC_RACK):
-            return comic.read_metadata(MetadataFormat.COMIC_RACK)
+        if comic.has_metadata(MetadataFormat.COMIC_INFO):
+            return comic.read_metadata(MetadataFormat.COMIC_INFO)
         return None
 
     def rename_comics(self: Runner, file_list: list[Path]) -> list[Path]:
@@ -246,7 +246,7 @@ class Runner:
                 )
                 continue
 
-            has_comic_rack = ca.has_metadata(MetadataFormat.COMIC_RACK)
+            has_comic_rack = ca.has_metadata(MetadataFormat.COMIC_INFO)
             has_metron_info = ca.has_metadata(MetadataFormat.METRON_INFO)
 
             if not has_comic_rack and not has_metron_info:
@@ -257,7 +257,7 @@ class Runner:
                 continue
 
             if self.args.comicinfo and has_comic_rack:
-                self._check_if_xml_is_valid(ca, MetadataFormat.COMIC_RACK, remove_ci)
+                self._check_if_xml_is_valid(ca, MetadataFormat.COMIC_INFO, remove_ci)
 
             if self.args.metroninfo and has_metron_info:
                 self._check_if_xml_is_valid(ca, MetadataFormat.METRON_INFO, remove_ci)
@@ -306,20 +306,20 @@ class Runner:
             None
         """
 
-        if not self.config["DEFAULT.sort_dir"]:
-            questionary.print(
-                "\nUnable to sort files. No destination directory was provided.",
-                style=Styles.ERROR,
-            )
+        if sort_dir := self.config["sort.directory"]:
+            msg = create_print_title("Starting Sorting of Comic Archives:")
+            questionary.print(msg, style=Styles.TITLE)
+            file_sorter = FileSorter(sort_dir)
+            for comic in file_list:
+                result = file_sorter.sort_comics(comic)
+                if not result:
+                    questionary.print(f"Unable to move '{comic.name}'.", style=Styles.ERROR)
             return
-
-        msg = create_print_title("Starting Sorting of Comic Archives:")
-        questionary.print(msg, style=Styles.TITLE)
-        file_sorter = FileSorter(self.config["DEFAULT.sort_dir"])
-        for comic in file_list:
-            result = file_sorter.sort_comics(comic)
-            if not result:
-                questionary.print(f"Unable to move '{comic.name}'.", style=Styles.ERROR)
+        # Sort directory not set.
+        questionary.print(
+            "\nUnable to sort files. No destination directory was provided.",
+            style=Styles.ERROR,
+        )
 
     def _comics_with_no_metadata(self: Runner, file_list: list[Path]) -> None:
         """Display files without metadata.
@@ -350,7 +350,7 @@ class Runner:
 
             if (
                 self.args.comicinfo
-                and not comic_archive.has_metadata(MetadataFormat.COMIC_RACK)
+                and not comic_archive.has_metadata(MetadataFormat.COMIC_INFO)
             ) or (
                 self.args.metroninfo
                 and not comic_archive.has_metadata(MetadataFormat.METRON_INFO)
@@ -381,8 +381,8 @@ class Runner:
                 continue
             formats_removed = []
 
-            if self.args.comicinfo and comic_archive.has_metadata(MetadataFormat.COMIC_RACK):
-                if not comic_archive.remove_metadata(MetadataFormat.COMIC_RACK):
+            if self.args.comicinfo and comic_archive.has_metadata(MetadataFormat.COMIC_INFO):
+                if not comic_archive.remove_metadata(MetadataFormat.COMIC_INFO):
                     LOGGER.error("Failed to remove ComicInfo.xml from: %s", str(item))
                     questionary.print(
                         f"Failed to remove ComicInfo.xml from '{item.name}'",
@@ -455,12 +455,12 @@ class Runner:
                 )
                 continue
 
-            if comic.has_metadata(MetadataFormat.COMIC_RACK):
-                md = comic.read_metadata(MetadataFormat.COMIC_RACK)
+            if comic.has_metadata(MetadataFormat.COMIC_INFO):
+                md = comic.read_metadata(MetadataFormat.COMIC_INFO)
                 new_md = Metadata()
                 new_md.set_default_page_list(comic.get_number_of_pages())
                 md.overlay(new_md)
-                if not comic.write_metadata(md, MetadataFormat.COMIC_RACK):
+                if not comic.write_metadata(md, MetadataFormat.COMIC_INFO):
                     LOGGER.error("Could not write metadata to %s", comic)
 
     def _remove_duplicates(self: Runner, file_list: list[Path]) -> None:  # noqa: PLR0912

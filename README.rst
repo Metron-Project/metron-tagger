@@ -97,6 +97,12 @@ To write MetronInfo.xml metadata from comics with ComicInfo.xml data, and migrat
 
   metron-tagger -om --migrate /path/to/comics
 
+To remove duplicate pages from comics (which should be only ran on a directory of weekly release since we scan all the pages within a comic), would be done by running the following:
+::
+
+  metron-tagger --duplicates /path/to/weekly/comics
+
+
 
 Bugs/Requests
 -------------
