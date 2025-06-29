@@ -33,10 +33,10 @@ def _metron_credentials(settings: MetronTaggerSettings) -> None:
     If the Metron username and password are not already set in the
     settings, prompt the user for them and store them.
     """
-    if settings["metron.user"] is None:
+    if not settings["metron.user"]:
         settings["metron.user"] = questionary.text("What is your Metron username?").ask()
         LOGGER.debug("Added Metron username")
-    if settings["metron.password"] is None:
+    if not settings["metron.password"]:
         settings["metron.password"] = questionary.text("What is your Metron password?").ask()
         LOGGER.debug("Added Metron password")
 
@@ -47,8 +47,8 @@ def _set_sort_directory(settings: MetronTaggerSettings) -> None:
     If the default sort directory is not already set in the settings,
     prompt the user for it and store it.
     """
-    if settings["DEFAULT.sort_dir"] is None:
-        settings["DEFAULT.sort_dir"] = questionary.text(
+    if not settings["sort.directory"]:
+        settings["sort.directory"] = questionary.text(
             "What is the default sort directory?"
         ).ask()
         LOGGER.debug("Added default sort directory")
