@@ -68,7 +68,8 @@ def main() -> None:
     LOGGER.info("Bekka v%s", __version__)
 
     args = get_args()
-    _metron_credentials(settings=settings)
+    if args.online:
+        _metron_credentials(settings=settings)
     if args.sort:
         _set_sort_directory(settings=settings)
 
