@@ -7,7 +7,16 @@ requires-python = ">=3.10"
 readme = "README.rst"
 license = "GPL-3.0-or-later"
 maintainers = [{ name = "Brian Pepple", email = "bpepple@metron.cloud" }]
-keywords = ["comic", "cbz", "cbr", "metadata", "comicinfo", "metroninfo", "tagging", "tagger"]
+keywords = [
+  "comic",
+  "cbz",
+  "cbr",
+  "metadata",
+  "comicinfo",
+  "metroninfo",
+  "tagging",
+  "tagger",
+]
 classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
