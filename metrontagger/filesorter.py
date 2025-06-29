@@ -279,7 +279,7 @@ class FileSorter:
             return None
 
         # Try MetronInfo first, then ComicRack
-        for format_type in [MetadataFormat.METRON_INFO, MetadataFormat.COMIC_RACK]:
+        for format_type in [MetadataFormat.METRON_INFO, MetadataFormat.COMIC_INFO]:
             if comic_archive.has_metadata(format_type):
                 try:
                     return comic_archive.read_metadata(format_type)
