@@ -65,7 +65,7 @@ def main() -> None:
     """
     init_logging()
     settings = MetronTaggerSettings()
-    LOGGER.info("Bekka v%s", __version__)
+    LOGGER.info("Metron-Tagger v%s", __version__)
 
     args = get_args()
     if args.online:
