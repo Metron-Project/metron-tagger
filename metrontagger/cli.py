@@ -68,7 +68,7 @@ def main() -> None:
     LOGGER.info("Metron-Tagger v%s", __version__)
 
     args = get_args()
-    if args.online:
+    if args.online or args.id:
         _metron_credentials(settings=settings)
     if args.sort:
         _set_sort_directory(settings=settings)
