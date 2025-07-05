@@ -175,8 +175,12 @@ class CoverHashMatcher:
         comic_hash = cls.get_comic_cover_hash_cached(comic)
         if comic_hash is None:
             return False
+        try:
+            hamming = comic_hash - hex_to_hash(metron_hash)
+        except ValueError:
+            LOGGER.exception("Failed to get Hamming distance for comic %s", comic.name)
+            return False
 
-        hamming = comic_hash - hex_to_hash(metron_hash)
         return hamming <= HAMMING_DISTANCE
 
     @classmethod
