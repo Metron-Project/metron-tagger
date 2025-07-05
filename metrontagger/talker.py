@@ -38,7 +38,7 @@ from darkseid.metadata import (
 )
 from darkseid.utils import get_issue_id_from_note
 from imagehash import ImageHash, hex_to_hash, phash
-from mokkari.exceptions import ApiError
+from mokkari.exceptions import ApiError, RateLimitError
 from PIL import Image
 
 from metrontagger import __version__
@@ -403,13 +403,23 @@ class Talker:
         if source == InfoSource.METRON:
             return id_
         if source == InfoSource.COMIC_VINE:
-            issues = self.api.issues_list(params={"cv_id": id_})
+            try:
+                issues = self.api.issues_list(params={"cv_id": id_})
+            except RateLimitError as e:
+                LOGGER.debug("Rate limit exceeded: %s", e)
+                questionary.print(f"{e!s}", style=Styles.WARNING)
+                return None
+            except ApiError as e:
+                LOGGER.exception("Failed to retrieve data")
+                questionary.print(f"Failed to retrieve data: {e!r}", style=Styles.ERROR)
+                return None
+
             # This should always be 1 otherwise let's do a regular search.
             if len(issues) == 1:
                 return issues[0].id
         return None
 
-    def _search_by_filename(
+    def _search_by_filename(  # noqa: PLR0911
         self,
         filename: Path,
         comic: Comic,
@@ -428,7 +438,17 @@ class Talker:
             )
             return None, False
 
-        i_list = self.api.issues_list(params=params)
+        try:
+            i_list = self.api.issues_list(params=params)
+        except RateLimitError as e:
+            LOGGER.debug("Rate limit exceeded: %s", e)
+            questionary.print(f"{e!s}", style=Styles.WARNING)
+            return None, False
+        except ApiError as e:
+            LOGGER.exception("Failed to retrieve data")
+            questionary.print(f"Failed to retrieve data: {e!r}", style=Styles.ERROR)
+            return None, False
+
         result_count = len(i_list)
 
         # No matches
@@ -547,7 +567,12 @@ class Talker:
         """Write metadata for a comic issue."""
         try:
             resp = self.api.issue(issue_id)
+        except RateLimitError as e:
+            LOGGER.debug("Rate limit exceeded: %s", e)
+            questionary.print(f"{e!s}", style=Styles.WARNING)
+            return
         except ApiError as e:
+            LOGGER.exception("Failed to retrieve data")
             questionary.print(f"Failed to retrieve data: {e!r}", style=Styles.ERROR)
             return
 
