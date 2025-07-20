@@ -505,7 +505,8 @@ class Talker:
             LOGGER.exception("Comic not valid: %s", str(fn))
             return None, False
 
-        if not comic.is_writable() and not comic.seems_to_be_a_comic_archive():
+        if not comic.is_writable() or not comic.seems_to_be_a_comic_archive():
+            LOGGER.exception("Comic appears not to be a comic or writable: %s", str(fn))
             questionary.print(
                 f"{fn.name} appears not to be a comic or writable.",
                 style=Styles.ERROR,
