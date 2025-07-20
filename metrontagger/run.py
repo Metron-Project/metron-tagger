@@ -197,18 +197,19 @@ class Runner:
         msg = create_print_title("Exporting to CBZ:")
         questionary.print(msg, style=Styles.TITLE)
         for comic in file_list:
+            if comic.suffix.lower() in {".cbz"}:
+                questionary.print(
+                    f"'{comic.name}' is already a cbz archive. Skipping...",
+                    style=Styles.WARNING,
+                )
+                continue
+
             try:
                 ca = Comic(comic)
             except ComicArchiveError:
                 LOGGER.exception("Comic not valid: %s", str(comic))
                 questionary.print(
                     f"'{comic.name}' is not a valid comic. Skipping...", style=Styles.ERROR
-                )
-                continue
-
-            if not ca.is_rar():
-                questionary.print(
-                    f"'{comic.name}' is not a cbr archive. skipping...", style=Styles.WARNING
                 )
                 continue
 
@@ -287,7 +288,7 @@ class Runner:
         )
         questionary.print(message, style=style)
 
-        if result not in messages and remove_metadata and comic.remove_metadata(fmt):
+        if result not in messages and remove_metadata and comic.remove_metadata([fmt]):
             questionary.print(
                 f"Removed non-valid metadata from '{comic.path.name}'.",
                 style=Styles.WARNING,
@@ -357,7 +358,7 @@ class Runner:
             ):
                 questionary.print(f"{comic}", style=Styles.SUCCESS)
 
-    def _delete_metadata(self: Runner, file_list: list[Path]) -> None:
+    def _delete_metadata(self: Runner, file_list: list[Path]) -> None:  # noqa: PLR0912
         """Remove metadata from comic archives.
 
         This static method removes metadata from the comic archives in the provided list, if metadata exists.
@@ -381,8 +382,23 @@ class Runner:
                 continue
             formats_removed = []
 
-            if self.args.comicinfo and comic_archive.has_metadata(MetadataFormat.COMIC_INFO):
-                if not comic_archive.remove_metadata(MetadataFormat.COMIC_INFO):
+            if (
+                self.args.comicinfo
+                and self.args.metroninfo
+                and comic_archive.has_metadata(MetadataFormat.COMIC_INFO)
+                and comic_archive.has_metadata(MetadataFormat.METRON_INFO)
+            ):
+                if not comic_archive.remove_metadata(
+                    [MetadataFormat.COMIC_INFO, MetadataFormat.METRON_INFO]
+                ):
+                    LOGGER.error("Failed to remove Metadata from %s", str(comic_archive))
+                    questionary.print(
+                        f"Failed to remove Metadata from '{item.name}'", style=Styles.ERROR
+                    )
+                else:
+                    formats_removed.extend(["'ComicInfo.xml'", "'MetronInfo.xml'"])
+            elif self.args.comicinfo and comic_archive.has_metadata(MetadataFormat.COMIC_INFO):
+                if not comic_archive.remove_metadata([MetadataFormat.COMIC_INFO]):
                     LOGGER.error("Failed to remove ComicInfo.xml from: %s", str(item))
                     questionary.print(
                         f"Failed to remove ComicInfo.xml from '{item.name}'",
@@ -390,9 +406,10 @@ class Runner:
                     )
                 else:
                     formats_removed.append("'ComicInfo.xml'")
-
-            if self.args.metroninfo and comic_archive.has_metadata(MetadataFormat.METRON_INFO):
-                if not comic_archive.remove_metadata(MetadataFormat.METRON_INFO):
+            elif self.args.metroninfo and comic_archive.has_metadata(
+                MetadataFormat.METRON_INFO
+            ):
+                if not comic_archive.remove_metadata([MetadataFormat.METRON_INFO]):
                     LOGGER.error("Failed to remove MetronInfo.xml from: %s", str(item))
                     questionary.print(
                         f"Failed to remove MetronInfo.xml from '{item.name}'",

@@ -37,6 +37,11 @@ Or install it yourself:
 FAQ
 ---
 
+**What comics formats are supported?**
+
+- Metron-Tagger supports CBZ, CBR, CBT, and CB7 comics.
+
+
 **How to enable RAR support?**
 
 - It depends on the unrar command-line utility, and expects it to be in your $PATH.
