@@ -197,18 +197,19 @@ class Runner:
         msg = create_print_title("Exporting to CBZ:")
         questionary.print(msg, style=Styles.TITLE)
         for comic in file_list:
+            if comic.suffix.lower() in {".cbz"}:
+                questionary.print(
+                    f"'{comic.name}' is already a cbz archive. Skipping...",
+                    style=Styles.WARNING,
+                )
+                continue
+
             try:
                 ca = Comic(comic)
             except ComicArchiveError:
                 LOGGER.exception("Comic not valid: %s", str(comic))
                 questionary.print(
                     f"'{comic.name}' is not a valid comic. Skipping...", style=Styles.ERROR
-                )
-                continue
-
-            if not ca.is_rar():
-                questionary.print(
-                    f"'{comic.name}' is not a cbr archive. skipping...", style=Styles.WARNING
                 )
                 continue
 
@@ -287,7 +288,7 @@ class Runner:
         )
         questionary.print(message, style=style)
 
-        if result not in messages and remove_metadata and comic.remove_metadata(fmt):
+        if result not in messages and remove_metadata and comic.remove_metadata([fmt]):
             questionary.print(
                 f"Removed non-valid metadata from '{comic.path.name}'.",
                 style=Styles.WARNING,
