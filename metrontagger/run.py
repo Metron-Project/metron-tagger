@@ -357,7 +357,7 @@ class Runner:
             ):
                 questionary.print(f"{comic}", style=Styles.SUCCESS)
 
-    def _delete_metadata(self: Runner, file_list: list[Path]) -> None:
+    def _delete_metadata(self: Runner, file_list: list[Path]) -> None:  # noqa: PLR0912
         """Remove metadata from comic archives.
 
         This static method removes metadata from the comic archives in the provided list, if metadata exists.
@@ -381,8 +381,23 @@ class Runner:
                 continue
             formats_removed = []
 
-            if self.args.comicinfo and comic_archive.has_metadata(MetadataFormat.COMIC_INFO):
-                if not comic_archive.remove_metadata(MetadataFormat.COMIC_INFO):
+            if (
+                self.args.comicinfo
+                and self.args.metroninfo
+                and comic_archive.has_metadata(MetadataFormat.COMIC_INFO)
+                and comic_archive.has_metadata(MetadataFormat.METRON_INFO)
+            ):
+                if not comic_archive.remove_metadata(
+                    [MetadataFormat.COMIC_INFO, MetadataFormat.METRON_INFO]
+                ):
+                    LOGGER.error("Failed to remove Metadata from %s", str(comic_archive))
+                    questionary.print(
+                        f"Failed to remove Metadata from '{item.name}'", style=Styles.ERROR
+                    )
+                else:
+                    formats_removed.extend(["'ComicInfo.xml'", "'MetronInfo.xml'"])
+            elif self.args.comicinfo and comic_archive.has_metadata(MetadataFormat.COMIC_INFO):
+                if not comic_archive.remove_metadata([MetadataFormat.COMIC_INFO]):
                     LOGGER.error("Failed to remove ComicInfo.xml from: %s", str(item))
                     questionary.print(
                         f"Failed to remove ComicInfo.xml from '{item.name}'",
@@ -390,9 +405,10 @@ class Runner:
                     )
                 else:
                     formats_removed.append("'ComicInfo.xml'")
-
-            if self.args.metroninfo and comic_archive.has_metadata(MetadataFormat.METRON_INFO):
-                if not comic_archive.remove_metadata(MetadataFormat.METRON_INFO):
+            elif self.args.metroninfo and comic_archive.has_metadata(
+                MetadataFormat.METRON_INFO
+            ):
+                if not comic_archive.remove_metadata([MetadataFormat.METRON_INFO]):
                     LOGGER.error("Failed to remove MetronInfo.xml from: %s", str(item))
                     questionary.print(
                         f"Failed to remove MetronInfo.xml from '{item.name}'",
