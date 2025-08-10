@@ -34,12 +34,18 @@ Or install it yourself:
 
   $ pipx install metron-tagger
 
+There are optional dependencies which can be installed by specifying one or more of them in braces e.g. metron-tagger[7zip]
+
+The optional dependencies are:
+
+* 7zip: Provides support for reading/writing to CB7 files.
+
 FAQ
 ---
 
 **What comics formats are supported?**
 
-- Metron-Tagger supports CBZ, CBR, CBT, and CB7 comics.
+- Metron-Tagger supports CBZ, CBR, CBT, and CB7 (optional) comics.
 
 
 **How to enable RAR support?**
