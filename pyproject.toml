@@ -6,6 +6,7 @@ authors = [{ name = "Brian Pepple", email = "bpepple@metron.cloud" }]
 requires-python = ">=3.10"
 readme = "README.rst"
 license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 maintainers = [{ name = "Brian Pepple", email = "bpepple@metron.cloud" }]
 keywords = [
   "comic",
@@ -23,7 +24,6 @@ classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Environment :: Console",
   "Intended Audience :: End Users/Desktop",
-  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
   "Natural Language :: English",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
