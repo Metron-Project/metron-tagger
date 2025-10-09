@@ -68,6 +68,12 @@ def make_parser() -> argparse.ArgumentParser:
         default=False,
     )
     parser.add_argument(
+        "--skip-multiple",
+        help="Skip files that have multiple matches instead of prompting for selection.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--missing",
         help="List files without metadata.",
         action="store_true",

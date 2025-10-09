@@ -80,17 +80,18 @@ class MultipleMatch:
 class OnlineMatchResults:
     """Class to store online match results.
 
-    This class stores good matches, no matches, and multiple matches for online search results.
+    This class stores good matches, no matches, multiple matches, and skipped matches for online search results.
     """
 
     def __init__(self) -> None:
         """Initialize the OnlineMatchResults class.
 
-        This method initializes lists to store good matches, no matches, and multiple matches.
+        This method initializes lists to store good matches, no matches, multiple matches, and skipped matches.
         """
         self.good_matches: list[Path] = []
         self.no_matches: list[Path] = []
         self.multiple_matches: list[MultipleMatch] = []
+        self.skipped_matches: list[Path] = []
 
     def add_good_match(self, file_name: Path) -> None:
         """Add a good match to the list."""
@@ -103,6 +104,10 @@ class OnlineMatchResults:
     def add_multiple_match(self, multi_match: MultipleMatch) -> None:
         """Add a multiple match to the list."""
         self.multiple_matches.append(multi_match)
+
+    def add_skipped_match(self, file_name: Path) -> None:
+        """Add a skipped match to the list."""
+        self.skipped_matches.append(file_name)
 
 
 class MetadataExtractor:
@@ -429,6 +434,7 @@ class Talker:
         comic: Comic,
         series_id: int | None = None,
         accept_only: bool = False,
+        skip_multiple: bool = False,
     ) -> tuple[int | None, bool]:
         """Search for comic by filename parsing."""
         metadata: dict[str, str | tuple[str, ...]] = comicfn2dict(filename, verbose=0)
@@ -470,16 +476,28 @@ class Talker:
                 self.match_results.add_good_match(filename)
                 return hamming_lst[0].id, False
 
+            # Skip multiple matches if flag is set
+            if skip_multiple:
+                self.match_results.add_skipped_match(filename)
+                return None, False
+
             # No hamming match, let's ask the user later.
             self.match_results.add_multiple_match(MultipleMatch(filename, i_list))
             return None, True
 
         # Single match - check hamming distance or accept if auto-accept is enabled
         single_match = i_list[0]
-        return self._handle_single_match(filename, comic, single_match, accept_only)
+        return self._handle_single_match(
+            filename, comic, single_match, accept_only, skip_multiple
+        )
 
     def _handle_single_match(
-        self, filename: Path, comic: Comic, match: BaseIssue, accept_only: bool = False
+        self,
+        filename: Path,
+        comic: Comic,
+        match: BaseIssue,
+        accept_only: bool = False,
+        skip_multiple: bool = False,
     ) -> tuple[int | None, bool]:
         """Handle single match results."""
         if self.cover_matcher.is_within_hamming_distance(comic, match.cover_hash):
@@ -491,12 +509,21 @@ class Talker:
             self.match_results.add_good_match(filename)
             return match.id, False
 
+        # If --skip-multiple flag is set, skip this match
+        if skip_multiple:
+            self.match_results.add_skipped_match(filename)
+            return None, False
+
         # Otherwise, add to multiple matches to ask the user later
         self.match_results.add_multiple_match(MultipleMatch(filename, [match]))
         return None, True
 
     def _process_file(
-        self, fn: Path, accept_only: bool = False, series_id: int | None = None
+        self,
+        fn: Path,
+        accept_only: bool = False,
+        skip_multiple: bool = False,
+        series_id: int | None = None,
     ) -> tuple[int | None, bool]:
         """Process a comic file for metadata."""
         try:
@@ -523,7 +550,7 @@ class Talker:
                 return result_id, False
 
         # Search by filename if no existing metadata or ID handling failed
-        return self._search_by_filename(fn, comic, series_id, accept_only)
+        return self._search_by_filename(fn, comic, series_id, accept_only, skip_multiple)
 
     def _post_process_matches(self) -> None:
         """Post-process the match results."""
@@ -539,6 +566,13 @@ class Talker:
             msg = create_print_title("No Matches:")
             questionary.print(msg, style=Styles.TITLE)
             for comic in self.match_results.no_matches:
+                questionary.print(f"{comic}", style=Styles.WARNING)
+
+        # Print skipped matches
+        if self.match_results.skipped_matches:
+            msg = create_print_title("Skipped Multiple Matches:")
+            questionary.print(msg, style=Styles.TITLE)
+            for comic in self.match_results.skipped_matches:
                 questionary.print(f"{comic}", style=Styles.WARNING)
 
         # Handle files with multiple matches
@@ -646,7 +680,7 @@ class Talker:
                 continue
 
             issue_id, multiple_match = self._process_file(
-                fn, args.accept_only, series_id=args.id
+                fn, args.accept_only, args.skip_multiple, series_id=args.id
             )
 
             if issue_id:
