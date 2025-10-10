@@ -84,6 +84,7 @@ Help
     --delete-original    Delete the original archive after successful export to another format. (default: False)
     --duplicates         Identify and give the option to delete duplicate pages in a directory of comics. (Experimental) (default: False)
     --migrate            Migrate information from a ComicInfo.xml into a *new* MetronInfo.xml (default: False)
+    --version            Show the version number and exit
 
 Examples
 --------
