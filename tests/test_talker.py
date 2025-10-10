@@ -58,13 +58,13 @@ def sample_path():
     return Path("test_comic.cbz")
 
 
-def create_mock_base_issue():
+def create_mock_base_issue(issue_id=123, cover_hash="abcdef123456"):
     """Create a mock BaseIssue object."""
     issue = Mock()
-    issue.id = 123
+    issue.id = issue_id
     issue.issue_name = "Test Comic #1"
     issue.cover_date = datetime(2023, 1, 1, tzinfo=tzinfo).date()
-    issue.cover_hash = "abcdef123456"
+    issue.cover_hash = cover_hash
     return issue
 
 
@@ -132,6 +132,7 @@ def test_online_match_results_initialization():
     assert results.good_matches == []
     assert results.no_matches == []
     assert results.multiple_matches == []
+    assert results.skipped_matches == []
 
 
 def test_online_match_results_add_good_match():
@@ -148,6 +149,27 @@ def test_online_match_results_add_no_match():
     path = Path("test.cbz")
     results.add_no_match(path)
     assert path in results.no_matches
+
+
+def test_online_match_results_add_skipped_match():
+    """Test adding a skipped match."""
+    results = OnlineMatchResults()
+    path = Path("test.cbz")
+    results.add_skipped_match(path)
+    assert path in results.skipped_matches
+    assert len(results.skipped_matches) == 1
+
+
+def test_online_match_results_add_multiple_skipped_matches():
+    """Test adding multiple skipped matches."""
+    results = OnlineMatchResults()
+    paths = [Path("test1.cbz"), Path("test2.cbz"), Path("test3.cbz")]
+
+    for path in paths:
+        results.add_skipped_match(path)
+
+    assert len(results.skipped_matches) == 3
+    assert all(path in results.skipped_matches for path in paths)
 
 
 def test_online_match_results_add_multiple_match():
@@ -402,6 +424,116 @@ def test_talker_get_existing_metadata_id_no_metadata(mock_comic_class, talker):
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
 @patch("metrontagger.talker.Comic")
+def test_search_by_filename_multiple_matches_skip_enabled(
+    mock_comic_class, mock_create_params, mock_comicfn2dict, talker
+):
+    """Test search by filename with multiple matches and skip_multiple=True."""
+    mock_comic = Mock()
+    mock_comic_class.return_value = mock_comic
+    mock_comicfn2dict.return_value = {"series": "Test", "issue": "1"}
+    mock_create_params.return_value = {"series": "Test"}
+
+    multiple_issues = [
+        create_mock_base_issue(123, "hash1"),
+        create_mock_base_issue(124, "hash2"),
+    ]
+    talker.api.issues_list.return_value = multiple_issues
+
+    with patch.object(talker.cover_matcher, "filter_by_hamming_distance", return_value=[]):
+        result, multiple = talker._search_by_filename(
+            Path("test.cbz"), mock_comic, skip_multiple=True
+        )
+
+        assert result is None
+        assert multiple is False
+        assert len(talker.match_results.skipped_matches) == 1
+        assert len(talker.match_results.multiple_matches) == 0
+
+
+@patch("metrontagger.talker.comicfn2dict")
+@patch("metrontagger.talker.create_query_params")
+@patch("metrontagger.talker.Comic")
+def test_search_by_filename_multiple_matches_skip_disabled(
+    mock_comic_class, mock_create_params, mock_comicfn2dict, talker
+):
+    """Test search by filename with multiple matches and skip_multiple=False."""
+    mock_comic = Mock()
+    mock_comic_class.return_value = mock_comic
+    mock_comicfn2dict.return_value = {"series": "Test", "issue": "1"}
+    mock_create_params.return_value = {"series": "Test"}
+
+    multiple_issues = [
+        create_mock_base_issue(123, "hash1"),
+        create_mock_base_issue(124, "hash2"),
+    ]
+    talker.api.issues_list.return_value = multiple_issues
+
+    with patch.object(talker.cover_matcher, "filter_by_hamming_distance", return_value=[]):
+        result, multiple = talker._search_by_filename(
+            Path("test.cbz"), mock_comic, skip_multiple=False
+        )
+
+        assert result is None
+        assert multiple is True
+        assert len(talker.match_results.skipped_matches) == 0
+        assert len(talker.match_results.multiple_matches) == 1
+
+
+@patch("metrontagger.talker.comicfn2dict")
+@patch("metrontagger.talker.create_query_params")
+@patch("metrontagger.talker.Comic")
+def test_search_by_filename_single_match_within_hamming_skip_enabled(
+    mock_comic_class, mock_create_params, mock_comicfn2dict, talker
+):
+    """Test search with single match within hamming distance when skip_multiple=True."""
+    mock_comic = Mock()
+    mock_comic_class.return_value = mock_comic
+    mock_comicfn2dict.return_value = {"series": "Test", "issue": "1"}
+    mock_create_params.return_value = {"series": "Test"}
+
+    single_issue = create_mock_base_issue()
+    talker.api.issues_list.return_value = [single_issue]
+
+    with patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=True):
+        result, multiple = talker._search_by_filename(
+            Path("test.cbz"), mock_comic, skip_multiple=True
+        )
+
+        assert result == 123
+        assert multiple is False
+        assert len(talker.match_results.good_matches) == 1
+        assert len(talker.match_results.skipped_matches) == 0
+
+
+@patch("metrontagger.talker.comicfn2dict")
+@patch("metrontagger.talker.create_query_params")
+@patch("metrontagger.talker.Comic")
+def test_search_by_filename_single_match_outside_hamming_skip_enabled(
+    mock_comic_class, mock_create_params, mock_comicfn2dict, talker
+):
+    """Test search with single match outside hamming distance when skip_multiple=True."""
+    mock_comic = Mock()
+    mock_comic_class.return_value = mock_comic
+    mock_comicfn2dict.return_value = {"series": "Test", "issue": "1"}
+    mock_create_params.return_value = {"series": "Test"}
+
+    single_issue = create_mock_base_issue()
+    talker.api.issues_list.return_value = [single_issue]
+
+    with patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=False):
+        result, multiple = talker._search_by_filename(
+            Path("test.cbz"), mock_comic, skip_multiple=True
+        )
+
+        assert result is None
+        assert multiple is False
+        assert len(talker.match_results.skipped_matches) == 1
+        assert len(talker.match_results.multiple_matches) == 0
+
+
+@patch("metrontagger.talker.comicfn2dict")
+@patch("metrontagger.talker.create_query_params")
+@patch("metrontagger.talker.Comic")
 def test_talker_search_by_filename_single_match(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -538,6 +670,207 @@ def test_talker_should_skip_existing_metadata_false(mock_comic_class, talker):
 
     result = talker._should_skip_existing_metadata(args, mock_comic)
     assert result is False
+
+
+@patch("metrontagger.talker.questionary.print")
+@patch("metrontagger.talker.create_print_title")
+def test_post_process_matches_displays_skipped(mock_create_title, mock_print, talker):
+    """Test that _post_process_matches displays skipped matches."""
+    # Add some skipped matches
+    talker.match_results.add_skipped_match(Path("skipped1.cbz"))
+    talker.match_results.add_skipped_match(Path("skipped2.cbz"))
+
+    mock_create_title.return_value = "Skipped Multiple Matches:"
+
+    talker._post_process_matches()
+
+    # Verify that the title for skipped matches was created
+    title_calls = [
+        call
+        for call in mock_create_title.call_args_list
+        if "Skipped Multiple Matches:" in str(call)
+    ]
+    assert len(title_calls) > 0
+
+    # Verify that skipped files were printed
+    print_calls = [str(call) for call in mock_print.call_args_list]
+    assert any("skipped1.cbz" in call for call in print_calls)
+    assert any("skipped2.cbz" in call for call in print_calls)
+
+
+@patch("metrontagger.talker.questionary.print")
+@patch("metrontagger.talker.create_print_title")
+def test_post_process_matches_no_skipped(mock_create_title, talker):
+    """Test that _post_process_matches doesn't display skipped section when empty."""
+    # Don't add any skipped matches
+    talker._post_process_matches()
+
+    # Verify that skipped matches title was not created
+    title_calls = [
+        call
+        for call in mock_create_title.call_args_list
+        if "Skipped Multiple Matches:" in str(call)
+    ]
+    assert len(title_calls) == 0
+
+
+@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.talker.questionary.print")
+@patch("metrontagger.talker.Comic")
+def test_identify_comics_with_skip_multiple_enabled(
+    mock_comic_class,
+    mock_print,  # noqa: ARG001
+    mock_create_title,  # noqa: ARG001
+    talker,
+):
+    """Test identify_comics with skip_multiple flag enabled."""
+    mock_comic = Mock()
+    mock_comic.is_writable.return_value = True
+    mock_comic.seems_to_be_a_comic_archive.return_value = True
+    mock_comic.has_metadata.return_value = False
+    mock_comic_class.return_value = mock_comic
+
+    args = Mock()
+    args.ignore_existing = False
+    args.accept_only = False
+    args.skip_multiple = True
+    args.id = None
+
+    file_list = [Path("test1.cbz"), Path("test2.cbz")]
+
+    with (
+        patch.object(talker, "_process_file", return_value=(None, False)) as mock_process,
+        patch.object(talker, "_post_process_matches"),
+    ):
+        talker.identify_comics(args, file_list)
+
+        # Verify _process_file was called with skip_multiple=True
+        assert mock_process.call_count == 2
+        for call in mock_process.call_args_list:
+            assert call[0][1] is False  # accept_only
+            assert call[0][2] is True  # skip_multiple
+
+
+@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.talker.questionary.print")
+@patch("metrontagger.talker.Comic")
+def test_identify_comics_with_skip_multiple_disabled(
+    mock_comic_class,
+    mock_print,  # noqa: ARG001
+    mock_create_title,  # noqa: ARG001
+    talker,
+):
+    """Test identify_comics with skip_multiple flag disabled."""
+    mock_comic = Mock()
+    mock_comic.is_writable.return_value = True
+    mock_comic.seems_to_be_a_comic_archive.return_value = True
+    mock_comic.has_metadata.return_value = False
+    mock_comic_class.return_value = mock_comic
+
+    args = Mock()
+    args.ignore_existing = False
+    args.accept_only = False
+    args.skip_multiple = False
+    args.id = None
+
+    file_list = [Path("test.cbz")]
+
+    with (
+        patch.object(talker, "_process_file", return_value=(None, True)) as mock_process,
+        patch.object(talker, "_post_process_matches"),
+    ):
+        talker.identify_comics(args, file_list)
+
+        # Verify _process_file was called with skip_multiple=False
+        mock_process.assert_called_once()
+        call_args = mock_process.call_args
+        assert call_args[0][1] is False  # accept_only
+        assert call_args[0][2] is False  # skip_multiple
+
+
+@patch("metrontagger.talker.comicfn2dict")
+@patch("metrontagger.talker.create_query_params")
+@patch("metrontagger.talker.Comic")
+def test_skip_multiple_with_accept_only_both_enabled(
+    mock_comic_class, mock_create_params, mock_comicfn2dict, talker
+):
+    """Test behavior when both skip_multiple and accept_only are enabled."""
+    mock_comic = Mock()
+    mock_comic_class.return_value = mock_comic
+    mock_comicfn2dict.return_value = {"series": "Test", "issue": "1"}
+    mock_create_params.return_value = {"series": "Test"}
+
+    single_issue = create_mock_base_issue()
+    talker.api.issues_list.return_value = [single_issue]
+
+    with patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=False):
+        result, multiple = talker._search_by_filename(
+            Path("test.cbz"), mock_comic, accept_only=True, skip_multiple=True
+        )
+
+        # accept_only should take precedence
+        assert result == 123
+        assert multiple is False
+        assert len(talker.match_results.good_matches) == 1
+        assert len(talker.match_results.skipped_matches) == 0
+
+
+@patch("metrontagger.talker.comicfn2dict")
+@patch("metrontagger.talker.create_query_params")
+@patch("metrontagger.talker.Comic")
+def test_skip_multiple_with_series_id_filter(
+    mock_comic_class, mock_create_params, mock_comicfn2dict, talker
+):
+    """Test skip_multiple works correctly with series_id filtering."""
+    mock_comic = Mock()
+    mock_comic_class.return_value = mock_comic
+    mock_comicfn2dict.return_value = {"series": "Test", "issue": "1"}
+    mock_create_params.return_value = {"series": "Test", "series_id": "42"}
+
+    multiple_issues = [create_mock_base_issue(123), create_mock_base_issue(124)]
+    talker.api.issues_list.return_value = multiple_issues
+
+    with patch.object(talker.cover_matcher, "filter_by_hamming_distance", return_value=[]):
+        result, multiple = talker._search_by_filename(
+            Path("test.cbz"), mock_comic, series_id=42, skip_multiple=True
+        )
+
+        assert result is None
+        assert multiple is False
+        assert len(talker.match_results.skipped_matches) == 1
+
+
+@patch("metrontagger.talker.comicfn2dict")
+@patch("metrontagger.talker.create_query_params")
+@patch("metrontagger.talker.Comic")
+def test_skip_multiple_with_hamming_filter_reduces_to_single(
+    mock_comic_class, mock_create_params, mock_comicfn2dict, talker
+):
+    """Test that hamming distance filtering can reduce multiple matches to single match."""
+    mock_comic = Mock()
+    mock_comic_class.return_value = mock_comic
+    mock_comicfn2dict.return_value = {"series": "Test", "issue": "1"}
+    mock_create_params.return_value = {"series": "Test"}
+
+    multiple_issues = [
+        create_mock_base_issue(123, "hash1"),
+        create_mock_base_issue(124, "hash2"),
+    ]
+    talker.api.issues_list.return_value = multiple_issues
+
+    # Hamming filter returns only one match
+    with patch.object(
+        talker.cover_matcher, "filter_by_hamming_distance", return_value=[multiple_issues[0]]
+    ):
+        result, multiple = talker._search_by_filename(
+            Path("test.cbz"), mock_comic, skip_multiple=True
+        )
+
+        # Should accept the single hamming match even with skip_multiple=True
+        assert result == 123
+        assert multiple is False
+        assert len(talker.match_results.good_matches) == 1
+        assert len(talker.match_results.skipped_matches) == 0
 
 
 @patch("metrontagger.talker.create_print_title")
