@@ -1,189 +1,167 @@
-import { FlatCompat } from "@eslint/eslintrc";
-import js from "@eslint/js";
-import arrayFunc from "eslint-plugin-array-func";
-import markdown from "eslint-plugin-markdown";
-// import plugin broken for flag config
-// https://github.com/import-js/eslint-plugin-import/issues/2556
-// import importPlugin from "eslint-plugin-import";
+import eslintJs from "@eslint/js";
+import eslintJson from "@eslint/json";
+import eslintPluginComments from "@eslint-community/eslint-plugin-eslint-comments/configs";
+import eslintPluginStylistic from "@stylistic/eslint-plugin";
+import { defineConfig } from "eslint/config";
+import eslintConfigPrettier from "eslint-config-prettier";
+import eslintPluginArrayFunc from "eslint-plugin-array-func";
+import eslintPluginCompat from "eslint-plugin-compat";
+import eslintPluginDepend from "eslint-plugin-depend";
+import eslintPluginImport from "eslint-plugin-import-x";
+import * as eslintPluginMdx from "eslint-plugin-mdx";
+import eslintPluginNoSecrets from "eslint-plugin-no-secrets";
+import eslintPluginNoUnsanitized from "eslint-plugin-no-unsanitized";
 import eslintPluginPrettierRecommended from "eslint-plugin-prettier/recommended";
-import pluginSecurity from "eslint-plugin-security";
+import eslintPluginPromise from "eslint-plugin-promise";
+import eslintPluginRegexp from "eslint-plugin-regexp";
+import eslintPluginSecurity from "eslint-plugin-security";
+import eslintPluginSimpleImportSort from "eslint-plugin-simple-import-sort";
+import eslintPluginSonarjs from "eslint-plugin-sonarjs";
+import eslintPluginToml from "eslint-plugin-toml";
 import eslintPluginUnicorn from "eslint-plugin-unicorn";
+import eslintPluginYml from "eslint-plugin-yml";
 import globals from "globals";
 
-const compat = new FlatCompat();
+export const FLAT_ALL = "flat/all";
+export const FLAT_BASE = "flat/base";
+export const FLAT_RECOMMENDED = "flat/recommended";
 
-export default [
+export const CONFIGS = {
+  js: {
+    ...eslintJs.configs.recommended,
+    ...eslintPluginArrayFunc.configs.all,
+    ...eslintPluginComments.recommended,
+    ...eslintPluginCompat.configs[FLAT_RECOMMENDED],
+    ...eslintPluginDepend.configs[FLAT_RECOMMENDED],
+    ...eslintPluginImport.flatConfigs.all,
+    ...eslintPluginNoUnsanitized.configs.recommended,
+    ...eslintPluginPromise.configs[FLAT_ALL],
+    ...eslintPluginRegexp.configs[FLAT_ALL],
+    ...eslintPluginSonarjs.configs.all,
+    ...eslintPluginUnicorn.configs.all,
+    plugins: {
+      depend: eslintPluginDepend,
+      "no-secrets": eslintPluginNoSecrets,
+      "simple-import-sort": eslintPluginSimpleImportSort,
+      sonarjs: eslintPluginSonarjs,
+      unicorn: eslintPluginUnicorn,
+    },
+    languageOptions: {
+      // eslint-plugin-import sets this to 2018.
+      ecmaVersion: "latest",
+    },
+    rules: {
+      "@stylistic/multiline-comment-style": "off", // Multiple bugs with this rule
+      "max-params": ["warn", 4],
+      "no-console": "warn",
+      "no-debugger": "warn",
+      "no-secrets/no-secrets": "error",
+      "security/detect-object-injection": "off",
+      "simple-import-sort/exports": "warn",
+      "simple-import-sort/imports": "warn",
+    },
+  },
+};
+Object.freeze(CONFIGS);
+
+export default defineConfig([
+  {
+    name: "globalIgnores",
+    ignores: [
+      "!.circleci",
+      "**/*min.css",
+      "**/*min.js",
+      "**/__pycache__/",
+      "**/node_modules/",
+      "**/package-lock.json",
+      "*~",
+      ".git/",
+      ".*cache/",
+      ".venv/",
+      "dist/",
+      "uv.lock",
+      "test-results/",
+      "typings/",
+      ".github/",
+    ],
+  },
+  eslintPluginSecurity.configs.recommended,
+  eslintPluginStylistic.configs.all,
+  eslintPluginPrettierRecommended,
   {
     languageOptions: {
       globals: {
         ...globals.node,
-        ...globals.browser,
       },
     },
     linterOptions: {
       reportUnusedDisableDirectives: "warn",
     },
-    plugins: {
-      // import: importPlugin,
-      markdown: markdown,
-      security: pluginSecurity,
-      unicorn: eslintPluginUnicorn,
-    },
     rules: {
-      "array-func/prefer-array-from": "off", // for modern browsers the spread operator, as preferred by unicorn, works fine.
-      "max-params": ["warn", 4],
-      "no-console": "warn",
-      "no-debugger": "warn",
-      "no-constructor-bind/no-constructor-bind": "error",
-      "no-constructor-bind/no-constructor-state": "error",
-      "no-secrets/no-secrets": "error",
       "prettier/prettier": "warn",
-      "security/detect-object-injection": "off",
-      "space-before-function-paren": "off",
-      "unicorn/switch-case-braces": ["warn", "avoid"],
-      "unicorn/prefer-node-protocol": 0,
-      "unicorn/prevent-abbreviations": "off",
-      "unicorn/filename-case": [
-        "error",
-        { case: "kebabCase", ignore: [".*.md"] },
-      ],
-      /*
-     ...importPlugin.configs["recommended"].rules,
-     "import/no-unresolved": [
-       "error",
-       {
-         ignore: ["^[@]"],
-       },
-     ],
-     */
     },
-    /*
-    settings: {
-      "import/parsers": {
-        espree: [".js", ".cjs", ".mjs", ".jsx"],
-        "@typescript-eslint/parser": [".ts"],
-      },
-      "import/resolver": {
-        typescript: true,
-        node: true,
-      },
-    },
-     */
   },
-  js.configs.recommended,
-  arrayFunc.configs.all,
-  ...markdown.configs.recommended,
-  pluginSecurity.configs.recommended,
-  eslintPluginPrettierRecommended,
   {
-    files: ["**/*.md"],
-    processor: "markdown/markdown",
+    files: ["**/*.js"],
+    ...CONFIGS.js,
+  },
+  {
+    files: ["**/*.json", "**/*.md/*.json"],
+    plugins: {
+      json: eslintJson,
+    },
+    ...eslintJson.configs.recommended,
+    language: "json/json",
+  },
+  {
+    files: ["package.json"],
+    languageOptions: {
+      parser: "jsonc-eslint-parser",
+    },
+    plugins: { depend: eslintPluginDepend },
     rules: {
+      "depend/ban-dependencies": "error",
+    },
+  },
+  {
+    files: ["**/*.{md,mdx}"],
+    ...eslintPluginMdx.flat,
+    ...eslintPluginMdx.flatCodeBlocks,
+    processor: eslintPluginMdx.createRemarkProcessor({
+      lintCodeBlocks: true,
+    }),
+    rules: {
+      "no-undef": "off",
+      "no-unused-vars": "off",
       "prettier/prettier": ["warn", { parser: "markdown" }],
     },
   },
+  ...eslintPluginToml.configs[FLAT_BASE],
   {
-    files: ["**/*.md/*.js"], // Will match js code inside *.md files
+    files: ["**/*.toml", "**/*.md/*.toml"],
     rules: {
-      "no-unused-vars": "off",
-      "no-undef": "off",
+      ...eslintPluginToml.configs[FLAT_RECOMMENDED].rules,
+      "prettier/prettier": ["error", { parser: "toml" }],
+    },
+  },
+  ...eslintPluginYml.configs[FLAT_BASE],
+  {
+    files: ["**/*.yaml", "**/*.yml", "**/*.md/*.yaml"],
+    rules: {
+      ...eslintPluginYml.configs[FLAT_RECOMMENDED].rules,
+      ...eslintPluginYml.configs["flat/prettier"].rules,
+      "prettier/prettier": ["error", { parser: "yaml" }],
     },
   },
   {
-    files: ["**/*.md/*.sh"],
+    files: [
+      "**/certbot.yaml",
+      "**/docker-compose*.yaml",
+      "**/.*_treestamps.yaml",
+    ],
     rules: {
-      "prettier/prettier": ["error", { parser: "sh" }],
+      "yml/no-empty-mapping-value": "off",
     },
   },
-  ...compat.config({
-    root: true,
-    env: {
-      browser: true,
-      es2024: true,
-      node: true,
-    },
-    extends: [
-      // LANGS
-      "plugin:jsonc/recommended-with-jsonc",
-      "plugin:toml/recommended",
-      "plugin:yml/standard",
-      "plugin:yml/prettier",
-      // CODE QUALITY
-      "plugin:sonarjs/recommended",
-      // PRACTICES
-      "plugin:eslint-comments/recommended",
-      // "plugin:import/recommended",
-      "plugin:no-use-extend-native/recommended",
-      "plugin:optimize-regex/all",
-      "plugin:promise/recommended",
-      "plugin:switch-case/recommended",
-      // SECURITY
-      "plugin:no-unsanitized/DOM",
-    ],
-    overrides: [
-      {
-        files: ["*.yaml", "*.yml"],
-        //parser: "yaml-eslint-parser",
-        rules: {
-          "unicorn/filename-case": "off",
-        },
-      },
-      {
-        files: ["*.toml"],
-        //parser: "toml-eslint-parser",
-        rules: {
-          "prettier/prettier": ["error", { parser: "toml" }],
-        },
-      },
-      {
-        files: ["*.json", "*.json5", "*.jsonc"],
-        //parser: "jsonc-eslint-parser",
-      },
-    ],
-    parserOptions: {
-      ecmaFeatures: {
-        impliedStrict: true,
-      },
-      ecmaVersion: "latest",
-    },
-    plugins: [
-      "eslint-comments",
-      //"import",
-      "no-constructor-bind",
-      "no-secrets",
-      "no-unsanitized",
-      "no-use-extend-native",
-      "optimize-regex",
-      "promise",
-      "simple-import-sort",
-      "sonarjs",
-      "switch-case",
-      "unicorn",
-    ],
-    rules: {
-      "no-constructor-bind/no-constructor-bind": "error",
-      "no-constructor-bind/no-constructor-state": "error",
-      "no-secrets/no-secrets": "error",
-      "eslint-comments/no-unused-disable": 1,
-      "simple-import-sort/exports": "warn",
-      "simple-import-sort/imports": "warn",
-      "switch-case/newline-between-switch-case": "off", // Malfunctioning
-    },
-    ignorePatterns: [
-      "*~",
-      "**/__pycache__",
-      ".git",
-      "!.circleci",
-      ".mypy_cache",
-      ".ruff_cache",
-      ".pytest_cache",
-      ".venv*",
-      "dist",
-      "node_modules",
-      "package-lock.json",
-      "test-results",
-      "typings",
-      "uv.lock",
-    ],
-  }),
-];
+  eslintConfigPrettier, // Best if last
+]);
