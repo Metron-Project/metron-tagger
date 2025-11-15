@@ -436,7 +436,7 @@ toml = [
 
 [[package]]
 name = "darkseid"
-version = "7.2.0rc1"
+version = "7.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "defusedxml" },
@@ -446,9 +446,9 @@ dependencies = [
     { name = "xmlschema" },
     { name = "zipremove" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b4/42/ee18985fa04c1bc81d5273325a995e24ca84216a3929c9e69670d9874df0/darkseid-7.2.0rc1.tar.gz", hash = "sha256:9f15342b8d07a6de273c464600b7cb746f5a434ac67dcb05596e1c616afba15d", size = 112257, upload-time = "2025-11-15T13:57:50.399Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/00/49/9664fa619fbf982a5cdb2325a8a6bb5aa2c2ed3322f88eec81593f9559cc/darkseid-7.2.0.tar.gz", hash = "sha256:30997a8e957d0e2a9cce42c9466e509ca1de6cf7d9e395b5534554828117b3d6", size = 112255, upload-time = "2025-11-15T16:30:10.481Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/95/73/f70f7c132762d9a20d9691cd420ca725f89e3f8e4b0b09fe275c2bf4b57d/darkseid-7.2.0rc1-py3-none-any.whl", hash = "sha256:9ef5df0656c0a040ae56333aa4467dedc0f441be0fe1bd98fd0704578e1d140c", size = 92472, upload-time = "2025-11-15T13:57:49.408Z" },
+    { url = "https://files.pythonhosted.org/packages/35/f4/d788d5466befd38c78d63f282112a46667c7a0f67a7592c80a52283a19f3/darkseid-7.2.0-py3-none-any.whl", hash = "sha256:4cd60b66dfa0a1ed84d191ef67aa3fe23cd71c4d3d14d62a8960dab2fbab108b", size = 92458, upload-time = "2025-11-15T16:30:09.457Z" },
 ]
 
 [[package]]
@@ -622,7 +622,7 @@ wheels = [
 
 [[package]]
 name = "metron-tagger"
-version = "4.4.0"
+version = "4.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "comicfn2dict" },
@@ -667,7 +667,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "comicfn2dict", specifier = ">=0.2.4,<0.3" },
-    { name = "darkseid", specifier = "==7.2.0rc1" },
+    { name = "darkseid", specifier = ">=7.2.0" },
     { name = "imagehash", specifier = ">=4.3.1,<5" },
     { name = "mokkari", specifier = ">=3.13.0,<4" },
     { name = "pandas", specifier = ">=2.2.1,<3" },
