@@ -4,14 +4,16 @@ __all__ = ["Talker"]
 
 import io
 import warnings
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto, unique
 from functools import lru_cache
 from logging import getLogger
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:
     from argparse import Namespace
+    from collections.abc import Callable
     from pathlib import Path
 
     from mokkari.schemas.generic import GenericItem
@@ -53,6 +55,17 @@ warnings.filterwarnings(
 
 HAMMING_DISTANCE = 10
 
+# Type variable for generic API call return types
+T = TypeVar("T")
+
+# Rating mappings for age ratings
+RATING_MAPPINGS = {
+    ("everyone", "cca"): ("Everyone", "Everyone"),
+    ("teen",): ("Teen", "Teen"),
+    ("teen plus",): ("Teen Plus", "Teen"),
+    ("mature",): ("Mature", "Mature 17+"),
+}
+
 
 @unique
 class InfoSource(Enum):
@@ -66,15 +79,38 @@ class InfoSource(Enum):
     UNKNOWN = auto()
 
 
+# Source messages for metadata printing
+SOURCE_MESSAGES = {
+    InfoSource.METRON: ("Metron ID", Styles.INFO),
+    InfoSource.COMIC_VINE: ("ComicVine", Styles.INFO),
+    InfoSource.UNKNOWN: ("Unknown Source", Styles.WARNING),
+}
+
+
+@dataclass
+class SearchResult:
+    """Result of a comic search operation."""
+
+    issue_id: int | None
+    has_multiple_matches: bool
+
+
+@dataclass
+class ProcessingConfig:
+    """Configuration for comic processing."""
+
+    accept_only: bool = False
+    skip_multiple: bool = False
+    series_id: int | None = None
+    ignore_existing: bool = False
+
+
+@dataclass
 class MultipleMatch:
-    """Class to store multiple matches for a filename.
+    """Class to store multiple matches for a filename."""
 
-    This class initializes with a filename and a list of BaseIssue matches.
-    """
-
-    def __init__(self, filename: Path, match_list: list[BaseIssue]) -> None:
-        self.filename = filename
-        self.matches = match_list
+    filename: Path
+    matches: list[BaseIssue]
 
 
 class OnlineMatchResults:
@@ -88,26 +124,148 @@ class OnlineMatchResults:
 
         This method initializes lists to store good matches, no matches, multiple matches, and skipped matches.
         """
-        self.good_matches: list[Path] = []
-        self.no_matches: list[Path] = []
-        self.multiple_matches: list[MultipleMatch] = []
-        self.skipped_matches: list[Path] = []
+        self._good_matches: list[Path] = []
+        self._no_matches: list[Path] = []
+        self._multiple_matches: list[MultipleMatch] = []
+        self._skipped_matches: list[Path] = []
+
+    @property
+    def good_matches(self) -> list[Path]:
+        """Get the list of good matches."""
+        return self._good_matches
+
+    @property
+    def no_matches(self) -> list[Path]:
+        """Get the list of no matches."""
+        return self._no_matches
+
+    @property
+    def multiple_matches(self) -> list[MultipleMatch]:
+        """Get the list of multiple matches."""
+        return self._multiple_matches
+
+    @property
+    def skipped_matches(self) -> list[Path]:
+        """Get the list of skipped matches."""
+        return self._skipped_matches
+
+    @property
+    def has_results(self) -> bool:
+        """Check if there are any results."""
+        return bool(
+            self._good_matches
+            or self._no_matches
+            or self._multiple_matches
+            or self._skipped_matches
+        )
 
     def add_good_match(self, file_name: Path) -> None:
         """Add a good match to the list."""
-        self.good_matches.append(file_name)
+        self._good_matches.append(file_name)
 
     def add_no_match(self, file_name: Path) -> None:
         """Add a no match to the list."""
-        self.no_matches.append(file_name)
+        self._no_matches.append(file_name)
 
     def add_multiple_match(self, multi_match: MultipleMatch) -> None:
         """Add a multiple match to the list."""
-        self.multiple_matches.append(multi_match)
+        self._multiple_matches.append(multi_match)
 
     def add_skipped_match(self, file_name: Path) -> None:
         """Add a skipped match to the list."""
-        self.skipped_matches.append(file_name)
+        self._skipped_matches.append(file_name)
+
+
+class UIPresenter:
+    """Handles user interface presentation and printing."""
+
+    @staticmethod
+    def print_error(message: str) -> None:
+        """Print an error message."""
+        questionary.print(message, style=Styles.ERROR)
+
+    @staticmethod
+    def print_warning(message: str) -> None:
+        """Print a warning message."""
+        questionary.print(message, style=Styles.WARNING)
+
+    @staticmethod
+    def print_info(message: str) -> None:
+        """Print an info message."""
+        questionary.print(message, style=Styles.INFO)
+
+    @staticmethod
+    def print_success(message: str) -> None:
+        """Print a success message."""
+        questionary.print(message, style=Styles.SUCCESS)
+
+    @staticmethod
+    def print_title(message: str) -> None:
+        """Print a title message."""
+        questionary.print(message, style=Styles.TITLE)
+
+    @staticmethod
+    def print_metadata_source_message(source: InfoSource, comic: Comic) -> None:
+        """Print appropriate message based on metadata source."""
+        if source not in SOURCE_MESSAGES:
+            return
+
+        message_text, style = SOURCE_MESSAGES[source]
+        if source != InfoSource.UNKNOWN:
+            questionary.print(
+                f"Found {message_text} in '{comic}' metadata and using that to get the metadata...",
+                style=style,
+            )
+        else:
+            questionary.print(
+                f"Found {message_text} in '{comic}' metadata. Skipping...",
+                style=style,
+            )
+
+    @staticmethod
+    def print_match_results(results: OnlineMatchResults) -> None:
+        """Print all match results."""
+        if results.good_matches:
+            msg = create_print_title("Successful Matches:")
+            questionary.print(msg, style=Styles.TITLE)
+            for comic in results.good_matches:
+                questionary.print(f"{comic}", style=Styles.SUCCESS)
+
+        if results.no_matches:
+            msg = create_print_title("No Matches:")
+            questionary.print(msg, style=Styles.TITLE)
+            for comic in results.no_matches:
+                questionary.print(f"{comic}", style=Styles.WARNING)
+
+        if results.skipped_matches:
+            msg = create_print_title("Skipped Multiple Matches:")
+            questionary.print(msg, style=Styles.TITLE)
+            for comic in results.skipped_matches:
+                questionary.print(f"{comic}", style=Styles.WARNING)
+
+    @staticmethod
+    def print_multiple_match_prompt(fn: Path) -> None:
+        """Print prompt for multiple matches."""
+        questionary.print(f"\n{fn.name} - Results found:", style=Styles.TITLE)
+
+    @staticmethod
+    def print_metadata_write_success(  # noqa: PLR0913
+        formats: list[str],
+        series_name: str,
+        issue: str,
+        year: int,
+        filename: str,
+        is_collection: bool,
+    ) -> None:
+        """Print success message for metadata writing."""
+        collection_text = " (Collection)" if is_collection else ""
+        fmt = " and ".join(formats)
+        msg = (
+            f"Writing {fmt} metadata using "
+            f"'{series_name} #{issue} ({year}){collection_text}' "
+            f"for '{filename}'."
+        )
+        questionary.print(msg, style=Styles.SUCCESS)
 
 
 class MetadataExtractor:
@@ -243,25 +401,15 @@ class MetadataMapper:
         """Map a rating string to a standardized format."""
         age_rating = rating.lower()
 
-        rating_map = {
-            ("everyone", "cca"): ("Everyone", "Everyone"),
-            "teen": ("Teen", "Teen"),
-            "teen plus": ("Teen Plus", "Teen"),
-            ("mature",): ("Mature", "Mature 17+"),
-        }
-
-        for rating_keys, (metron_rating, comic_rack_rating) in rating_map.items():
+        for rating_keys, (metron_rating, comic_rack_rating) in RATING_MAPPINGS.items():
             if age_rating in rating_keys:
                 return AgeRatings(metron_info=metron_rating, comic_rack=comic_rack_rating)
 
         return AgeRatings(metron_info="Unknown", comic_rack="Unknown")
 
-    @classmethod
-    def map_response_to_metadata(cls, resp: Issue) -> Metadata:  # noqa: PLR0912
-        """Map response data to metadata."""
-        md = Metadata()
-
-        # Set info sources
+    @staticmethod
+    def _set_info_sources(md: Metadata, resp: Issue) -> None:
+        """Set information sources for metadata."""
         alt_info_sources = []
         if resp.cv_id:
             alt_info_sources.append(InfoSources("Comic Vine", resp.cv_id))
@@ -271,7 +419,9 @@ class MetadataMapper:
         # Should always have Metron as a primary source
         md.info_source = [InfoSources("Metron", resp.id, True), *alt_info_sources]
 
-        # Set series information
+    @staticmethod
+    def _set_series_info(md: Metadata, resp: Issue) -> None:
+        """Set series information for metadata."""
         md.series = Series(
             name=resp.series.name,
             id_=resp.series.id,
@@ -281,7 +431,9 @@ class MetadataMapper:
             start_year=resp.series.year_began,
         )
 
-        # Set basic issue information
+    @classmethod
+    def _set_basic_issue_info(cls, md: Metadata, resp: Issue) -> None:
+        """Set basic issue information for metadata."""
         md.issue = IssueString(resp.number).as_string() if resp.number else None
         md.cover_date = resp.cover_date
         md.store_date = resp.store_date
@@ -289,13 +441,17 @@ class MetadataMapper:
         md.notes = cls.create_notes(resp.id)
         md.modified = resp.modified
 
-        # Set publisher information
+    @staticmethod
+    def _set_publisher_info(md: Metadata, resp: Issue) -> None:
+        """Set publisher information for metadata."""
         if resp.publisher:
             md.publisher = Publisher(resp.publisher.name, resp.publisher.id)
             if resp.imprint:
                 md.publisher.imprint = Basic(resp.imprint.name, resp.imprint.id)
 
-        # Set optional collections and lists
+    @classmethod
+    def _set_optional_metadata(cls, md: Metadata, resp: Issue) -> None:
+        """Set optional collections and lists for metadata."""
         if resp.story_titles:
             md.stories = [Basic(story) for story in resp.story_titles]
         if resp.collection_title:
@@ -319,6 +475,17 @@ class MetadataMapper:
         if resp.resource_url:
             md.web_link = [Links(str(resp.resource_url), True)]
 
+    @classmethod
+    def map_response_to_metadata(cls, resp: Issue) -> Metadata:
+        """Map response data to metadata."""
+        md = Metadata()
+
+        cls._set_info_sources(md, resp)
+        cls._set_series_info(md, resp)
+        cls._set_basic_issue_info(md, resp)
+        cls._set_publisher_info(md, resp)
+        cls._set_optional_metadata(md, resp)
+
         return md
 
 
@@ -339,6 +506,46 @@ class Talker:
         self.metadata_extractor = MetadataExtractor()
         self.cover_matcher = CoverHashMatcher()
         self.metadata_mapper = MetadataMapper()
+        self.ui = UIPresenter()
+
+    def _handle_api_call(
+        self, api_call: Callable[[], T], error_context: str = "API call"
+    ) -> T | None:
+        """Centralized API error handling.
+
+        Args:
+            api_call: A callable that makes the API call
+            error_context: Context description for error messages
+
+        Returns:
+            The result of the API call, or None if an error occurred
+        """
+        try:
+            return api_call()
+        except RateLimitError as e:
+            LOGGER.debug("Rate limit exceeded: %s", e)
+            self.ui.print_warning(f"{e!s}")
+            return None
+        except ApiError as e:
+            LOGGER.exception(error_context)
+            self.ui.print_error(f"{error_context}: {e!r}")
+            return None
+
+    def _create_comic(self, filename: Path) -> Comic | None:
+        """Safely create a Comic object with error handling.
+
+        Args:
+            filename: Path to the comic file
+
+        Returns:
+            Comic object if successful, None if there was an error
+        """
+        try:
+            return Comic(filename)
+        except ComicArchiveError:
+            LOGGER.exception("Comic not valid: %s", str(filename))
+            self.ui.print_error(f"{filename.name} appears not to be a comic. Skipping...")
+            return None
 
     @staticmethod
     def _create_choice_list(match_set: list[BaseIssue]) -> list[questionary.Choice]:
@@ -352,7 +559,7 @@ class Talker:
 
     def _select_choice_from_matches(self, fn: Path, match_set: list[BaseIssue]) -> int | None:
         """Select an issue from a list of matches."""
-        questionary.print(f"\n{fn.name} - Results found:", style=Styles.TITLE)
+        self.ui.print_multiple_match_prompt(fn)
 
         # sort match list by cover date
         match_set = sorted(match_set, key=lambda m: m.cover_date)
@@ -385,42 +592,15 @@ class Talker:
 
         return None
 
-    @staticmethod
-    def _print_metadata_message(source: InfoSource, comic: Comic) -> None:
-        """Print appropriate message based on metadata source."""
-        source_messages = {
-            InfoSource.METRON: ("Metron ID", Styles.INFO),
-            InfoSource.COMIC_VINE: ("ComicVine", Styles.INFO),
-            InfoSource.UNKNOWN: ("Unknown Source", Styles.WARNING),
-        }
-
-        if source in source_messages:
-            message_text, style = source_messages[source]
-            if source != InfoSource.UNKNOWN:
-                questionary.print(
-                    f"Found {message_text} in '{comic}' metadata and using that to get the metadata...",
-                    style=style,
-                )
-            else:
-                questionary.print(
-                    f"Found {message_text} in '{comic}' metadata. Skipping...",
-                    style=style,
-                )
-
     def _handle_existing_id(self, source: InfoSource, id_: int) -> int | None:
         """Handle cases where we have an existing ID from metadata."""
         if source == InfoSource.METRON:
             return id_
         if source == InfoSource.COMIC_VINE:
-            try:
-                issues = self.api.issues_list(params={"cv_id": id_})
-            except RateLimitError as e:
-                LOGGER.debug("Rate limit exceeded: %s", e)
-                questionary.print(f"{e!s}", style=Styles.WARNING)
-                return None
-            except ApiError as e:
-                LOGGER.exception("Failed to retrieve data")
-                questionary.print(f"Failed to retrieve data: {e!r}", style=Styles.ERROR)
+            issues = self._handle_api_call(
+                lambda: self.api.issues_list(params={"cv_id": id_}), "Failed to retrieve data"
+            )
+            if issues is None:
                 return None
 
             # This should always be 1 otherwise let's do a regular search.
@@ -432,39 +612,30 @@ class Talker:
         self,
         filename: Path,
         comic: Comic,
-        series_id: int | None = None,
-        accept_only: bool = False,
-        skip_multiple: bool = False,
-    ) -> tuple[int | None, bool]:
+        config: ProcessingConfig,
+    ) -> SearchResult:
         """Search for comic by filename parsing."""
         metadata: dict[str, str | tuple[str, ...]] = comicfn2dict(filename, verbose=0)
-        if series_id is not None:
-            metadata["series_id"] = str(series_id)
+        if config.series_id is not None:
+            metadata["series_id"] = str(config.series_id)
 
         params = create_query_params(metadata)
         if params is None:
-            questionary.print(
-                f"Unable to correctly parse filename: {filename.name}", style=Styles.ERROR
-            )
-            return None, False
+            self.ui.print_error(f"Unable to correctly parse filename: {filename.name}")
+            return SearchResult(issue_id=None, has_multiple_matches=False)
 
-        try:
-            i_list = self.api.issues_list(params=params)
-        except RateLimitError as e:
-            LOGGER.debug("Rate limit exceeded: %s", e)
-            questionary.print(f"{e!s}", style=Styles.WARNING)
-            return None, False
-        except ApiError as e:
-            LOGGER.exception("Failed to retrieve data")
-            questionary.print(f"Failed to retrieve data: {e!r}", style=Styles.ERROR)
-            return None, False
+        i_list = self._handle_api_call(
+            lambda: self.api.issues_list(params=params), "Failed to retrieve data"
+        )
+        if i_list is None:
+            return SearchResult(issue_id=None, has_multiple_matches=False)
 
         result_count = len(i_list)
 
         # No matches
         if result_count <= 0:
             self.match_results.add_no_match(filename)
-            return None, False
+            return SearchResult(issue_id=None, has_multiple_matches=False)
 
         # Multiple matches - check hamming distance
         if result_count > 1:
@@ -474,106 +645,78 @@ class Talker:
             # Matched single cover within hamming distance from multiple results
             if hamming_lst and len(hamming_lst) == 1:
                 self.match_results.add_good_match(filename)
-                return hamming_lst[0].id, False
+                return SearchResult(issue_id=hamming_lst[0].id, has_multiple_matches=False)
 
             # Skip multiple matches if flag is set
-            if skip_multiple:
+            if config.skip_multiple:
                 self.match_results.add_skipped_match(filename)
-                return None, False
+                return SearchResult(issue_id=None, has_multiple_matches=False)
 
             # No hamming match, let's ask the user later.
             self.match_results.add_multiple_match(MultipleMatch(filename, i_list))
-            return None, True
+            return SearchResult(issue_id=None, has_multiple_matches=True)
 
         # Single match - check hamming distance or accept if auto-accept is enabled
         single_match = i_list[0]
-        return self._handle_single_match(
-            filename, comic, single_match, accept_only, skip_multiple
-        )
+        return self._handle_single_match(filename, comic, single_match, config)
 
     def _handle_single_match(
         self,
         filename: Path,
         comic: Comic,
         match: BaseIssue,
-        accept_only: bool = False,
-        skip_multiple: bool = False,
-    ) -> tuple[int | None, bool]:
+        config: ProcessingConfig,
+    ) -> SearchResult:
         """Handle single match results."""
         if self.cover_matcher.is_within_hamming_distance(comic, match.cover_hash):
             self.match_results.add_good_match(filename)
-            return match.id, False
+            return SearchResult(issue_id=match.id, has_multiple_matches=False)
 
         # If --accept-only flag is set, automatically accept the single match
-        if accept_only:
+        if config.accept_only:
             self.match_results.add_good_match(filename)
-            return match.id, False
+            return SearchResult(issue_id=match.id, has_multiple_matches=False)
 
         # If --skip-multiple flag is set, skip this match
-        if skip_multiple:
+        if config.skip_multiple:
             self.match_results.add_skipped_match(filename)
-            return None, False
+            return SearchResult(issue_id=None, has_multiple_matches=False)
 
         # Otherwise, add to multiple matches to ask the user later
         self.match_results.add_multiple_match(MultipleMatch(filename, [match]))
-        return None, True
+        return SearchResult(issue_id=None, has_multiple_matches=True)
 
     def _process_file(
         self,
         fn: Path,
-        accept_only: bool = False,
-        skip_multiple: bool = False,
-        series_id: int | None = None,
-    ) -> tuple[int | None, bool]:
+        config: ProcessingConfig,
+    ) -> SearchResult:
         """Process a comic file for metadata."""
-        try:
-            comic = Comic(fn)
-        except ComicArchiveError:
-            LOGGER.exception("Comic not valid: %s", str(fn))
-            return None, False
+        comic = self._create_comic(fn)
+        if comic is None:
+            return SearchResult(issue_id=None, has_multiple_matches=False)
 
         if not comic.is_writable() or not comic.seems_to_be_a_comic_archive():
             LOGGER.exception("Comic appears not to be a comic or writable: %s", str(fn))
-            questionary.print(
-                f"{fn.name} appears not to be a comic or writable.",
-                style=Styles.ERROR,
-            )
-            return None, False
+            self.ui.print_error(f"{fn.name} appears not to be a comic or writable.")
+            return SearchResult(issue_id=None, has_multiple_matches=False)
 
         # Check if comic has existing metadata with ID
         if existing_id_info := self._get_existing_metadata_id(comic):
             source, id_ = existing_id_info
-            self._print_metadata_message(source, comic)
+            self.ui.print_metadata_source_message(source, comic)
 
             if result_id := self._handle_existing_id(source, id_):
                 self.match_results.add_good_match(fn)
-                return result_id, False
+                return SearchResult(issue_id=result_id, has_multiple_matches=False)
 
         # Search by filename if no existing metadata or ID handling failed
-        return self._search_by_filename(fn, comic, series_id, accept_only, skip_multiple)
+        return self._search_by_filename(fn, comic, config)
 
     def _post_process_matches(self) -> None:
         """Post-process the match results."""
-        # Print successful matches
-        if self.match_results.good_matches:
-            msg = create_print_title("Successful Matches:")
-            questionary.print(msg, style=Styles.TITLE)
-            for comic in self.match_results.good_matches:
-                questionary.print(f"{comic}", style=Styles.SUCCESS)
-
-        # Print no matches
-        if self.match_results.no_matches:
-            msg = create_print_title("No Matches:")
-            questionary.print(msg, style=Styles.TITLE)
-            for comic in self.match_results.no_matches:
-                questionary.print(f"{comic}", style=Styles.WARNING)
-
-        # Print skipped matches
-        if self.match_results.skipped_matches:
-            msg = create_print_title("Skipped Multiple Matches:")
-            questionary.print(msg, style=Styles.TITLE)
-            for comic in self.match_results.skipped_matches:
-                questionary.print(f"{comic}", style=Styles.WARNING)
+        # Print match results summary
+        self.ui.print_match_results(self.match_results)
 
         # Handle files with multiple matches
         if self.match_results.multiple_matches:
@@ -604,24 +747,14 @@ class Talker:
 
     def _write_issue_md(self, filename: Path, issue_id: int) -> None:
         """Write metadata for a comic issue."""
-        try:
-            resp = self.api.issue(issue_id)
-        except RateLimitError as e:
-            LOGGER.debug("Rate limit exceeded: %s", e)
-            questionary.print(f"{e!s}", style=Styles.WARNING)
-            return
-        except ApiError as e:
-            LOGGER.exception("Failed to retrieve data")
-            questionary.print(f"Failed to retrieve data: {e!r}", style=Styles.ERROR)
+        resp = self._handle_api_call(
+            lambda: self.api.issue(issue_id), "Failed to retrieve data"
+        )
+        if resp is None:
             return
 
-        try:
-            comic = Comic(filename)
-        except ComicArchiveError:
-            LOGGER.exception("Comic not valid: %s", str(filename))
-            questionary.print(
-                f"{filename.name} appears not to be a comic. Skipping...", style=Styles.ERROR
-            )
+        comic = self._create_comic(filename)
+        if comic is None:
             return
 
         meta_data = Metadata()
@@ -631,19 +764,22 @@ class Talker:
         md.overlay(meta_data)
 
         if written_formats := self._write_metadata_formats(comic, md):
-            collection = md.series.format.lower() in ["trade paperback", "hard cover"]
-            collection_text = " (Collection)" if collection else ""
-            fmt = " and ".join(written_formats)
-            msg = (
-                f"Writing {fmt} metadata using "
-                f"'{md.series.name} #{md.issue} ({md.cover_date.year}){collection_text}' "
-                f"for '{filename.name}'."
+            collection = (
+                md.series.format.lower() in ["trade paperback", "hard cover"]
+                if md.series
+                else False
             )
-            questionary.print(msg, style=Styles.SUCCESS)
+            self.ui.print_metadata_write_success(
+                formats=written_formats,
+                series_name=md.series.name if md.series else "Unknown",
+                issue=md.issue or "Unknown",
+                year=md.cover_date.year if md.cover_date else 0,
+                filename=filename.name,
+                is_collection=collection,
+            )
         else:
-            questionary.print(
-                f"There was a problem writing metadata for '{filename.name}'. Check logs for details.",
-                style=Styles.ERROR,
+            self.ui.print_error(
+                f"There was a problem writing metadata for '{filename.name}'. Check logs for details."
             )
 
     def _should_skip_existing_metadata(self, args: Namespace, comic: Comic) -> bool:
@@ -660,33 +796,31 @@ class Talker:
         """Identify and tag comics from a list of files."""
         title_suffix = f" (Series ID: {args.id})" if args.id is not None else ""
         msg = create_print_title(f"Starting Online Search and Tagging{title_suffix}:")
-        questionary.print(msg, style=Styles.TITLE)
+        self.ui.print_title(msg)
+
+        # Create processing configuration from args
+        config = ProcessingConfig(
+            accept_only=args.accept_only,
+            skip_multiple=args.skip_multiple,
+            series_id=args.id,
+            ignore_existing=args.ignore_existing,
+        )
 
         for fn in file_list:
-            try:
-                comic = Comic(fn)
-            except ComicArchiveError:
-                LOGGER.exception("Comic not valid: %s", str(fn))
-                questionary.print(
-                    f"{fn.name} appears not to be a comic. Skipping...", style=Styles.ERROR
-                )
+            comic = self._create_comic(fn)
+            if comic is None:
                 continue
 
             if self._should_skip_existing_metadata(args, comic):
-                questionary.print(
-                    f"{fn.name} has metadata. Skipping...",
-                    style=Styles.WARNING,
-                )
+                self.ui.print_warning(f"{fn.name} has metadata. Skipping...")
                 continue
 
-            issue_id, multiple_match = self._process_file(
-                fn, args.accept_only, args.skip_multiple, series_id=args.id
-            )
+            result = self._process_file(fn, config)
 
-            if issue_id:
-                self._write_issue_md(fn, issue_id)
-            elif not multiple_match:
-                questionary.print(f"No Match for '{fn.name}'.", style=Styles.ERROR)
+            if result.issue_id:
+                self._write_issue_md(fn, result.issue_id)
+            elif not result.has_multiple_matches:
+                self.ui.print_error(f"No Match for '{fn.name}'.")
 
         # Print match results
         self._post_process_matches()
