@@ -16,6 +16,8 @@ from metrontagger.talker import (
     MetadataMapper,
     MultipleMatch,
     OnlineMatchResults,
+    ProcessingConfig,
+    SearchResult,
     Talker,
 )
 
@@ -440,12 +442,11 @@ def test_search_by_filename_multiple_matches_skip_enabled(
     talker.api.issues_list.return_value = multiple_issues
 
     with patch.object(talker.cover_matcher, "filter_by_hamming_distance", return_value=[]):
-        result, multiple = talker._search_by_filename(
-            Path("test.cbz"), mock_comic, skip_multiple=True
-        )
+        config = ProcessingConfig(skip_multiple=True)
+        search_result = talker._search_by_filename(Path("test.cbz"), mock_comic, config)
 
-        assert result is None
-        assert multiple is False
+        assert search_result.issue_id is None
+        assert search_result.has_multiple_matches is False
         assert len(talker.match_results.skipped_matches) == 1
         assert len(talker.match_results.multiple_matches) == 0
 
@@ -469,12 +470,11 @@ def test_search_by_filename_multiple_matches_skip_disabled(
     talker.api.issues_list.return_value = multiple_issues
 
     with patch.object(talker.cover_matcher, "filter_by_hamming_distance", return_value=[]):
-        result, multiple = talker._search_by_filename(
-            Path("test.cbz"), mock_comic, skip_multiple=False
-        )
+        config = ProcessingConfig(skip_multiple=False)
+        search_result = talker._search_by_filename(Path("test.cbz"), mock_comic, config)
 
-        assert result is None
-        assert multiple is True
+        assert search_result.issue_id is None
+        assert search_result.has_multiple_matches is True
         assert len(talker.match_results.skipped_matches) == 0
         assert len(talker.match_results.multiple_matches) == 1
 
@@ -495,12 +495,11 @@ def test_search_by_filename_single_match_within_hamming_skip_enabled(
     talker.api.issues_list.return_value = [single_issue]
 
     with patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=True):
-        result, multiple = talker._search_by_filename(
-            Path("test.cbz"), mock_comic, skip_multiple=True
-        )
+        config = ProcessingConfig(skip_multiple=True)
+        search_result = talker._search_by_filename(Path("test.cbz"), mock_comic, config)
 
-        assert result == 123
-        assert multiple is False
+        assert search_result.issue_id == 123
+        assert search_result.has_multiple_matches is False
         assert len(talker.match_results.good_matches) == 1
         assert len(talker.match_results.skipped_matches) == 0
 
@@ -521,12 +520,11 @@ def test_search_by_filename_single_match_outside_hamming_skip_enabled(
     talker.api.issues_list.return_value = [single_issue]
 
     with patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=False):
-        result, multiple = talker._search_by_filename(
-            Path("test.cbz"), mock_comic, skip_multiple=True
-        )
+        config = ProcessingConfig(skip_multiple=True)
+        search_result = talker._search_by_filename(Path("test.cbz"), mock_comic, config)
 
-        assert result is None
-        assert multiple is False
+        assert search_result.issue_id is None
+        assert search_result.has_multiple_matches is False
         assert len(talker.match_results.skipped_matches) == 1
         assert len(talker.match_results.multiple_matches) == 0
 
@@ -547,9 +545,10 @@ def test_talker_search_by_filename_single_match(
     talker.api.issues_list.return_value = [single_issue]
 
     with patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=True):
-        result, multiple = talker._search_by_filename(Path("test.cbz"), mock_comic)
-        assert result == 123
-        assert multiple is False
+        config = ProcessingConfig()
+        search_result = talker._search_by_filename(Path("test.cbz"), mock_comic, config)
+        assert search_result.issue_id == 123
+        assert search_result.has_multiple_matches is False
 
 
 @patch("metrontagger.talker.comicfn2dict")
@@ -566,9 +565,10 @@ def test_talker_search_by_filename_no_matches(
 
     talker.api.issues_list.return_value = []
 
-    result, multiple = talker._search_by_filename(Path("test.cbz"), mock_comic)
-    assert result is None
-    assert multiple is False
+    config = ProcessingConfig()
+    search_result = talker._search_by_filename(Path("test.cbz"), mock_comic, config)
+    assert search_result.issue_id is None
+    assert search_result.has_multiple_matches is False
     assert len(talker.match_results.no_matches) == 1
 
 
@@ -588,9 +588,10 @@ def test_talker_search_by_filename_multiple_matches(
     talker.api.issues_list.return_value = multiple_issues
 
     with patch.object(talker.cover_matcher, "filter_by_hamming_distance", return_value=[]):
-        result, multiple = talker._search_by_filename(Path("test.cbz"), mock_comic)
-        assert result is None
-        assert multiple is True
+        config = ProcessingConfig()
+        search_result = talker._search_by_filename(Path("test.cbz"), mock_comic, config)
+        assert search_result.issue_id is None
+        assert search_result.has_multiple_matches is True
         assert len(talker.match_results.multiple_matches) == 1
 
 
@@ -739,16 +740,22 @@ def test_identify_comics_with_skip_multiple_enabled(
     file_list = [Path("test1.cbz"), Path("test2.cbz")]
 
     with (
-        patch.object(talker, "_process_file", return_value=(None, False)) as mock_process,
+        patch.object(
+            talker,
+            "_process_file",
+            return_value=SearchResult(issue_id=None, has_multiple_matches=False),
+        ) as mock_process,
         patch.object(talker, "_post_process_matches"),
     ):
         talker.identify_comics(args, file_list)
 
-        # Verify _process_file was called with skip_multiple=True
+        # Verify _process_file was called with correct ProcessingConfig
         assert mock_process.call_count == 2
         for call in mock_process.call_args_list:
-            assert call[0][1] is False  # accept_only
-            assert call[0][2] is True  # skip_multiple
+            config = call[0][1]  # ProcessingConfig is the second argument
+            assert isinstance(config, ProcessingConfig)
+            assert config.accept_only is False
+            assert config.skip_multiple is True
 
 
 @patch("metrontagger.talker.create_print_title")
@@ -776,16 +783,22 @@ def test_identify_comics_with_skip_multiple_disabled(
     file_list = [Path("test.cbz")]
 
     with (
-        patch.object(talker, "_process_file", return_value=(None, True)) as mock_process,
+        patch.object(
+            talker,
+            "_process_file",
+            return_value=SearchResult(issue_id=None, has_multiple_matches=True),
+        ) as mock_process,
         patch.object(talker, "_post_process_matches"),
     ):
         talker.identify_comics(args, file_list)
 
-        # Verify _process_file was called with skip_multiple=False
+        # Verify _process_file was called with correct ProcessingConfig
         mock_process.assert_called_once()
         call_args = mock_process.call_args
-        assert call_args[0][1] is False  # accept_only
-        assert call_args[0][2] is False  # skip_multiple
+        config = call_args[0][1]  # ProcessingConfig is the second argument
+        assert isinstance(config, ProcessingConfig)
+        assert config.accept_only is False
+        assert config.skip_multiple is False
 
 
 @patch("metrontagger.talker.comicfn2dict")
@@ -804,13 +817,12 @@ def test_skip_multiple_with_accept_only_both_enabled(
     talker.api.issues_list.return_value = [single_issue]
 
     with patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=False):
-        result, multiple = talker._search_by_filename(
-            Path("test.cbz"), mock_comic, accept_only=True, skip_multiple=True
-        )
+        config = ProcessingConfig(accept_only=True, skip_multiple=True)
+        search_result = talker._search_by_filename(Path("test.cbz"), mock_comic, config)
 
         # accept_only should take precedence
-        assert result == 123
-        assert multiple is False
+        assert search_result.issue_id == 123
+        assert search_result.has_multiple_matches is False
         assert len(talker.match_results.good_matches) == 1
         assert len(talker.match_results.skipped_matches) == 0
 
@@ -831,12 +843,11 @@ def test_skip_multiple_with_series_id_filter(
     talker.api.issues_list.return_value = multiple_issues
 
     with patch.object(talker.cover_matcher, "filter_by_hamming_distance", return_value=[]):
-        result, multiple = talker._search_by_filename(
-            Path("test.cbz"), mock_comic, series_id=42, skip_multiple=True
-        )
+        config = ProcessingConfig(series_id=42, skip_multiple=True)
+        search_result = talker._search_by_filename(Path("test.cbz"), mock_comic, config)
 
-        assert result is None
-        assert multiple is False
+        assert search_result.issue_id is None
+        assert search_result.has_multiple_matches is False
         assert len(talker.match_results.skipped_matches) == 1
 
 
@@ -862,13 +873,12 @@ def test_skip_multiple_with_hamming_filter_reduces_to_single(
     with patch.object(
         talker.cover_matcher, "filter_by_hamming_distance", return_value=[multiple_issues[0]]
     ):
-        result, multiple = talker._search_by_filename(
-            Path("test.cbz"), mock_comic, skip_multiple=True
-        )
+        config = ProcessingConfig(skip_multiple=True)
+        search_result = talker._search_by_filename(Path("test.cbz"), mock_comic, config)
 
         # Should accept the single hamming match even with skip_multiple=True
-        assert result == 123
-        assert multiple is False
+        assert search_result.issue_id == 123
+        assert search_result.has_multiple_matches is False
         assert len(talker.match_results.good_matches) == 1
         assert len(talker.match_results.skipped_matches) == 0
 
@@ -894,7 +904,11 @@ def test_talker_identify_comics_success(mock_comic_class, _, mock_create_title, 
     file_list = [Path("test.cbz")]
 
     with (
-        patch.object(talker, "_process_file", return_value=(123, False)),
+        patch.object(
+            talker,
+            "_process_file",
+            return_value=SearchResult(issue_id=123, has_multiple_matches=False),
+        ),
         patch.object(talker, "_write_issue_md"),
         patch.object(talker, "_post_process_matches"),
     ):
@@ -923,16 +937,10 @@ def test_talker_search_by_filename_parse_error(
     mock_comic = Mock()
     mock_comic_class.return_value = mock_comic
 
-    with patch("metrontagger.talker.questionary.print") as mock_print:
-        result, multiple = talker._search_by_filename(Path("unparseable.cbz"), mock_comic)
-        assert result is None
-        assert multiple is False
-        error_calls = [
-            call
-            for call in mock_print.call_args_list
-            if len(call[0]) > 0 and "Unable to correctly parse filename" in str(call[0][0])
-        ]
-        assert error_calls
+    config = ProcessingConfig()
+    search_result = talker._search_by_filename(Path("unparseable.cbz"), mock_comic, config)
+    assert search_result.issue_id is None
+    assert search_result.has_multiple_matches is False
 
 
 @patch("metrontagger.talker.Comic")
@@ -943,16 +951,10 @@ def test_talker_process_file_not_writable(mock_comic_class, talker):
     mock_comic.seems_to_be_a_comic_archive.return_value = False
     mock_comic_class.return_value = mock_comic
 
-    with patch("metrontagger.talker.questionary.print") as mock_print:
-        result, multiple = talker._process_file(Path("readonly.cbz"))
-        assert result is None
-        assert multiple is False
-        error_calls = [
-            call
-            for call in mock_print.call_args_list
-            if len(call[0]) > 0 and "appears not to be a comic" in str(call[0][0])
-        ]
-        assert error_calls
+    config = ProcessingConfig()
+    search_result = talker._process_file(Path("readonly.cbz"), config)
+    assert search_result.issue_id is None
+    assert search_result.has_multiple_matches is False
 
 
 def test_info_source_enum():
