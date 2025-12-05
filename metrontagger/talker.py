@@ -3,6 +3,7 @@ from __future__ import annotations
 __all__ = ["Talker"]
 
 import io
+import time
 import warnings
 from dataclasses import dataclass
 from datetime import datetime
@@ -54,6 +55,7 @@ warnings.filterwarnings(
 )  # Ignore 'UserWarning: Corrupt EXIF data' warnings
 
 HAMMING_DISTANCE = 10
+RATE_LIMIT_AUTO_RETRY_THRESHOLD = 60  # seconds
 
 # Type variable for generic API call return types
 T = TypeVar("T")
@@ -507,11 +509,28 @@ class Talker:
         self.cover_matcher = CoverHashMatcher()
         self.metadata_mapper = MetadataMapper()
         self.ui = UIPresenter()
+        self._stop_processing = False
+
+    def _retry_api_call(self, api_call: Callable[[], T]) -> T | None:
+        """Retry an API call after a rate limit delay.
+
+        Args:
+            api_call: A callable that makes the API call
+
+        Returns:
+            The result of the API call, or None if an error occurred
+        """
+        try:
+            return api_call()
+        except (RateLimitError, ApiError) as retry_error:
+            LOGGER.exception("Retry failed")
+            self.ui.print_error(f"Retry failed: {retry_error!s}")
+            return None
 
     def _handle_api_call(
         self, api_call: Callable[[], T], error_context: str = "API call"
     ) -> T | None:
-        """Centralized API error handling.
+        """Centralized API error handling with automatic retry for rate limits.
 
         Args:
             api_call: A callable that makes the API call
@@ -524,8 +543,36 @@ class Talker:
             return api_call()
         except RateLimitError as e:
             LOGGER.debug("Rate limit exceeded: %s", e)
+
+            # Check if retry_after is available
+            if not hasattr(e, "retry_after") or e.retry_after <= 0:
+                self.ui.print_warning(f"{e!s}")
+                return None
+
+            retry_after = e.retry_after
+
+            # For short delays (< RATE_LIMIT_AUTO_RETRY_THRESHOLD), automatically retry
+            if retry_after < RATE_LIMIT_AUTO_RETRY_THRESHOLD:
+                time.sleep(retry_after)
+                return self._retry_api_call(api_call)
+
+            # For long delays (>= RATE_LIMIT_AUTO_RETRY_THRESHOLD), ask user
             self.ui.print_warning(f"{e!s}")
+
+            should_wait = questionary.confirm(
+                "Do you want to wait and retry?",
+                default=False,
+            ).ask()
+
+            if should_wait:
+                self.ui.print_info("Waiting to retry...")
+                time.sleep(retry_after)
+                return self._retry_api_call(api_call)
+
+            # User declined to wait - stop processing remaining files
+            self._stop_processing = True
             return None
+
         except ApiError as e:
             LOGGER.exception(error_context)
             self.ui.print_error(f"{error_context}: {e!r}")
@@ -794,6 +841,9 @@ class Talker:
 
     def identify_comics(self, args: Namespace, file_list: list[Path]) -> None:
         """Identify and tag comics from a list of files."""
+        # Reset stop flag at start of processing
+        self._stop_processing = False
+
         title_suffix = f" (Series ID: {args.id})" if args.id is not None else ""
         msg = create_print_title(f"Starting Online Search and Tagging{title_suffix}:")
         self.ui.print_title(msg)
@@ -807,6 +857,11 @@ class Talker:
         )
 
         for fn in file_list:
+            # Check if processing should stop (e.g., rate limit declined)
+            if self._stop_processing:
+                self.ui.print_info("Stopping processing of remaining files.")
+                break
+
             comic = self._create_comic(fn)
             if comic is None:
                 continue

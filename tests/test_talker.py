@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 import pytest
 from darkseid.comic import Comic
 from darkseid.metadata import Basic, Metadata, Notes
-from mokkari.exceptions import ApiError
+from mokkari.exceptions import ApiError, RateLimitError
 
 from metrontagger.talker import (
     CoverHashMatcher,
@@ -962,3 +962,153 @@ def test_info_source_enum():
     assert InfoSource.METRON.name == "METRON"
     assert InfoSource.COMIC_VINE.name == "COMIC_VINE"
     assert InfoSource.UNKNOWN.name == "UNKNOWN"
+
+
+# Tests for _handle_api_call method
+def test_handle_api_call_success(talker):
+    """Test successful API call."""
+    mock_call = Mock(return_value="success")
+    result = talker._handle_api_call(mock_call)
+    assert result == "success"
+    mock_call.assert_called_once()
+
+
+def test_handle_api_call_rate_limit_no_retry_after(talker):
+    """Test rate limit error with no retry_after attribute."""
+    error = RateLimitError("Rate limit exceeded")
+    mock_call = Mock(side_effect=error)
+
+    result = talker._handle_api_call(mock_call)
+    assert result is None
+    mock_call.assert_called_once()
+
+
+def test_handle_api_call_rate_limit_zero_retry_after(talker):
+    """Test rate limit error with retry_after = 0."""
+    error = RateLimitError("Rate limit exceeded", retry_after=0)
+    mock_call = Mock(side_effect=error)
+
+    result = talker._handle_api_call(mock_call)
+    assert result is None
+    mock_call.assert_called_once()
+
+
+@patch("metrontagger.talker.time.sleep")
+def test_handle_api_call_rate_limit_short_delay_success(mock_sleep, talker):
+    """Test rate limit with short delay (< 60s) that succeeds on retry."""
+    error = RateLimitError("Rate limit exceeded", retry_after=30)
+    mock_call = Mock(side_effect=[error, "success"])
+
+    result = talker._handle_api_call(mock_call)
+
+    assert result == "success"
+    mock_sleep.assert_called_once_with(30)
+    assert mock_call.call_count == 2
+
+
+@patch("metrontagger.talker.time.sleep")
+def test_handle_api_call_rate_limit_short_delay_retry_fails(mock_sleep, talker):
+    """Test rate limit with short delay (< 60s) that fails on retry."""
+    error = RateLimitError("Rate limit exceeded", retry_after=45)
+    retry_error = ApiError("API error on retry")
+    mock_call = Mock(side_effect=[error, retry_error])
+
+    result = talker._handle_api_call(mock_call)
+
+    assert result is None
+    mock_sleep.assert_called_once_with(45)
+    assert mock_call.call_count == 2
+
+
+@patch("metrontagger.talker.questionary.confirm")
+@patch("metrontagger.talker.time.sleep")
+def test_handle_api_call_rate_limit_long_delay_user_confirms_success(
+    mock_sleep, mock_confirm, talker
+):
+    """Test rate limit with long delay (>= 60s) where user confirms and retry succeeds."""
+    error = RateLimitError("Rate limit exceeded", retry_after=120)
+    mock_call = Mock(side_effect=[error, "success"])
+    mock_confirm.return_value.ask.return_value = True
+
+    result = talker._handle_api_call(mock_call)
+
+    assert result == "success"
+    mock_sleep.assert_called_once_with(120)
+    mock_confirm.assert_called_once()
+    assert mock_call.call_count == 2
+    assert talker._stop_processing is False
+
+
+@patch("metrontagger.talker.questionary.confirm")
+@patch("metrontagger.talker.time.sleep")
+def test_handle_api_call_rate_limit_long_delay_user_confirms_retry_fails(
+    mock_sleep, mock_confirm, talker
+):
+    """Test rate limit with long delay (>= 60s) where user confirms but retry fails."""
+    error = RateLimitError("Rate limit exceeded", retry_after=90)
+    retry_error = RateLimitError("Still rate limited")
+    mock_call = Mock(side_effect=[error, retry_error])
+    mock_confirm.return_value.ask.return_value = True
+
+    result = talker._handle_api_call(mock_call)
+
+    assert result is None
+    mock_sleep.assert_called_once_with(90)
+    mock_confirm.assert_called_once()
+    assert mock_call.call_count == 2
+    assert talker._stop_processing is False
+
+
+@patch("metrontagger.talker.questionary.confirm")
+def test_handle_api_call_rate_limit_long_delay_user_declines(mock_confirm, talker):
+    """Test rate limit with long delay (>= 60s) where user declines to wait."""
+    error = RateLimitError("Rate limit exceeded", retry_after=300)
+    mock_call = Mock(side_effect=error)
+    mock_confirm.return_value.ask.return_value = False
+
+    result = talker._handle_api_call(mock_call)
+
+    assert result is None
+    mock_confirm.assert_called_once()
+    assert mock_call.call_count == 1
+    assert talker._stop_processing is True
+
+
+def test_handle_api_call_api_error(talker):
+    """Test handling of ApiError."""
+    error = ApiError("API error occurred")
+    mock_call = Mock(side_effect=error)
+
+    result = talker._handle_api_call(mock_call, error_context="Test API call")
+
+    assert result is None
+    mock_call.assert_called_once()
+
+
+# Tests for _retry_api_call method
+def test_retry_api_call_success(talker):
+    """Test successful retry."""
+    mock_call = Mock(return_value="retry success")
+    result = talker._retry_api_call(mock_call)
+    assert result == "retry success"
+    mock_call.assert_called_once()
+
+
+def test_retry_api_call_rate_limit_error(talker):
+    """Test retry that fails with RateLimitError."""
+    error = RateLimitError("Still rate limited")
+    mock_call = Mock(side_effect=error)
+
+    result = talker._retry_api_call(mock_call)
+    assert result is None
+    mock_call.assert_called_once()
+
+
+def test_retry_api_call_api_error(talker):
+    """Test retry that fails with ApiError."""
+    error = ApiError("API error")
+    mock_call = Mock(side_effect=error)
+
+    result = talker._retry_api_call(mock_call)
+    assert result is None
+    mock_call.assert_called_once()
