@@ -641,7 +641,7 @@ wheels = [
 
 [[package]]
 name = "metron-tagger"
-version = "4.5.0"
+version = "4.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "comicfn2dict" },
