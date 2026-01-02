@@ -71,7 +71,7 @@ def create_mock_base_issue(issue_id=123, cover_hash="abcdef123456"):
     return issue
 
 
-def create_mock_issue_response():
+def create_mock_issue_response(isbn=None, upc=None):
     """Create a mock Issue response object."""
 
     issue = Mock()
@@ -90,6 +90,8 @@ def create_mock_issue_response():
     issue.resource_url = "https://example.com/issue/123"
     issue.price = Decimal("3.99")
     issue.price_currency = "USD"
+    issue.isbn = isbn
+    issue.upc = upc
 
     # Series mock
     issue.series = Mock()
@@ -383,6 +385,94 @@ def test_metadata_mapper_map_response_to_metadata():
     assert len(result.prices) == 1
     assert result.prices[0].amount == Decimal("3.99")
     assert result.prices[0].country == "US"
+
+
+def test_metadata_mapper_convert_gtin_to_int_valid():
+    """Test converting valid GTIN string to int."""
+    result = MetadataMapper._convert_gtin_to_int("9781234567890")
+    assert result == 9781234567890
+    assert isinstance(result, int)
+
+
+def test_metadata_mapper_convert_gtin_to_int_invalid_string():
+    """Test converting invalid GTIN string returns None."""
+    result = MetadataMapper._convert_gtin_to_int("invalid")
+    assert result is None
+
+
+def test_metadata_mapper_convert_gtin_to_int_none():
+    """Test converting None returns None."""
+    result = MetadataMapper._convert_gtin_to_int(None)
+    assert result is None
+
+
+def test_metadata_mapper_convert_gtin_to_int_empty_string():
+    """Test converting empty string returns None."""
+    result = MetadataMapper._convert_gtin_to_int("")
+    assert result is None
+
+
+def test_metadata_mapper_set_gtin_info_both_isbn_and_upc():
+    """Test setting GTIN info with both ISBN and UPC."""
+    resp = create_mock_issue_response(isbn="9781234567890", upc="12345678901")
+    md = Metadata()
+    MetadataMapper._set_gtin_info(md, resp)
+
+    assert md.gtin is not None
+    assert md.gtin.isbn == 9781234567890
+    assert md.gtin.upc == 12345678901
+
+
+def test_metadata_mapper_set_gtin_info_isbn_only():
+    """Test setting GTIN info with ISBN only."""
+    resp = create_mock_issue_response(isbn="9781234567890", upc=None)
+    md = Metadata()
+    MetadataMapper._set_gtin_info(md, resp)
+
+    assert md.gtin is not None
+    assert md.gtin.isbn == 9781234567890
+    assert md.gtin.upc is None
+
+
+def test_metadata_mapper_set_gtin_info_upc_only():
+    """Test setting GTIN info with UPC only."""
+    resp = create_mock_issue_response(isbn=None, upc="12345678901")
+    md = Metadata()
+    MetadataMapper._set_gtin_info(md, resp)
+
+    assert md.gtin is not None
+    assert md.gtin.isbn is None
+    assert md.gtin.upc == 12345678901
+
+
+def test_metadata_mapper_set_gtin_info_neither():
+    """Test setting GTIN info with neither ISBN nor UPC."""
+    resp = create_mock_issue_response(isbn=None, upc=None)
+    md = Metadata()
+    MetadataMapper._set_gtin_info(md, resp)
+
+    assert md.gtin is None
+
+
+def test_metadata_mapper_set_gtin_info_invalid_values():
+    """Test setting GTIN info with invalid values."""
+    resp = create_mock_issue_response(isbn="invalid", upc="also_invalid")
+    md = Metadata()
+    MetadataMapper._set_gtin_info(md, resp)
+
+    # Both values are invalid, so gtin should not be set
+    assert md.gtin is None
+
+
+def test_metadata_mapper_map_response_to_metadata_with_gtin():
+    """Test mapping response to metadata includes GTIN data."""
+    resp = create_mock_issue_response(isbn="9781234567890", upc="12345678901")
+    result = MetadataMapper.map_response_to_metadata(resp)
+
+    assert isinstance(result, Metadata)
+    assert result.gtin is not None
+    assert result.gtin.isbn == 9781234567890
+    assert result.gtin.upc == 12345678901
 
 
 # Talker class tests
