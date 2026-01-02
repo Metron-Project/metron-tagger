@@ -1,6 +1,7 @@
 """Tests for the Talker class and its helper classes."""
 
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -72,6 +73,7 @@ def create_mock_base_issue(issue_id=123, cover_hash="abcdef123456"):
 
 def create_mock_issue_response():
     """Create a mock Issue response object."""
+
     issue = Mock()
     issue.id = 123
     issue.number = "1"
@@ -86,6 +88,8 @@ def create_mock_issue_response():
     issue.rating = Mock()
     issue.rating.name = "Teen"
     issue.resource_url = "https://example.com/issue/123"
+    issue.price = Decimal("3.99")
+    issue.price_currency = "USD"
 
     # Series mock
     issue.series = Mock()
@@ -343,8 +347,29 @@ def test_metadata_mapper_map_ratings():
         assert result.comic_rack == expected[1]
 
 
+def test_metadata_mapper_map_currency_to_country():
+    """Test currency to country code mapping."""
+    test_cases = [
+        ("USD", "US"),
+        ("usd", "US"),  # Test case insensitivity
+        ("CAD", "CA"),
+        ("GBP", "GB"),
+        ("EUR", "EU"),
+        ("JPY", "JP"),
+        ("AUD", "AU"),
+        ("NZD", "NZ"),
+        ("MXN", "MX"),
+        ("UNKNOWN", "US"),  # Unknown currency defaults to US
+    ]
+
+    for currency, expected_country in test_cases:
+        result = MetadataMapper.map_currency_to_country(currency)
+        assert result == expected_country
+
+
 def test_metadata_mapper_map_response_to_metadata():
     """Test mapping response to metadata."""
+
     resp = create_mock_issue_response()
     result = MetadataMapper.map_response_to_metadata(resp)
 
@@ -353,6 +378,11 @@ def test_metadata_mapper_map_response_to_metadata():
     assert result.issue == "1"
     assert len(result.info_source) >= 1
     assert result.info_source[0].name == "Metron"
+    # Verify price is mapped
+    assert result.prices is not None
+    assert len(result.prices) == 1
+    assert result.prices[0].amount == Decimal("3.99")
+    assert result.prices[0].country == "US"
 
 
 # Talker class tests
