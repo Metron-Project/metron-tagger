@@ -20,12 +20,15 @@ if TYPE_CHECKING:
     from mokkari.schemas.generic import GenericItem
     from mokkari.schemas.issue import BaseIssue, Credit as MokkariCredit, Issue
 
+from contextlib import suppress
+
 import mokkari
 import questionary
 from comicfn2dict import comicfn2dict
 from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
 from darkseid.issue_string import IssueString
 from darkseid.metadata import (
+    GTIN,
     AgeRatings,
     Arc,
     Basic,
@@ -475,6 +478,29 @@ class MetadataMapper:
             if resp.imprint:
                 md.publisher.imprint = Basic(resp.imprint.name, resp.imprint.id)
 
+    @staticmethod
+    def _convert_gtin_to_int(value: str) -> int | None:
+        """Convert a GTIN string to an integer, returning None if invalid.
+
+        Args:
+            value: The GTIN string to convert.
+
+        Returns:
+            The GTIN as an integer, or None if conversion fails.
+        """
+        with suppress(ValueError, TypeError):
+            return int(value)
+        return None
+
+    @classmethod
+    def _set_gtin_info(cls, md: Metadata, resp: Issue) -> None:
+        """Set GTIN information for metadata."""
+        isbn = cls._convert_gtin_to_int(resp.isbn) if resp.isbn else None
+        upc = cls._convert_gtin_to_int(resp.upc) if resp.upc else None
+
+        if isbn or upc:
+            md.gtin = GTIN(upc=upc, isbn=isbn)
+
     @classmethod
     def _set_optional_metadata(cls, md: Metadata, resp: Issue) -> None:
         """Set optional collections and lists for metadata."""
@@ -514,6 +540,7 @@ class MetadataMapper:
         cls._set_basic_issue_info(md, resp)
         cls._set_publisher_info(md, resp)
         cls._set_optional_metadata(md, resp)
+        cls._set_gtin_info(md, resp)
 
         return md
 
