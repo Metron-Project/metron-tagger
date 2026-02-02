@@ -35,10 +35,14 @@ The optional dependencies are:
 - Metron-Tagger supports CBZ, CBR, CBT, CB7 (optional), and PDF (optional)
   comics.
 
-**How to enable RAR support?**
+**How to enable RAR support for file conversion?**
 
 - It depends on the unrar command-line utility, and expects it to be in your
   $PATH.
+  > NOTE! unrar only supports reading archives so we need to convert the  
+  > archive to a cbz to write to it. To do so you can use `-z, --export-to-cbz`  
+  > and if you want you can remove the orginal .cbr archive  
+  > with `--delete-original` after successful conversion. 
 
 ## Help
 
