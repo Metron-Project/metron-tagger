@@ -99,6 +99,7 @@ class SearchResult:
 
     issue_id: int | None
     has_multiple_matches: bool
+    modified: datetime | None = None
 
 
 @dataclass
@@ -668,7 +669,9 @@ class Talker:
 
         return questionary.select("Select an issue to match", choices=choices).ask()
 
-    def _get_existing_metadata_id(self, comic: Comic) -> tuple[InfoSource, int] | None:
+    def _get_existing_metadata_id(
+        self, comic: Comic
+    ) -> tuple[InfoSource, int, datetime | None] | None:
         """Get existing metadata ID from comic if available."""
         metadata_formats = [
             (MetadataFormat.METRON_INFO, self.metadata_extractor.get_id_from_metron_info),
@@ -682,7 +685,14 @@ class Talker:
             try:
                 md = comic.read_metadata(format_type)
                 if md is not None and (result := extractor_func(md)):
-                    return result
+                    source, id_ = result
+                    modified = (
+                        md.modified
+                        if source == InfoSource.METRON
+                        and format_type == MetadataFormat.METRON_INFO
+                        else None
+                    )
+                    return source, id_, modified
             except KeyError:
                 format_name = (
                     "MetronInfo.xml"
@@ -804,12 +814,14 @@ class Talker:
 
         # Check if comic has existing metadata with ID
         if existing_id_info := self._get_existing_metadata_id(comic):
-            source, id_ = existing_id_info
+            source, id_, modified = existing_id_info
             self.ui.print_metadata_source_message(source, comic)
 
             if result_id := self._handle_existing_id(source, id_):
                 self.match_results.add_good_match(fn)
-                return SearchResult(issue_id=result_id, has_multiple_matches=False)
+                return SearchResult(
+                    issue_id=result_id, has_multiple_matches=False, modified=modified
+                )
 
         # Search by filename if no existing metadata or ID handling failed
         return self._search_by_filename(fn, comic, config)
@@ -846,12 +858,19 @@ class Talker:
 
         return written_formats
 
-    def _write_issue_md(self, filename: Path, issue_id: int) -> None:
+    def _write_issue_md(
+        self, filename: Path, issue_id: int, modified: datetime | None = None
+    ) -> None:
         """Write metadata for a comic issue."""
         resp = self._handle_api_call(
-            lambda: self.api.issue(issue_id), "Failed to retrieve data"
+            lambda: self.api.issue(issue_id, if_modified_since=modified),
+            "Failed to retrieve data",
         )
         if resp is None:
+            if modified is not None:
+                self.ui.print_info(
+                    f"{filename.name} has not been modified since last tagging."
+                )
             return
 
         comic = self._create_comic(filename)
@@ -927,7 +946,7 @@ class Talker:
             result = self._process_file(fn, config)
 
             if result.issue_id:
-                self._write_issue_md(fn, result.issue_id)
+                self._write_issue_md(fn, result.issue_id, result.modified)
             elif not result.has_multiple_matches:
                 self.ui.print_error(f"No Match for '{fn.name}'.")
 
