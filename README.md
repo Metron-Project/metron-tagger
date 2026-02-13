@@ -39,6 +39,7 @@ The optional dependencies are:
 
 - It depends on the unrar command-line utility, and expects it to be in your
   $PATH.
+  > _NOTE_: unrar only supports reading archives, so you will need to convert the archive to a cbz to write to it. To do so you can use `-z, --export-to-cbz` and if you want you can remove the orginal .cbr archive with `--delete-original` after successful conversion. 
 
 ## Help
 
