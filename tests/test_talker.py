@@ -520,7 +520,9 @@ def test_talker_get_existing_metadata_id_success(mock_comic_class, talker):
     """Test successful extraction of existing metadata ID."""
     mock_comic = Mock()
     mock_comic.has_metadata.side_effect = [True, False]  # Has MetronInfo, not ComicInfo
-    mock_comic.read_metadata.return_value = create_mock_metadata()
+    mock_md = create_mock_metadata()
+    mock_md.modified = datetime(2023, 6, 15, tzinfo=tzinfo)
+    mock_comic.read_metadata.return_value = mock_md
     mock_comic_class.return_value = mock_comic
 
     with patch.object(
@@ -529,7 +531,26 @@ def test_talker_get_existing_metadata_id_success(mock_comic_class, talker):
         return_value=(InfoSource.METRON, 123),
     ):
         result = talker._get_existing_metadata_id(mock_comic)
-        assert result == (InfoSource.METRON, 123)
+        assert result == (InfoSource.METRON, 123, datetime(2023, 6, 15, tzinfo=tzinfo))
+
+
+@patch("metrontagger.talker.Comic")
+def test_talker_get_existing_metadata_id_comic_vine_no_modified(mock_comic_class, talker):
+    """Test that Comic Vine source returns None for modified."""
+    mock_comic = Mock()
+    mock_comic.has_metadata.side_effect = [True, False]
+    mock_md = create_mock_metadata()
+    mock_md.modified = datetime(2023, 6, 15, tzinfo=tzinfo)
+    mock_comic.read_metadata.return_value = mock_md
+    mock_comic_class.return_value = mock_comic
+
+    with patch.object(
+        talker.metadata_extractor,
+        "get_id_from_metron_info",
+        return_value=(InfoSource.COMIC_VINE, 456),
+    ):
+        result = talker._get_existing_metadata_id(mock_comic)
+        assert result == (InfoSource.COMIC_VINE, 456, None)
 
 
 @patch("metrontagger.talker.Comic")
@@ -740,7 +761,7 @@ def test_talker_write_issue_md_success(mock_comic_class, talker, sample_path):
 
     with patch("metrontagger.talker.questionary.print") as mock_print:
         talker._write_issue_md(sample_path, 123)
-        talker.api.issue.assert_called_once_with(123)
+        talker.api.issue.assert_called_once_with(123, if_modified_since=None)
         mock_print.assert_called()
         # Check that success message was printed
         success_calls = [
@@ -763,6 +784,52 @@ def test_talker_write_issue_md_api_error(talker, sample_path):
             if len(call[0]) > 0 and "Failed to retrieve data" in str(call[0][0])
         ]
         assert error_calls
+
+
+@patch("metrontagger.talker.Comic")
+def test_talker_write_issue_md_with_if_modified_since(mock_comic_class, talker, sample_path):
+    """Test issue metadata writing passes if_modified_since to API."""
+    mock_comic = Mock()
+    mock_comic.get_number_of_pages.return_value = 20
+    mock_comic.write_metadata.return_value = True
+    mock_comic_class.return_value = mock_comic
+
+    modified_dt = datetime(2023, 6, 15, tzinfo=tzinfo)
+
+    with patch("metrontagger.talker.questionary.print"):
+        talker._write_issue_md(sample_path, 123, modified=modified_dt)
+        talker.api.issue.assert_called_once_with(123, if_modified_since=modified_dt)
+
+
+def test_talker_write_issue_md_not_modified(talker, sample_path):
+    """Test issue metadata writing when API returns 304 Not Modified."""
+    talker.api.issue.return_value = None
+    modified_dt = datetime(2023, 6, 15, tzinfo=tzinfo)
+
+    with patch("metrontagger.talker.questionary.print") as mock_print:
+        talker._write_issue_md(sample_path, 123, modified=modified_dt)
+        # Should print info message about not modified
+        info_calls = [
+            call
+            for call in mock_print.call_args_list
+            if len(call[0]) > 0 and "not been modified" in str(call[0][0])
+        ]
+        assert info_calls
+
+
+def test_talker_write_issue_md_not_modified_no_message_without_modified(talker, sample_path):
+    """Test that no info message is printed when modified is None and API returns None."""
+    talker.api.issue.return_value = None
+
+    with patch("metrontagger.talker.questionary.print") as mock_print:
+        talker._write_issue_md(sample_path, 123)
+        # Should NOT print the "not been modified" info message
+        info_calls = [
+            call
+            for call in mock_print.call_args_list
+            if len(call[0]) > 0 and "not been modified" in str(call[0][0])
+        ]
+        assert not info_calls
 
 
 @patch("metrontagger.talker.Comic")
