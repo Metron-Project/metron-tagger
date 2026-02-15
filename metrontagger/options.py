@@ -119,6 +119,13 @@ def make_parser() -> argparse.ArgumentParser:
         default=False,
     )
     parser.add_argument(
+        "--quick-duplicates",
+        help="Only scan the first 3 interior pages and last 3 pages "
+        "of each comic for duplicates. (Experimental)",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--migrate",
         help="Migrate information from a ComicInfo.xml into a *new* MetronInfo.xml",
         action="store_true",

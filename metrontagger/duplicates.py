@@ -216,13 +216,15 @@ class Duplicates:
         None
     """
 
-    def __init__(self, file_lst: list[Path]) -> None:
+    def __init__(self, file_lst: list[Path], *, quick: bool = False) -> None:
         """Initialize the Duplicates class with a list of file paths.
 
         This method sets the list of file paths and initializes the data frame to None.
 
         Args:
             file_lst: list[Path]: A list of file paths to be processed.
+            quick: bool: If True, only scan the first 3 interior pages and last 3 pages
+                of each comic (skipping the cover at page 0).
 
         Returns:
             None
@@ -232,6 +234,7 @@ class Duplicates:
             raise ValueError(msg)
 
         self._file_lst = file_lst
+        self._quick = quick
         self._data_frame: pd.DataFrame | None = None
         self._hash_cache: dict[str, list[dict[str, str | int]]] = defaultdict(list)
 
@@ -266,10 +269,37 @@ class Duplicates:
 
             yield from self._process_comic_pages(comic)
 
+    def _get_page_indices(self, num_pages: int) -> list[int]:
+        """Get page indices to process based on the scanning mode.
+
+        In quick mode, returns the first 3 interior pages (skipping the cover at
+        page 0) and the last 3 pages. In normal mode, returns all page indices.
+
+        Args:
+            num_pages: Total number of pages in the comic.
+
+        Returns:
+            list[int]: Sorted list of page indices to process.
+        """
+        if not self._quick:
+            return list(range(num_pages))
+
+        indices: set[int] = set()
+        # First 3 interior pages (skip cover at index 0)
+        for i in range(1, min(4, num_pages)):
+            indices.add(i)
+        # Last 3 pages
+        for i in range(max(num_pages - 3, 1), num_pages):
+            indices.add(i)
+        return sorted(indices)
+
     def _process_comic_pages(
         self, comic: Comic
     ) -> Generator[dict[str, str | int], None, None]:
-        """Process all pages in a comic and yield hash information.
+        """Process pages in a comic and yield hash information.
+
+        In quick mode, only the first 3 interior pages and last 3 pages are
+        processed. Otherwise, all pages are processed.
 
         Args:
             comic: Comic object to process
@@ -278,7 +308,7 @@ class Duplicates:
             dict[str, str | int]: Dictionary containing file path, page index, and page hash.
         """
         num_pages = comic.get_number_of_pages()
-        for page_idx in range(num_pages):
+        for page_idx in self._get_page_indices(num_pages):
             try:
                 page_data = comic.get_page(page_idx)
                 if img_hash := self._calculate_image_hash(page_data):

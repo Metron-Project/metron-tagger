@@ -480,7 +480,9 @@ class Runner:
                 if not comic.write_metadata(md, MetadataFormat.COMIC_INFO):
                     LOGGER.error("Could not write metadata to %s", comic)
 
-    def _remove_duplicates(self: Runner, file_list: list[Path]) -> None:  # noqa: PLR0912
+    def _remove_duplicates(  # noqa: PLR0912
+        self: Runner, file_list: list[Path], *, quick: bool = False
+    ) -> None:
         """Remove duplicate images from comic archives with size tracking.
 
         This method identifies and allows the user to review and remove duplicate images from the provided list of
@@ -489,12 +491,13 @@ class Runner:
 
         Args:
             file_list: list[Path]: The list of comic archive file paths to check for duplicates.
+            quick: bool: If True, only scan the first 3 interior pages and last 3 pages of each comic.
 
         Returns:
             None
         """
 
-        with Duplicates(file_list) as dup_objs:
+        with Duplicates(file_list, quick=quick) as dup_objs:
             distinct_hashes = dup_objs.get_distinct_hashes()
             if not questionary.confirm(
                 f"Found {len(distinct_hashes)} duplicate images. Do you want to review them?",
@@ -740,6 +743,9 @@ class Runner:
 
         if self.args.duplicates:
             self._remove_duplicates(file_list)
+
+        if self.args.quick_duplicates:
+            self._remove_duplicates(file_list, quick=True)
 
         if self.args.id or self.args.online:
             if self._no_md_fmt_set():
