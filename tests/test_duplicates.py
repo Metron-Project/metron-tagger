@@ -581,3 +581,74 @@ def test_full_duplicate_detection_workflow(mock_comic_class, mock_image_data):
 #     with patch("metrontagger.duplicates.tqdm", side_effect=lambda x, **kwargs: x):
 #         hashes = list(duplicates._generate_page_hashes())
 #         assert not hashes
+
+
+# Quick mode tests
+def test_get_page_indices_normal_mode(sample_files):
+    """Test that normal mode returns all page indices."""
+    duplicates = Duplicates(sample_files)
+    assert duplicates._get_page_indices(10) == list(range(10))
+
+
+def test_get_page_indices_quick_mode_many_pages(sample_files):
+    """Test quick mode with a 10-page comic returns pages 1-3 and 7-9 (skip cover)."""
+    duplicates = Duplicates(sample_files, quick=True)
+    assert duplicates._get_page_indices(10) == [1, 2, 3, 7, 8, 9]
+
+
+def test_get_page_indices_quick_mode_few_pages(sample_files):
+    """Test quick mode with a 5-page comic returns pages 1-4 (deduplicated, skip cover)."""
+    duplicates = Duplicates(sample_files, quick=True)
+    assert duplicates._get_page_indices(5) == [1, 2, 3, 4]
+
+
+def test_get_page_indices_quick_mode_six_pages(sample_files):
+    """Test quick mode with a 6-page comic returns pages 1-5 (skip cover)."""
+    duplicates = Duplicates(sample_files, quick=True)
+    assert duplicates._get_page_indices(6) == [1, 2, 3, 4, 5]
+
+
+def test_get_page_indices_quick_mode_seven_pages(sample_files):
+    """Test quick mode with a 7-page comic returns pages 1-3 and 4-6."""
+    duplicates = Duplicates(sample_files, quick=True)
+    assert duplicates._get_page_indices(7) == [1, 2, 3, 4, 5, 6]
+
+
+def test_get_page_indices_quick_mode_one_page(sample_files):
+    """Test quick mode with a 1-page comic returns no pages (only cover)."""
+    duplicates = Duplicates(sample_files, quick=True)
+    assert duplicates._get_page_indices(1) == []
+
+
+def test_get_page_indices_quick_mode_two_pages(sample_files):
+    """Test quick mode with a 2-page comic returns only page 1."""
+    duplicates = Duplicates(sample_files, quick=True)
+    assert duplicates._get_page_indices(2) == [1]
+
+
+@patch("metrontagger.duplicates.Comic")
+def test_process_comic_pages_quick_mode(mock_comic_class, sample_files, mock_image_data):
+    """Test that quick mode only processes expected pages."""
+    mock_comic = Mock()
+    mock_comic.path = Path("test.cbz")
+    mock_comic.get_number_of_pages.return_value = 10
+    mock_comic.get_page.return_value = mock_image_data
+    mock_comic_class.return_value = mock_comic
+
+    duplicates = Duplicates(sample_files, quick=True)
+
+    with patch.object(duplicates, "_calculate_image_hash", return_value="hash123"):
+        pages = list(duplicates._process_comic_pages(mock_comic))
+
+        assert len(pages) == 6
+        indices = [p["index"] for p in pages]
+        assert indices == [1, 2, 3, 7, 8, 9]
+
+
+def test_duplicates_init_quick_flag(sample_files):
+    """Test that quick flag is stored correctly."""
+    duplicates_normal = Duplicates(sample_files)
+    assert duplicates_normal._quick is False
+
+    duplicates_quick = Duplicates(sample_files, quick=True)
+    assert duplicates_quick._quick is True
