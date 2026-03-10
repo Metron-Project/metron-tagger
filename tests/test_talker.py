@@ -215,6 +215,14 @@ def test_metadata_extractor_get_id_from_metron_info_no_sources():
     assert result is None
 
 
+def test_metadata_extractor_get_id_from_metron_info_none_sources():
+    """Test ID extraction when info_source is None."""
+    md = Mock(spec=Metadata)
+    md.info_source = None
+    result = MetadataExtractor.get_id_from_metron_info(md)
+    assert result is None
+
+
 def test_metadata_extractor_get_id_from_comic_info_success():
     """Test successful ID extraction from ComicInfo."""
     md = create_mock_metadata()
