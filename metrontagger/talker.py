@@ -281,9 +281,10 @@ class MetadataExtractor:
     @staticmethod
     def get_id_from_metron_info(md: Metadata) -> tuple[InfoSource, int] | None:
         """Extract ID from MetronInfo metadata."""
-        online_sources = {"metron", "comic vine"}
         if not md.info_source:
             return None
+
+        online_sources = {"metron", "comic vine"}
 
         for src in md.info_source:
             lower_name = src.name.lower()
@@ -291,7 +292,7 @@ class MetadataExtractor:
                 return (
                     InfoSource.METRON if lower_name == "metron" else InfoSource.COMIC_VINE,
                     src.id_,
-                )
+                )  # type: ignore
         return None
 
     @staticmethod
