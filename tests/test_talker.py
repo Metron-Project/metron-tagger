@@ -1197,7 +1197,7 @@ def test_handle_api_call_rate_limit_short_delay_success(mock_sleep, talker):
     result = talker._handle_api_call(mock_call)
 
     assert result == "success"
-    mock_sleep.assert_called_once_with(30)
+    mock_sleep.assert_called_once_with(32)
     assert mock_call.call_count == 2
 
 
@@ -1211,7 +1211,7 @@ def test_handle_api_call_rate_limit_short_delay_retry_fails(mock_sleep, talker):
     result = talker._handle_api_call(mock_call)
 
     assert result is None
-    mock_sleep.assert_called_once_with(45)
+    mock_sleep.assert_called_once_with(47)
     assert mock_call.call_count == 2
 
 
@@ -1228,7 +1228,7 @@ def test_handle_api_call_rate_limit_long_delay_user_confirms_success(
     result = talker._handle_api_call(mock_call)
 
     assert result == "success"
-    mock_sleep.assert_called_once_with(120)
+    mock_sleep.assert_called_once_with(122)
     mock_confirm.assert_called_once()
     assert mock_call.call_count == 2
     assert talker._stop_processing is False
@@ -1248,7 +1248,7 @@ def test_handle_api_call_rate_limit_long_delay_user_confirms_retry_fails(
     result = talker._handle_api_call(mock_call)
 
     assert result is None
-    mock_sleep.assert_called_once_with(90)
+    mock_sleep.assert_called_once_with(92)
     mock_confirm.assert_called_once()
     assert mock_call.call_count == 2
     assert talker._stop_processing is False
