@@ -60,6 +60,7 @@ warnings.filterwarnings(
 
 HAMMING_DISTANCE = 10
 RATE_LIMIT_AUTO_RETRY_THRESHOLD = 60  # seconds
+RATE_LIMIT_RETRY_BUFFER = 2  # seconds added to retry_after to account for clock skew
 
 # Type variable for generic API call return types
 T = TypeVar("T")
@@ -581,7 +582,26 @@ class Talker:
         """
         try:
             return api_call()
-        except (RateLimitError, ApiError) as retry_error:
+        except RateLimitError as retry_error:
+            # If we hit another short rate limit, wait and try once more silently
+            if (
+                hasattr(retry_error, "retry_after")
+                and 0 < retry_error.retry_after < RATE_LIMIT_AUTO_RETRY_THRESHOLD
+            ):
+                LOGGER.debug(
+                    "Rate limit hit on retry, waiting %s seconds", retry_error.retry_after
+                )
+                time.sleep(retry_error.retry_after + RATE_LIMIT_RETRY_BUFFER)
+                try:
+                    return api_call()
+                except (RateLimitError, ApiError) as final_error:
+                    LOGGER.exception("Retry failed after second wait")
+                    self.ui.print_error(f"Retry failed: {final_error!s}")
+                    return None
+            LOGGER.debug("Rate limit hit on retry: %s", retry_error)
+            self.ui.print_error(f"Retry failed: {retry_error!s}")
+            return None
+        except ApiError as retry_error:
             LOGGER.exception("Retry failed")
             self.ui.print_error(f"Retry failed: {retry_error!s}")
             return None
@@ -612,7 +632,7 @@ class Talker:
 
             # For short delays (< RATE_LIMIT_AUTO_RETRY_THRESHOLD), automatically retry
             if retry_after < RATE_LIMIT_AUTO_RETRY_THRESHOLD:
-                time.sleep(retry_after)
+                time.sleep(retry_after + RATE_LIMIT_RETRY_BUFFER)
                 return self._retry_api_call(api_call)
 
             # For long delays (>= RATE_LIMIT_AUTO_RETRY_THRESHOLD), ask user
@@ -625,7 +645,7 @@ class Talker:
 
             if should_wait:
                 self.ui.print_info("Waiting to retry...")
-                time.sleep(retry_after)
+                time.sleep(retry_after + RATE_LIMIT_RETRY_BUFFER)
                 return self._retry_api_call(api_call)
 
             # User declined to wait - stop processing remaining files
