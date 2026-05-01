@@ -409,29 +409,6 @@ class MetadataMapper:
         return meta_data
 
     @staticmethod
-    def map_currency_to_country(currency: str) -> str:
-        """Map a currency code to a country code.
-
-        Args:
-            currency: The currency code (e.g., "USD", "CAD", "GBP").
-
-        Returns:
-            The corresponding country code (e.g., "US", "CA", "GB").
-
-        """
-        currency_map = {
-            "USD": "US",
-            "CAD": "CA",
-            "GBP": "GB",
-            "EUR": "EU",
-            "JPY": "JP",
-            "AUD": "AU",
-            "NZD": "NZ",
-            "MXN": "MX",
-        }
-        return currency_map.get(currency.upper(), "US")
-
-    @staticmethod
     def map_ratings(rating: str) -> AgeRatings:
         """Map a rating string to a standardized format."""
         age_rating = rating.lower()
@@ -533,8 +510,7 @@ class MetadataMapper:
         if resp.resource_url:
             md.web_link = [Links(str(resp.resource_url), True)]
         if resp.price:
-            country = cls.map_currency_to_country(resp.price_currency)
-            md.prices = [Price(resp.price, country)]
+            md.prices = [Price(resp.price, resp.price_currency)]
 
     @classmethod
     def map_response_to_metadata(cls, resp: Issue) -> Metadata:
