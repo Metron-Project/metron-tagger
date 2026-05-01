@@ -357,26 +357,6 @@ def test_metadata_mapper_map_ratings():
         assert result.comic_rack == expected[1]
 
 
-def test_metadata_mapper_map_currency_to_country():
-    """Test currency to country code mapping."""
-    test_cases = [
-        ("USD", "US"),
-        ("usd", "US"),  # Test case insensitivity
-        ("CAD", "CA"),
-        ("GBP", "GB"),
-        ("EUR", "EU"),
-        ("JPY", "JP"),
-        ("AUD", "AU"),
-        ("NZD", "NZ"),
-        ("MXN", "MX"),
-        ("UNKNOWN", "US"),  # Unknown currency defaults to US
-    ]
-
-    for currency, expected_country in test_cases:
-        result = MetadataMapper.map_currency_to_country(currency)
-        assert result == expected_country
-
-
 def test_metadata_mapper_map_response_to_metadata():
     """Test mapping response to metadata."""
 
@@ -392,7 +372,7 @@ def test_metadata_mapper_map_response_to_metadata():
     assert result.prices is not None
     assert len(result.prices) == 1
     assert result.prices[0].amount == Decimal("3.99")
-    assert result.prices[0].country == "US"
+    assert result.prices[0].currency == "USD"
 
 
 def test_metadata_mapper_convert_gtin_to_int_valid():
