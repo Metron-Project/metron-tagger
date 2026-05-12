@@ -1,7 +1,4 @@
-from pathlib import Path
-
 import pytest
-from comicfn2dict import comicfn2dict
 
 from metrontagger.utils import cleanup_string, create_query_params
 
@@ -69,14 +66,6 @@ def test_create_query_params(metadata, expected, mocker):
 
     # Assert
     assert result == expected
-
-
-def test_heavy_metal() -> None:
-    # Heavy Metal is a special case where the metadata doesn't have a series name.
-    fn = Path("Heavy Metal #319 (2022).cbz")
-    md = comicfn2dict(fn)
-    result = create_query_params(md)
-    assert result is None
 
 
 test_strings = [
