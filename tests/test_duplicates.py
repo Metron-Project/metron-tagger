@@ -136,7 +136,7 @@ def test_process_comic_pages_success(mock_comic_class, sample_files, mock_image_
     """Test successful comic page processing."""
     mock_comic = Mock()
     mock_comic.path = Path("test.cbz")
-    mock_comic.get_number_of_pages.return_value = 2
+    mock_comic.get_number_of_pages.return_value = 3
     mock_comic.get_page.return_value = mock_image_data
     mock_comic_class.return_value = mock_comic
 
@@ -147,7 +147,7 @@ def test_process_comic_pages_success(mock_comic_class, sample_files, mock_image_
 
         assert len(pages) == 2
         assert pages[0]["path"] == str(mock_comic.path)
-        assert pages[0]["index"] == 0
+        assert pages[0]["index"] == 1
         assert pages[0]["hash"] == "hash123"
 
 
@@ -188,7 +188,7 @@ def test_build_dataframe_success(mock_comic_class, sample_files):
     mock_comic = Mock()
     mock_comic.path = Path("test.cbz")
     mock_comic.is_writable.return_value = True
-    mock_comic.get_number_of_pages.return_value = 1
+    mock_comic.get_number_of_pages.return_value = 2
     mock_comic.get_page.return_value = b"image_data"
     mock_comic_class.return_value = mock_comic
 
@@ -201,7 +201,7 @@ def test_build_dataframe_success(mock_comic_class, sample_files):
         df = duplicates._build_dataframe()
 
         assert not df.empty
-        assert len(df) == len(sample_files)  # One page per file
+        assert len(df) == len(sample_files)  # One interior page per file (cover skipped)
         assert "path" in df.columns
         assert "index" in df.columns
         assert "hash" in df.columns
@@ -523,7 +523,7 @@ def test_full_duplicate_detection_workflow(mock_comic_class, mock_image_data):
     mock_comic = Mock()
     mock_comic.path = Path("test.cbz")
     mock_comic.is_writable.return_value = True
-    mock_comic.get_number_of_pages.return_value = 1
+    mock_comic.get_number_of_pages.return_value = 2
     mock_comic.get_page.return_value = mock_image_data
     mock_comic_class.return_value = mock_comic
 
@@ -585,9 +585,9 @@ def test_full_duplicate_detection_workflow(mock_comic_class, mock_image_data):
 
 # Quick mode tests
 def test_get_page_indices_normal_mode(sample_files):
-    """Test that normal mode returns all page indices."""
+    """Test that normal mode returns all page indices except the cover."""
     duplicates = Duplicates(sample_files)
-    assert duplicates._get_page_indices(10) == list(range(10))
+    assert duplicates._get_page_indices(10) == list(range(1, 10))
 
 
 def test_get_page_indices_quick_mode_many_pages(sample_files):
