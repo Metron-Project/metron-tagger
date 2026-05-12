@@ -273,7 +273,8 @@ class Duplicates:
         """Get page indices to process based on the scanning mode.
 
         In quick mode, returns the first 3 interior pages (skipping the cover at
-        page 0) and the last 3 pages. In normal mode, returns all page indices.
+        page 0) and the last 3 pages. In normal mode, returns all page indices
+        except the cover (page 0).
 
         Args:
             num_pages: Total number of pages in the comic.
@@ -282,7 +283,7 @@ class Duplicates:
             list[int]: Sorted list of page indices to process.
         """
         if not self._quick:
-            return list(range(num_pages))
+            return list(range(1, num_pages))
 
         indices: set[int] = set()
         # First 3 interior pages (skip cover at index 0)
@@ -299,7 +300,7 @@ class Duplicates:
         """Process pages in a comic and yield hash information.
 
         In quick mode, only the first 3 interior pages and last 3 pages are
-        processed. Otherwise, all pages are processed.
+        processed. Otherwise, all pages except the cover are processed.
 
         Args:
             comic: Comic object to process
