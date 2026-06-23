@@ -8,6 +8,7 @@ __all__ = [
 ]
 
 import platform
+import re
 from logging import getLogger
 from os import environ
 from pathlib import Path, PurePath
@@ -114,7 +115,13 @@ def _clean_series_name(name: str) -> str:
     for old, new in replacements.items():
         cleaned = cleaned.replace(old, new)
 
-    return cleaned.strip()
+    # Handle Sweet Shop filenames (e.g. "radiant-black-issue-1" → "radiant black").
+    sweet_shop_pattern = re.compile(r"[-\s]+issue[-\s]+\d+.*", re.IGNORECASE)
+    if sweet_shop_pattern.search(cleaned):
+        cleaned = sweet_shop_pattern.sub("", cleaned)
+        cleaned = cleaned.replace("-", " ")
+
+    return " ".join(cleaned.split())
 
 
 def _clean_issue_number(number: Any) -> str:

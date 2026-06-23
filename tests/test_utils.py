@@ -26,6 +26,10 @@ from metrontagger.utils import cleanup_string, create_query_params
         ({"series_id": "202", "issue": "é"}, {"series_id": "202", "number": "%C3%A9"}),
         # Edge case: series name only, no issue
         ({"series": "X-Men"}, {"series_name": "X-Men", "number": "1"}),
+        # Sweet Shop: single-word series slug
+        ({"series": "criminal-issue-1"}, {"series_name": "criminal", "number": "1"}),
+        # Sweet Shop: multi-word series slug
+        ({"series": "radiant-black-issue-1"}, {"series_name": "radiant black", "number": "1"}),
         # Edge case: issue is "0" (should become "0")
         ({"series_id": "303", "issue": "0"}, {"series_id": "303", "number": "0"}),
         # Edge case: issue is "000" (should become "0")
@@ -48,6 +52,8 @@ from metrontagger.utils import cleanup_string, create_query_params
         "issue_leading_zeros",
         "unicode_issue_number",
         "series_name_only",
+        "sweet_shop_single_word",
+        "sweet_shop_multi_word",
         "issue_zero",
         "issue_all_zeros",
         "issue_single_leading_zero",
