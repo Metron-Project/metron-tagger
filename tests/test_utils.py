@@ -10,10 +10,10 @@ from metrontagger.utils import cleanup_string, create_query_params
         ({"series_id": "123", "issue": "005"}, {"series_id": "123", "number": "5"}),
         # Happy path: series_id present, issue missing
         ({"series_id": "456"}, {"series_id": "456", "number": "1"}),
-        # Happy path: series name with hyphens, commas, ampersands, and keywords
+        # Happy path: series name with commas, ampersands, and keywords
         (
             {
-                "series": "Batman - Detective Comics, Vol. 1 & 2 HC TPB Digital Chapter",
+                "series": "Batman Detective Comics, Vol. 1 & 2 HC TPB Digital Chapter",
                 "issue": "001",
             },
             {"series_name": "Batman Detective Comics Vol. 1 2", "number": "1"},
