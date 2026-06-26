@@ -102,7 +102,6 @@ def _clean_series_name(name: str) -> str:
 
     # Define replacements for better maintainability
     replacements = {
-        " - ": " ",
         ",": "",
         " & ": " ",
         "HC": "",
