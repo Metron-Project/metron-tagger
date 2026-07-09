@@ -134,7 +134,7 @@ class Runner:
         Returns:
             list[Path]: The updated list of file paths after renaming.
         """
-        msg = create_print_title("Renaming ComicInfo.xml to MetronInfo.xml:")
+        msg = create_print_title("Renaming Comic:")
         questionary.print(msg, style=Styles.TITLE)
 
         # Lists to track filename changes
