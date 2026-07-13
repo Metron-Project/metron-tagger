@@ -40,14 +40,14 @@ classifiers = [
   "Operating System :: Microsoft :: Windows",
 ]
 dependencies = [
-  "mokkari>=3.26.0",
+  "mokkari>=3.29.1",
   "questionary>=2.1.1",
   "pyxdg>=0.28",
   "imagehash>=4.3.2",
   "pandas>=2.3.3",
   "comicfn2dict>=0.3.1",
   "tqdm>=4.67.3",
-  "darkseid>=8.1.0",
+  "darkseid>=8.2.0",
 ]
 
 [project.urls]
