@@ -561,7 +561,7 @@ toml = [
 
 [[package]]
 name = "darkseid"
-version = "8.2.0"
+version = "8.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "defusedxml" },
@@ -571,9 +571,9 @@ dependencies = [
     { name = "xmlschema" },
     { name = "zipremove" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/17/13/36e9512454e54162b3d2baeaf9e72225068de52002c53d724d4e42da7e72/darkseid-8.2.0.tar.gz", hash = "sha256:a6795f044e89fc93e5fa3ce76421aa39f9a08f08359e5b93c6e6f4a187e2b3d4", size = 115085, upload-time = "2026-07-13T12:47:04.603Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f4/96/4db8fc69629ef931ef6f9706a655887310970b3d00961e74229b85786b59/darkseid-8.3.0.tar.gz", hash = "sha256:c826b9b76efdd9dc3484e965f801973316274c23966dd927496b7cfb8d072826", size = 115987, upload-time = "2026-07-19T18:52:32.17Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/85/3b/40c5c3c8f9550278c8d459b001614a4dea72d2b89d0c8131aaef8825ae4e/darkseid-8.2.0-py3-none-any.whl", hash = "sha256:5783581219ae351a890fd651373b929c8ed6d14c7dda1a77b4e8025a4e480b31", size = 94112, upload-time = "2026-07-13T12:47:03.31Z" },
+    { url = "https://files.pythonhosted.org/packages/ef/64/13cf32f78bde45b007f19841663c00f66dbd16c256f6c7eeaa9b44c865a3/darkseid-8.3.0-py3-none-any.whl", hash = "sha256:d60c4e29136cd03071f719273e705bc9ceacd8ec8fb596e6113c008f9016b8bb", size = 94601, upload-time = "2026-07-19T18:52:31.103Z" },
 ]
 
 [[package]]
@@ -815,7 +815,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "comicfn2dict", specifier = ">=0.3.1" },
-    { name = "darkseid", specifier = ">=8.2.0" },
+    { name = "darkseid", specifier = ">=8.3.0" },
     { name = "imagehash", specifier = ">=4.3.2" },
     { name = "mokkari", specifier = ">=4.0.0" },
     { name = "pandas", specifier = ">=2.3.3" },
