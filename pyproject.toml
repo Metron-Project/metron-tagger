@@ -47,7 +47,7 @@ dependencies = [
   "pandas>=2.3.3",
   "comicfn2dict>=0.3.1",
   "tqdm>=4.67.3",
-  "darkseid>=8.2.0",
+  "darkseid>=8.3.0",
 ]
 
 [project.urls]
