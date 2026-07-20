@@ -257,6 +257,19 @@ class UIPresenter:
         questionary.print(f"\n{fn.name} - Results found:", style=Styles.TITLE)
 
     @staticmethod
+    def print_rate_limit_status(
+        remaining: int | None, limit: int | None, reset: datetime | None
+    ) -> None:
+        """Print the sustained (daily) Metron API quota remaining, if known."""
+        if not isinstance(remaining, int) or not isinstance(limit, int):
+            return
+
+        msg = f"Metron API: {remaining:,}/{limit:,} daily requests remaining"
+        if isinstance(reset, datetime):
+            msg += f" (resets {reset.astimezone().strftime('%H:%M %Z')})"
+        questionary.print(msg, style=Styles.INFO)
+
+    @staticmethod
     def print_metadata_write_success(  # noqa: PLR0913
         formats: list[str],
         series_name: str,
@@ -826,6 +839,11 @@ class Talker:
         # Search by filename if no existing metadata or ID handling failed
         return self._search_by_filename(fn, comic, config)
 
+    def _print_rate_limit_status(self) -> None:
+        """Show the user's remaining daily (sustained) Metron API quota, if known."""
+        sustained = self.api.rate_limit_status.sustained
+        self.ui.print_rate_limit_status(sustained.remaining, sustained.limit, sustained.reset)
+
     def _post_process_matches(self) -> None:
         """Post-process the match results."""
         # Print match results summary
@@ -952,7 +970,9 @@ class Talker:
 
         # Print match results
         self._post_process_matches()
+        self._print_rate_limit_status()
 
     def retrieve_single_issue(self, id_: int, fn: Path) -> None:
         """Retrieve and write metadata for a single issue."""
         self._write_issue_md(fn, id_)
+        self._print_rate_limit_status()
