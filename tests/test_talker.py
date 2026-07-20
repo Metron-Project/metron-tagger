@@ -20,6 +20,7 @@ from metrontagger.talker import (
     ProcessingConfig,
     SearchResult,
     Talker,
+    UIPresenter,
 )
 
 tzinfo = timezone(timedelta(hours=-5))
@@ -1096,6 +1097,75 @@ def test_talker_retrieve_single_issue(talker, sample_path):
     with patch.object(talker, "_write_issue_md") as mock_write:
         talker.retrieve_single_issue(123, sample_path)
         mock_write.assert_called_once_with(sample_path, 123)
+
+
+def test_talker_retrieve_single_issue_prints_rate_limit_status(talker, sample_path):
+    """Test that retrieving a single issue also reports the rate limit status."""
+    with (
+        patch.object(talker, "_write_issue_md"),
+        patch.object(talker, "_print_rate_limit_status") as mock_print_rate_limit,
+    ):
+        talker.retrieve_single_issue(123, sample_path)
+        mock_print_rate_limit.assert_called_once()
+
+
+def test_talker_identify_comics_prints_rate_limit_status(talker):
+    """Test that identify_comics reports the rate limit status after processing."""
+    args = Mock()
+    args.id = None
+
+    with (
+        patch.object(talker, "_post_process_matches"),
+        patch.object(talker, "_print_rate_limit_status") as mock_print_rate_limit,
+    ):
+        talker.identify_comics(args, [])
+        mock_print_rate_limit.assert_called_once()
+
+
+def test_talker_print_rate_limit_status(talker):
+    """Test that Talker._print_rate_limit_status reads the sustained window from the API."""
+    reset = datetime(2026, 7, 21, tzinfo=timezone.utc)
+    talker.api.rate_limit_status.sustained.remaining = 4823
+    talker.api.rate_limit_status.sustained.limit = 5000
+    talker.api.rate_limit_status.sustained.reset = reset
+
+    with patch.object(talker.ui, "print_rate_limit_status") as mock_print:
+        talker._print_rate_limit_status()
+        mock_print.assert_called_once_with(4823, 5000, reset)
+
+
+def test_ui_presenter_print_rate_limit_status():
+    """Test that the rate limit message is printed when limit data is known."""
+    reset = datetime(2026, 7, 21, tzinfo=timezone.utc)
+    with patch("metrontagger.talker.questionary.print") as mock_print:
+        UIPresenter.print_rate_limit_status(4823, 5000, reset)
+        mock_print.assert_called_once()
+        assert "4,823/5,000 daily requests remaining" in mock_print.call_args[0][0]
+
+
+def test_ui_presenter_print_rate_limit_status_without_reset():
+    """Test that the message omits the reset time when it isn't known."""
+    with patch("metrontagger.talker.questionary.print") as mock_print:
+        UIPresenter.print_rate_limit_status(4823, 5000, None)
+        mock_print.assert_called_once()
+        msg = mock_print.call_args[0][0]
+        assert "4,823/5,000 daily requests remaining" in msg
+        assert "resets" not in msg
+
+
+@pytest.mark.parametrize(
+    ("remaining", "limit"),
+    [
+        (None, 5000),
+        (4823, None),
+        (None, None),
+    ],
+)
+def test_ui_presenter_print_rate_limit_status_unknown(remaining, limit):
+    """Test that nothing is printed when the sustained limit isn't known yet."""
+    with patch("metrontagger.talker.questionary.print") as mock_print:
+        UIPresenter.print_rate_limit_status(remaining, limit, None)
+        mock_print.assert_not_called()
 
 
 # Edge cases and error handling

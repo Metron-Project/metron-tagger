@@ -40,7 +40,7 @@ classifiers = [
   "Operating System :: Microsoft :: Windows",
 ]
 dependencies = [
-  "mokkari>=4.0.0",
+  "mokkari>=4.1.0",
   "questionary>=2.1.1",
   "pyxdg>=0.28",
   "imagehash>=4.3.2",
