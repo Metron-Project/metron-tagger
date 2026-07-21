@@ -72,7 +72,9 @@ def create_mock_base_issue(issue_id=123, cover_hash="abcdef123456"):
     return issue
 
 
-def create_mock_issue_response(isbn=None, upc=None):
+def create_mock_issue_response(
+    isbn=None, upc=None, average_rating=Decimal("4.25"), rating_count=8
+):
     """Create a mock Issue response object."""
 
     issue = Mock()
@@ -93,6 +95,8 @@ def create_mock_issue_response(isbn=None, upc=None):
     issue.price_currency = "USD"
     issue.isbn = isbn
     issue.upc = upc
+    issue.average_rating = average_rating
+    issue.rating_count = rating_count
 
     # Series mock
     issue.series = Mock()
@@ -374,6 +378,19 @@ def test_metadata_mapper_map_response_to_metadata():
     assert len(result.prices) == 1
     assert result.prices[0].amount == Decimal("3.99")
     assert result.prices[0].currency == "USD"
+    # Verify community rating is mapped
+    assert result.community_rating == Decimal("4.25")
+    assert result.rating_count == 8
+
+
+def test_metadata_mapper_map_response_to_metadata_without_average_rating():
+    """Test mapping response to metadata when no average rating is present."""
+
+    resp = create_mock_issue_response(average_rating=None, rating_count=0)
+    result = MetadataMapper.map_response_to_metadata(resp)
+
+    assert result.community_rating is None
+    assert result.rating_count is None
 
 
 def test_metadata_mapper_convert_gtin_to_int_valid():

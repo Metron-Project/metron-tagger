@@ -497,6 +497,13 @@ class MetadataMapper:
         if isbn or upc:
             md.gtin = GTIN(upc=upc, isbn=isbn)
 
+    @staticmethod
+    def _set_community_rating(md: Metadata, resp: Issue) -> None:
+        """Set community rating information for metadata."""
+        if resp.average_rating:
+            md.community_rating = resp.average_rating
+            md.rating_count = resp.rating_count
+
     @classmethod
     def _set_optional_metadata(cls, md: Metadata, resp: Issue) -> None:
         """Set optional collections and lists for metadata."""
@@ -524,6 +531,7 @@ class MetadataMapper:
             md.web_link = [Links(str(resp.resource_url), True)]
         if resp.price:
             md.prices = [Price(resp.price, resp.price_currency)]
+        cls._set_community_rating(md, resp)
 
     @classmethod
     def map_response_to_metadata(cls, resp: Issue) -> Metadata:
