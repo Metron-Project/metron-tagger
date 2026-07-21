@@ -680,6 +680,7 @@ class Talker:
 
         # For long delays (>= RATE_LIMIT_AUTO_RETRY_THRESHOLD), ask user
         self.ui.print_warning(f"{error!s}")
+        wait_start = time.monotonic()
 
         should_wait = questionary.confirm(
             "Do you want to wait and retry?",
@@ -687,8 +688,12 @@ class Talker:
         ).ask()
 
         if should_wait:
+            # Deduct time already spent waiting on the user's answer so the
+            # total delay matches retry_after instead of stacking on top of it.
+            elapsed = time.monotonic() - wait_start
+            remaining = max(0.0, retry_after - elapsed) + RATE_LIMIT_RETRY_BUFFER
             self.ui.print_info("Waiting to retry...")
-            time.sleep(retry_after + RATE_LIMIT_RETRY_BUFFER)
+            time.sleep(remaining)
             return self._retry_api_call(api_call)
 
         # User declined to wait - stop processing remaining files
