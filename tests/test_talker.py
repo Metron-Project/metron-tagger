@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+import requests
 from darkseid.comic import Comic
 from darkseid.metadata import Basic, Metadata, Notes
 from mokkari.exceptions import ApiError, RateLimitError
@@ -60,6 +61,16 @@ def talker(mock_api):
 def sample_path():
     """Create a sample Path object."""
     return Path("test_comic.cbz")
+
+
+def create_http_api_error(status_code: int, message: str = "HTTP error") -> ApiError:
+    """Create an ApiError chained to an HTTPError, mirroring what mokkari raises."""
+    response = Mock(spec=requests.Response)
+    response.status_code = status_code
+    http_error = requests.exceptions.HTTPError(response=response)
+    api_error = ApiError(message)
+    api_error.__cause__ = http_error
+    return api_error
 
 
 def create_mock_base_issue(issue_id=123, cover_hash="abcdef123456"):
@@ -1345,6 +1356,43 @@ def test_handle_api_call_api_error(talker):
 
     assert result is None
     mock_call.assert_called_once()
+    assert talker._stop_processing is False
+
+
+@pytest.mark.parametrize("status_code", [400, 401])
+def test_handle_api_call_fatal_http_error_stops_processing(talker, status_code):
+    """A 400 or 401 response should stop further tagging, not just this call."""
+    error = create_http_api_error(status_code)
+    mock_call = Mock(side_effect=error)
+
+    result = talker._handle_api_call(mock_call, error_context="Test API call")
+
+    assert result is None
+    assert talker._stop_processing is True
+
+
+@pytest.mark.parametrize("status_code", [403, 404, 500, 503])
+def test_handle_api_call_non_fatal_http_error_does_not_stop_processing(talker, status_code):
+    """Other HTTP errors are logged but shouldn't halt processing of remaining files."""
+    error = create_http_api_error(status_code)
+    mock_call = Mock(side_effect=error)
+
+    result = talker._handle_api_call(mock_call, error_context="Test API call")
+
+    assert result is None
+    assert talker._stop_processing is False
+
+
+def test_get_http_status_code_from_chained_http_error(talker):
+    """Status code is recovered from the HTTPError that ApiError was raised from."""
+    error = create_http_api_error(401)
+    assert talker._get_http_status_code(error) == 401
+
+
+def test_get_http_status_code_without_cause_returns_none(talker):
+    """An ApiError with no chained HTTPError (e.g. JSON decode failure) has no status code."""
+    error = ApiError("Invalid JSON response")
+    assert talker._get_http_status_code(error) is None
 
 
 # Tests for _retry_api_call method
@@ -1374,3 +1422,29 @@ def test_retry_api_call_api_error(talker):
     result = talker._retry_api_call(mock_call)
     assert result is None
     mock_call.assert_called_once()
+    assert talker._stop_processing is False
+
+
+def test_retry_api_call_fatal_http_error_stops_processing(talker):
+    """A 401 hit during a retry should also stop further processing."""
+    error = create_http_api_error(401)
+    mock_call = Mock(side_effect=error)
+
+    result = talker._retry_api_call(mock_call)
+    assert result is None
+    assert talker._stop_processing is True
+
+
+@patch("metrontagger.talker.time.sleep")
+def test_retry_api_call_fatal_http_error_after_short_rate_limit_wait(mock_sleep, talker):
+    """A fatal error hit on the second attempt (after a short rate-limit wait) also stops."""
+    rate_limit_error = RateLimitError("Rate limit exceeded", retry_after=10)
+    fatal_error = create_http_api_error(400)
+    mock_call = Mock(side_effect=[rate_limit_error, fatal_error])
+
+    result = talker._retry_api_call(mock_call)
+
+    assert result is None
+    assert talker._stop_processing is True
+    assert mock_call.call_count == 2
+    mock_sleep.assert_called_once_with(12)

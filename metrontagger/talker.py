@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum, auto, unique
 from functools import lru_cache
+from http import HTTPStatus
 from logging import getLogger
 from typing import TYPE_CHECKING, TypeVar
 
@@ -47,6 +48,7 @@ from darkseid.utils import get_issue_id_from_note
 from imagehash import ImageHash, hex_to_hash, phash
 from mokkari.exceptions import ApiError, RateLimitError
 from PIL import Image
+from requests.exceptions import HTTPError
 
 from metrontagger import __version__
 from metrontagger.styles import Styles
@@ -61,6 +63,10 @@ warnings.filterwarnings(
 HAMMING_DISTANCE = 10
 RATE_LIMIT_AUTO_RETRY_THRESHOLD = 60  # seconds
 RATE_LIMIT_RETRY_BUFFER = 2  # seconds added to retry_after to account for clock skew
+
+# HTTP statuses where retrying (or continuing with other files) is pointless: bad
+# credentials or a malformed request will fail identically on every subsequent call.
+FATAL_API_STATUS_CODES = {HTTPStatus.BAD_REQUEST, HTTPStatus.UNAUTHORIZED}
 
 # Type variable for generic API call return types
 T = TypeVar("T")
@@ -568,6 +574,64 @@ class Talker:
         self.ui = UIPresenter()
         self._stop_processing = False
 
+    @staticmethod
+    def _get_http_status_code(error: ApiError) -> HTTPStatus | None:
+        """Extract the underlying HTTP status code from an ApiError, if any.
+
+        Mokkari's ApiError is a blanket exception for network errors, JSON
+        decoding failures, and HTTP error responses alike, and doesn't expose
+        the status code as an attribute. When it *was* raised from an HTTP
+        error response though, it's chained with `raise ... from err`, so the
+        status code can still be recovered from `__cause__`.
+        """
+        cause = error.__cause__
+        if isinstance(cause, HTTPError) and cause.response is not None:
+            return HTTPStatus(cause.response.status_code)
+        return None
+
+    def _handle_fatal_api_error(self, error: ApiError, error_context: str) -> bool:
+        """Stop further processing if an ApiError is unrecoverable.
+
+        A 400 or 401 response means every subsequent request will fail the
+        same way (bad credentials or a malformed request), so continuing to
+        process the remaining files is pointless.
+
+        Returns:
+            True if the error was fatal and has been handled, False otherwise.
+        """
+        status_code = self._get_http_status_code(error)
+        if status_code not in FATAL_API_STATUS_CODES:
+            return False
+
+        LOGGER.error("%s: unrecoverable HTTP %s error: %s", error_context, status_code, error)
+        if status_code == HTTPStatus.UNAUTHORIZED:
+            msg = (
+                "Metron authentication failed (HTTP 401). Check your username and "
+                "password. Stopping further processing."
+            )
+        else:
+            msg = f"Metron rejected the request (HTTP 400): {error}. Stopping further processing."
+        self.ui.print_error(msg)
+        self._stop_processing = True
+        return True
+
+    def _retry_after_short_rate_limit(
+        self, api_call: Callable[[], T], retry_error: RateLimitError
+    ) -> T | None:
+        """Wait out a short rate-limit window hit during a retry, then try once more."""
+        LOGGER.debug("Rate limit hit on retry, waiting %s seconds", retry_error.retry_after)
+        time.sleep(retry_error.retry_after + RATE_LIMIT_RETRY_BUFFER)
+        try:
+            return api_call()
+        except (RateLimitError, ApiError) as final_error:
+            if isinstance(final_error, ApiError) and self._handle_fatal_api_error(
+                final_error, "Retry failed"
+            ):
+                return None
+            LOGGER.exception("Retry failed after second wait")
+            self.ui.print_error(f"Retry failed: {final_error!s}")
+            return None
+
     def _retry_api_call(self, api_call: Callable[[], T]) -> T | None:
         """Retry an API call after a rate limit delay.
 
@@ -585,23 +649,51 @@ class Talker:
                 hasattr(retry_error, "retry_after")
                 and 0 < retry_error.retry_after < RATE_LIMIT_AUTO_RETRY_THRESHOLD
             ):
-                LOGGER.debug(
-                    "Rate limit hit on retry, waiting %s seconds", retry_error.retry_after
-                )
-                time.sleep(retry_error.retry_after + RATE_LIMIT_RETRY_BUFFER)
-                try:
-                    return api_call()
-                except (RateLimitError, ApiError) as final_error:
-                    LOGGER.exception("Retry failed after second wait")
-                    self.ui.print_error(f"Retry failed: {final_error!s}")
-                    return None
+                return self._retry_after_short_rate_limit(api_call, retry_error)
             LOGGER.debug("Rate limit hit on retry: %s", retry_error)
             self.ui.print_error(f"Retry failed: {retry_error!s}")
             return None
         except ApiError as retry_error:
+            if self._handle_fatal_api_error(retry_error, "Retry failed"):
+                return None
             LOGGER.exception("Retry failed")
             self.ui.print_error(f"Retry failed: {retry_error!s}")
             return None
+
+    def _handle_rate_limit_error(
+        self, api_call: Callable[[], T], error: RateLimitError
+    ) -> T | None:
+        """Handle a RateLimitError raised by an API call, retrying when appropriate."""
+        LOGGER.debug("Rate limit exceeded: %s", error)
+
+        # Check if retry_after is available
+        if not hasattr(error, "retry_after") or error.retry_after <= 0:
+            self.ui.print_warning(f"{error!s}")
+            return None
+
+        retry_after = error.retry_after
+
+        # For short delays (< RATE_LIMIT_AUTO_RETRY_THRESHOLD), automatically retry
+        if retry_after < RATE_LIMIT_AUTO_RETRY_THRESHOLD:
+            time.sleep(retry_after + RATE_LIMIT_RETRY_BUFFER)
+            return self._retry_api_call(api_call)
+
+        # For long delays (>= RATE_LIMIT_AUTO_RETRY_THRESHOLD), ask user
+        self.ui.print_warning(f"{error!s}")
+
+        should_wait = questionary.confirm(
+            "Do you want to wait and retry?",
+            default=False,
+        ).ask()
+
+        if should_wait:
+            self.ui.print_info("Waiting to retry...")
+            time.sleep(retry_after + RATE_LIMIT_RETRY_BUFFER)
+            return self._retry_api_call(api_call)
+
+        # User declined to wait - stop processing remaining files
+        self._stop_processing = True
+        return None
 
     def _handle_api_call(
         self, api_call: Callable[[], T], error_context: str = "API call"
@@ -618,38 +710,10 @@ class Talker:
         try:
             return api_call()
         except RateLimitError as e:
-            LOGGER.debug("Rate limit exceeded: %s", e)
-
-            # Check if retry_after is available
-            if not hasattr(e, "retry_after") or e.retry_after <= 0:
-                self.ui.print_warning(f"{e!s}")
-                return None
-
-            retry_after = e.retry_after
-
-            # For short delays (< RATE_LIMIT_AUTO_RETRY_THRESHOLD), automatically retry
-            if retry_after < RATE_LIMIT_AUTO_RETRY_THRESHOLD:
-                time.sleep(retry_after + RATE_LIMIT_RETRY_BUFFER)
-                return self._retry_api_call(api_call)
-
-            # For long delays (>= RATE_LIMIT_AUTO_RETRY_THRESHOLD), ask user
-            self.ui.print_warning(f"{e!s}")
-
-            should_wait = questionary.confirm(
-                "Do you want to wait and retry?",
-                default=False,
-            ).ask()
-
-            if should_wait:
-                self.ui.print_info("Waiting to retry...")
-                time.sleep(retry_after + RATE_LIMIT_RETRY_BUFFER)
-                return self._retry_api_call(api_call)
-
-            # User declined to wait - stop processing remaining files
-            self._stop_processing = True
-            return None
-
+            return self._handle_rate_limit_error(api_call, e)
         except ApiError as e:
+            if self._handle_fatal_api_error(e, error_context):
+                return None
             LOGGER.exception(error_context)
             self.ui.print_error(f"{error_context}: {e!r}")
             return None
