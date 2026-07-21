@@ -1295,10 +1295,12 @@ def test_handle_api_call_rate_limit_short_delay_retry_fails(mock_sleep, talker):
 
 @patch("metrontagger.talker.questionary.confirm")
 @patch("metrontagger.talker.time.sleep")
+@patch("metrontagger.talker.time.monotonic")
 def test_handle_api_call_rate_limit_long_delay_user_confirms_success(
-    mock_sleep, mock_confirm, talker
+    mock_monotonic, mock_sleep, mock_confirm, talker
 ):
     """Test rate limit with long delay (>= 60s) where user confirms and retry succeeds."""
+    mock_monotonic.side_effect = [1000.0, 1000.0]  # no time spent answering the prompt
     error = RateLimitError("Rate limit exceeded", retry_after=120)
     mock_call = Mock(side_effect=[error, "success"])
     mock_confirm.return_value.ask.return_value = True
@@ -1314,10 +1316,12 @@ def test_handle_api_call_rate_limit_long_delay_user_confirms_success(
 
 @patch("metrontagger.talker.questionary.confirm")
 @patch("metrontagger.talker.time.sleep")
+@patch("metrontagger.talker.time.monotonic")
 def test_handle_api_call_rate_limit_long_delay_user_confirms_retry_fails(
-    mock_sleep, mock_confirm, talker
+    mock_monotonic, mock_sleep, mock_confirm, talker
 ):
     """Test rate limit with long delay (>= 60s) where user confirms but retry fails."""
+    mock_monotonic.side_effect = [1000.0, 1000.0]  # no time spent answering the prompt
     error = RateLimitError("Rate limit exceeded", retry_after=90)
     retry_error = RateLimitError("Still rate limited")
     mock_call = Mock(side_effect=[error, retry_error])
@@ -1330,6 +1334,46 @@ def test_handle_api_call_rate_limit_long_delay_user_confirms_retry_fails(
     mock_confirm.assert_called_once()
     assert mock_call.call_count == 2
     assert talker._stop_processing is False
+
+
+@patch("metrontagger.talker.questionary.confirm")
+@patch("metrontagger.talker.time.sleep")
+@patch("metrontagger.talker.time.monotonic")
+def test_handle_api_call_rate_limit_long_delay_deducts_time_spent_answering(
+    mock_monotonic, mock_sleep, mock_confirm, talker
+):
+    """Time spent waiting for the user's answer is deducted from the retry sleep."""
+    # 35 seconds pass between when retry_after is known and when the user answers.
+    mock_monotonic.side_effect = [1000.0, 1035.0]
+    error = RateLimitError("Rate limit exceeded", retry_after=120)
+    mock_call = Mock(side_effect=[error, "success"])
+    mock_confirm.return_value.ask.return_value = True
+
+    result = talker._handle_api_call(mock_call)
+
+    assert result == "success"
+    # 120 - 35 elapsed + 2s buffer = 87
+    mock_sleep.assert_called_once_with(87)
+
+
+@patch("metrontagger.talker.questionary.confirm")
+@patch("metrontagger.talker.time.sleep")
+@patch("metrontagger.talker.time.monotonic")
+def test_handle_api_call_rate_limit_long_delay_answer_exceeds_retry_after(
+    mock_monotonic, mock_sleep, mock_confirm, talker
+):
+    """If the user takes longer than retry_after to answer, don't sleep a negative amount."""
+    # 150 seconds pass, more than the 120s retry_after.
+    mock_monotonic.side_effect = [1000.0, 1150.0]
+    error = RateLimitError("Rate limit exceeded", retry_after=120)
+    mock_call = Mock(side_effect=[error, "success"])
+    mock_confirm.return_value.ask.return_value = True
+
+    result = talker._handle_api_call(mock_call)
+
+    assert result == "success"
+    # elapsed already exceeds retry_after, so only the buffer remains
+    mock_sleep.assert_called_once_with(2)
 
 
 @patch("metrontagger.talker.questionary.confirm")
