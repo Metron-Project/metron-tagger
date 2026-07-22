@@ -277,8 +277,8 @@ class Runner:
                 f"'{comic.path.name}' has a valid ComicInfo Version 1",
                 Styles.SUCCESS,
             ),
-            SchemaVersion.METRON_INFO_V1: (
-                f"'{comic.path.name}' has a valid MetronInfo Version 1",
+            SchemaVersion.METRON_INFO_V1_1: (
+                f"'{comic.path.name}' has a valid MetronInfo Version 1.1",
                 Styles.SUCCESS,
             ),
         }
