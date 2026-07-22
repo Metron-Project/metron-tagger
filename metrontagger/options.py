@@ -74,6 +74,14 @@ def make_parser() -> argparse.ArgumentParser:
         default=False,
     )
     parser.add_argument(
+        "--ignore-modified",
+        help="Retag files with an existing Metron ID without using the last modified "
+        "date, forcing a full refresh from the API. Useful for pulling in changes, "
+        "such as an updated community rating, that don't update the issue's modified date.",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
         "--missing",
         help="List files without metadata.",
         action="store_true",

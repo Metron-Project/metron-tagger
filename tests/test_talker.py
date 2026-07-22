@@ -1005,6 +1005,96 @@ def test_identify_comics_with_skip_multiple_disabled(
         assert config.skip_multiple is False
 
 
+@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.talker.questionary.print")
+@patch("metrontagger.talker.Comic")
+def test_identify_comics_with_ignore_modified_enabled(
+    mock_comic_class,
+    mock_print,  # noqa: ARG001
+    mock_create_title,  # noqa: ARG001
+    talker,
+):
+    """Test identify_comics wires args.ignore_modified into ProcessingConfig."""
+    mock_comic = Mock()
+    mock_comic.is_writable.return_value = True
+    mock_comic.seems_to_be_a_comic_archive.return_value = True
+    mock_comic.has_metadata.return_value = False
+    mock_comic_class.return_value = mock_comic
+
+    args = Mock()
+    args.ignore_existing = False
+    args.accept_only = False
+    args.skip_multiple = False
+    args.ignore_modified = True
+    args.id = None
+
+    file_list = [Path("test.cbz")]
+
+    with (
+        patch.object(
+            talker,
+            "_process_file",
+            return_value=SearchResult(issue_id=None, has_multiple_matches=True),
+        ) as mock_process,
+        patch.object(talker, "_post_process_matches"),
+    ):
+        talker.identify_comics(args, file_list)
+
+        mock_process.assert_called_once()
+        call_args = mock_process.call_args
+        config = call_args[0][1]  # ProcessingConfig is the second argument
+        assert isinstance(config, ProcessingConfig)
+        assert config.ignore_modified is True
+
+
+@patch("metrontagger.talker.questionary.print")
+def test_talker_process_file_ignore_modified_drops_date(mock_print, talker):  # noqa: ARG001
+    """Test that _process_file drops the modified date when ignore_modified is set."""
+    mock_comic = Mock()
+    mock_comic.is_writable.return_value = True
+    mock_comic.seems_to_be_a_comic_archive.return_value = True
+
+    modified = datetime(2023, 6, 15, tzinfo=tzinfo)
+
+    with (
+        patch.object(talker, "_create_comic", return_value=mock_comic),
+        patch.object(
+            talker,
+            "_get_existing_metadata_id",
+            return_value=(InfoSource.METRON, 123, modified),
+        ),
+    ):
+        config = ProcessingConfig(ignore_modified=True)
+        result = talker._process_file(Path("test.cbz"), config)
+
+    assert result.issue_id == 123
+    assert result.modified is None
+
+
+@patch("metrontagger.talker.questionary.print")
+def test_talker_process_file_keeps_modified_by_default(mock_print, talker):  # noqa: ARG001
+    """Test that _process_file keeps the modified date when ignore_modified is unset."""
+    mock_comic = Mock()
+    mock_comic.is_writable.return_value = True
+    mock_comic.seems_to_be_a_comic_archive.return_value = True
+
+    modified = datetime(2023, 6, 15, tzinfo=tzinfo)
+
+    with (
+        patch.object(talker, "_create_comic", return_value=mock_comic),
+        patch.object(
+            talker,
+            "_get_existing_metadata_id",
+            return_value=(InfoSource.METRON, 123, modified),
+        ),
+    ):
+        config = ProcessingConfig()
+        result = talker._process_file(Path("test.cbz"), config)
+
+    assert result.issue_id == 123
+    assert result.modified == modified
+
+
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
 @patch("metrontagger.talker.Comic")
