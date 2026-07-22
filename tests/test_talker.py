@@ -84,13 +84,18 @@ def create_mock_base_issue(issue_id=123, cover_hash="abcdef123456"):
 
 
 def create_mock_issue_response(
-    isbn=None, upc=None, average_rating=Decimal("4.25"), rating_count=8
+    isbn=None,
+    upc=None,
+    average_rating=Decimal("4.25"),
+    rating_count=8,
+    alt_number=None,
 ):
     """Create a mock Issue response object."""
 
     issue = Mock()
     issue.id = 123
     issue.number = "1"
+    issue.alt_number = alt_number
     issue.cover_date = datetime(2023, 1, 1, tzinfo=tzinfo).date()
     issue.store_date = datetime(2023, 1, 15, tzinfo=tzinfo).date()
     issue.desc = "Test description"
@@ -402,6 +407,42 @@ def test_metadata_mapper_map_response_to_metadata_without_average_rating():
 
     assert result.community_rating is None
     assert result.rating_count is None
+
+
+def test_metadata_mapper_map_response_to_metadata_with_alternate_number():
+    """Test mapping response to metadata when an alternate number is present."""
+
+    resp = create_mock_issue_response(alt_number="1AU")
+    result = MetadataMapper.map_response_to_metadata(resp)
+
+    assert result.alternate_number == "1AU"
+
+
+def test_metadata_mapper_map_response_to_metadata_without_alternate_number():
+    """Test mapping response to metadata when no alternate number is present."""
+
+    resp = create_mock_issue_response(alt_number=None)
+    result = MetadataMapper.map_response_to_metadata(resp)
+
+    assert result.alternate_number is None
+
+
+def test_metadata_mapper_set_basic_issue_info_with_alternate_number():
+    """Test setting basic issue info maps the alternate number."""
+    resp = create_mock_issue_response(alt_number="25")
+    md = Metadata()
+    MetadataMapper._set_basic_issue_info(md, resp)
+
+    assert md.alternate_number == "25"
+
+
+def test_metadata_mapper_set_basic_issue_info_without_alternate_number():
+    """Test setting basic issue info when no alternate number is present."""
+    resp = create_mock_issue_response(alt_number=None)
+    md = Metadata()
+    MetadataMapper._set_basic_issue_info(md, resp)
+
+    assert md.alternate_number is None
 
 
 def test_metadata_mapper_convert_gtin_to_int_valid():
