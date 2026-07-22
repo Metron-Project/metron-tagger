@@ -117,6 +117,7 @@ class ProcessingConfig:
     skip_multiple: bool = False
     series_id: int | None = None
     ignore_existing: bool = False
+    ignore_modified: bool = False
 
 
 @dataclass
@@ -911,7 +912,9 @@ class Talker:
             if result_id := self._handle_existing_id(source, id_):
                 self.match_results.add_good_match(fn)
                 return SearchResult(
-                    issue_id=result_id, has_multiple_matches=False, modified=modified
+                    issue_id=result_id,
+                    has_multiple_matches=False,
+                    modified=None if config.ignore_modified else modified,
                 )
 
         # Search by filename if no existing metadata or ID handling failed
@@ -1023,6 +1026,7 @@ class Talker:
             skip_multiple=args.skip_multiple,
             series_id=args.id,
             ignore_existing=args.ignore_existing,
+            ignore_modified=args.ignore_modified,
         )
 
         for fn in file_list:

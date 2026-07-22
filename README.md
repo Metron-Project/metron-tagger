@@ -17,7 +17,7 @@ A command-line tool to tag comic archives with metadata from
 Or install it yourself:
 
 ```bash
-$ pipx install metron-tagger
+pipx install metron-tagger
 ```
 
 There are optional dependencies which can be installed by specifying one or more
@@ -46,8 +46,8 @@ The optional dependencies are:
 
 ## Help
 
-```
-usage: metron-tagger [-h] [-r] [-o] [-m] [-c] [--id ID] [-d] [--ignore-existing] [--accept-only] [--missing] [-s] [-z] [--validate] [--remove-non-valid] [--delete-original] [--duplicates] [--migrate] [--version]
+```text
+usage: metron-tagger [-h] [-r] [-o] [-m] [-c] [--id ID] [-d] [--ignore-existing] [--accept-only] [--skip-multiple] [--ignore-modified] [--missing] [-s] [-z] [--validate] [--remove-non-valid] [--delete-original] [--duplicates] [--migrate] [--version]
                    path [path ...]
 
 Read in a file or set of files, and return the result.
@@ -66,6 +66,7 @@ options:
   --ignore-existing    Ignore files that have existing metadata tag. (default: False)
   --accept-only        Automatically accept the match when exactly one valid match is found. (default: False)
   --skip-multiple      Skip files that have multiple matches instead of prompting for selection. (default: False)
+  --ignore-modified    Retag files with an existing Metron ID without using the last modified date, forcing a full refresh from the API. Useful for pulling in changes, such as an updated community rating, that don't update the issue's modified date. (default: False)
   --missing            List files without metadata. (default: False)
   -s, --sort           Sort files that contain metadata tags. (default: False)
   -z, --export-to-cbz  Export a CBR (rar) archive to a CBZ (zip) archive. (default: False)
@@ -82,27 +83,27 @@ options:
 To tag all comics in a directory with MetronInfo.xml that don't already have
 one:
 
-```
+```bash
 metron-tagger -om --ignore-existing /path/to/comics
 ```
 
 To remove any ComicInfo.xml from a directory of comics:
 
-```
+```bash
 metron-tagger -dc /path/to/comics
 ```
 
 To validate any metadata, ComicInfo.xml and MetronInfo.xml, would be done by
 running the following:
 
-```
+```bash
 metron-tagger -cm --validate /path/to/comics
 ```
 
 To write MetronInfo.xml metadata from comics with ComicInfo.xml data, and
 migrate data for comics that don't exist at the Metron Comic Database:
 
-```
+```bash
 metron-tagger -om --migrate /path/to/comics
 ```
 
@@ -110,7 +111,7 @@ To remove duplicate pages from comics (which should be only ran on a directory
 of weekly release since we scan all the pages within a comic), would be done by
 running the following:
 
-```
+```bash
 metron-tagger --duplicates /path/to/weekly/comics
 ```
 
