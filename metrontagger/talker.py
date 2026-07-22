@@ -466,6 +466,7 @@ class MetadataMapper:
     def _set_basic_issue_info(cls, md: Metadata, resp: Issue) -> None:
         """Set basic issue information for metadata."""
         md.issue = IssueString(resp.number).as_string() if resp.number else None
+        md.alternate_number = resp.alt_number
         md.cover_date = resp.cover_date
         md.store_date = resp.store_date
         md.comments = resp.desc
