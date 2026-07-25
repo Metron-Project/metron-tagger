@@ -466,7 +466,7 @@ def test_sort_comics_incomplete_metadata(
 @patch("metrontagger.filesorter.FileSorter._validate_metadata_completeness")
 @patch("metrontagger.filesorter.FileSorter._build_destination_path")
 @patch("metrontagger.filesorter.FileSorter._create_directory_structure")
-def test_sort_comics_directory_creation_fails(  # noqa: PLR0913
+def test_sort_comics_directory_creation_fails(
     mock_create_dir,
     mock_build_path,
     mock_validate,
@@ -493,7 +493,7 @@ def test_sort_comics_directory_creation_fails(  # noqa: PLR0913
 @patch("metrontagger.filesorter.FileSorter._build_destination_path")
 @patch("metrontagger.filesorter.FileSorter._create_directory_structure")
 @patch("metrontagger.filesorter.FileSorter._handle_existing_file")
-def test_sort_comics_existing_file_conflict(  # noqa: PLR0913
+def test_sort_comics_existing_file_conflict(
     mock_handle_existing,
     mock_create_dir,
     mock_build_path,
@@ -523,7 +523,7 @@ def test_sort_comics_existing_file_conflict(  # noqa: PLR0913
 @patch("metrontagger.filesorter.FileSorter._create_directory_structure")
 @patch("metrontagger.filesorter.FileSorter._handle_existing_file")
 @patch("metrontagger.filesorter.FileSorter._move_file_safely")
-def test_sort_comics_success(  # noqa: PLR0913
+def test_sort_comics_success(
     mock_move_file,
     mock_handle_existing,
     mock_create_dir,

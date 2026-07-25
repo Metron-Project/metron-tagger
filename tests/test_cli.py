@@ -13,7 +13,7 @@ from metrontagger.settings import MetronTaggerSettings
 )
 @patch("questionary.text")
 @patch("metrontagger.cli.LOGGER")
-def test__metron_credentials_happy_path(  # NOQA: PLR0913
+def test__metron_credentials_happy_path(
     mock_logger: any,
     mock_questionary: any,
     username: str,

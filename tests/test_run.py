@@ -35,7 +35,7 @@ from metrontagger.run import Runner
         # "error_case_write_fails",
     ],
 )
-def test__update_ci_xml(  # NOQA: PLR0913
+def test__update_ci_xml(
     has_metadata: bool,
     write_success: bool,
     expected_log_message: str | None,
