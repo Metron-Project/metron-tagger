@@ -450,7 +450,7 @@ class Duplicates:
 
             try:
                 success = comic.remove_pages(sorted_pages)
-            except Exception as e:
+            except (ValueError, OSError) as e:
                 LOGGER.error("Error deleting pages from %s: %s", item.path_, e)  # noqa: TRY400
                 results[item.path_] = False
                 questionary.print(
@@ -510,7 +510,7 @@ class Duplicates:
                 style=Styles.WARNING,
             )
             return False
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             LOGGER.error(  # noqa: TRY400
                 "Unexpected error showing image from %s: %s", duplicate_issue.path_, e
             )

@@ -278,7 +278,7 @@ class UIPresenter:
         questionary.print(msg, style=Styles.INFO)
 
     @staticmethod
-    def print_metadata_write_success(  # noqa: PLR0913
+    def print_metadata_write_success(  # noqa: PLR0913, PLR0917
         formats: list[str],
         series_name: str,
         issue: str,
