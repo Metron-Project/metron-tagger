@@ -16,7 +16,7 @@ from metrontagger.utils import cleanup_string, create_query_params
                 "series": "Batman Detective Comics, Vol. 1 & 2 HC TPB Digital Chapter",
                 "issue": "001",
             },
-            {"series_name": "Batman Detective Comics Vol. 1 2", "number": "1"},
+            {"series_q": "Batman Detective Comics Vol. 1 2", "number": "1"},
         ),
         # Happy path: issue number is ".5" (should become "½")
         ({"series_id": "789", "issue": ".5"}, {"series_id": "789", "number": "½"}),
@@ -25,7 +25,7 @@ from metrontagger.utils import cleanup_string, create_query_params
         # Happy path: issue number with unicode, should be quoted
         ({"series_id": "202", "issue": "é"}, {"series_id": "202", "number": "%C3%A9"}),
         # Edge case: series name only, no issue
-        ({"series": "X-Men"}, {"series_name": "X-Men", "number": "1"}),
+        ({"series": "X-Men"}, {"series_q": "X-Men", "number": "1"}),
         # Edge case: issue is "0" (should become "0")
         ({"series_id": "303", "issue": "0"}, {"series_id": "303", "number": "0"}),
         # Edge case: issue is "000" (should become "0")
