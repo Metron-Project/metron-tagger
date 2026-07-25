@@ -172,7 +172,7 @@ def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str,
     elif series:
         series_str = series if isinstance(series, str) else str(series)
         try:
-            params["series_name"] = _clean_series_name(series_str)
+            params["series_q"] = _clean_series_name(series_str)
         except ValueError:
             LOGGER.exception("Invalid series name in metadata")
             return None
