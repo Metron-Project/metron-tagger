@@ -89,6 +89,7 @@ def create_mock_issue_response(
     average_rating=Decimal("4.25"),
     rating_count=8,
     alt_number=None,
+    alt_names=None,
 ):
     """Create a mock Issue response object."""
 
@@ -119,6 +120,7 @@ def create_mock_issue_response(
     issue.series.name = "Test Series"
     issue.series.id = 1
     issue.series.sort_name = "Test Series"
+    issue.series.alt_names = alt_names if alt_names is not None else []
     issue.series.volume = 1
     issue.series.series_type = Mock()
     issue.series.series_type.name = "Regular"
@@ -443,6 +445,27 @@ def test_metadata_mapper_set_basic_issue_info_without_alternate_number():
     MetadataMapper._set_basic_issue_info(md, resp)
 
     assert md.alternate_number is None
+
+
+def test_metadata_mapper_set_series_info_with_alt_names():
+    """Test setting series info maps alternate names."""
+    resp = create_mock_issue_response(alt_names=["Alt Name One", "Alt Name Two"])
+    md = Metadata()
+    MetadataMapper._set_series_info(md, resp)
+
+    assert [n.name for n in md.series.alternative_names] == [
+        "Alt Name One",
+        "Alt Name Two",
+    ]
+
+
+def test_metadata_mapper_set_series_info_without_alt_names():
+    """Test setting series info when no alternate names are present."""
+    resp = create_mock_issue_response(alt_names=[])
+    md = Metadata()
+    MetadataMapper._set_series_info(md, resp)
+
+    assert md.series.alternative_names == []
 
 
 def test_metadata_mapper_convert_gtin_to_int_valid():

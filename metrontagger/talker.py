@@ -31,6 +31,7 @@ from darkseid.issue_string import IssueString
 from darkseid.metadata import (
     GTIN,
     AgeRatings,
+    AlternativeNames,
     Arc,
     Basic,
     Credit,
@@ -455,8 +456,9 @@ class MetadataMapper:
     def _set_series_info(md: Metadata, resp: Issue) -> None:
         """Set series information for metadata."""
         md.series = Series(
-            name=resp.series.name,
             id_=resp.series.id,
+            name=resp.series.name,
+            alternative_names=[AlternativeNames(name=n) for n in resp.series.alt_names],
             sort_name=resp.series.sort_name,
             volume=resp.series.volume,
             format=resp.series.series_type.name,
