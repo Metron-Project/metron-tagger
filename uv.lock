@@ -817,7 +817,7 @@ requires-dist = [
     { name = "comicfn2dict", specifier = ">=0.3.1" },
     { name = "darkseid", specifier = ">=8.4.0" },
     { name = "imagehash", specifier = ">=4.3.2" },
-    { name = "mokkari", specifier = ">=4.3.0" },
+    { name = "mokkari", specifier = ">=4.4.0" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "py7zr", marker = "extra == '7zip'", specifier = ">=1.0.0" },
     { name = "pymupdf", marker = "extra == 'pdf'", specifier = ">=1.26.6" },
@@ -850,15 +850,15 @@ test = [
 
 [[package]]
 name = "mokkari"
-version = "4.3.0"
+version = "4.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/56/f5/b61a9ea4a145cb9b4a52906332ed6817dd46e744024fdd5115c251ff0f68/mokkari-4.3.0.tar.gz", hash = "sha256:339e664f0b250c98eadecaeced698ad812ba702c90a55687e6df2a80ee6c9672", size = 78743, upload-time = "2026-07-25T12:16:27.065Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e7/82/9bbbb7951a881ad7ac6f9442c73d240c232a7533696123b635e2cd93926d/mokkari-4.4.0.tar.gz", hash = "sha256:f3454f2eb54eb7029143877e9f1b4602c94e9e6ec63f75aec3785f393a84c6d5", size = 79632, upload-time = "2026-07-28T11:49:52.111Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/03/db/a20299019eef6a77c77520f83bb3ae6d53fd852c48f5ade97fee2a7cd77e/mokkari-4.3.0-py3-none-any.whl", hash = "sha256:7a3b75844a4668e5524305353ebc11df2c9bc5a63b497013603e1098de89d2f3", size = 59257, upload-time = "2026-07-25T12:16:25.996Z" },
+    { url = "https://files.pythonhosted.org/packages/16/3a/5edb310abe19998ff6b83491ca8582fd121b5cba8fc56410e237dcdbfbea/mokkari-4.4.0-py3-none-any.whl", hash = "sha256:da2cefedd46ebc473ae2a6109c8ef4173196d7af424dcb6dfe4de1601e21384c", size = 59712, upload-time = "2026-07-28T11:49:51.062Z" },
 ]
 
 [[package]]
