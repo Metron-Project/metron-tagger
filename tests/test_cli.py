@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -6,47 +6,128 @@ from metrontagger.cli import _metron_credentials, _set_sort_directory
 from metrontagger.settings import MetronTaggerSettings
 
 
-@pytest.mark.parametrize(
-    ("username", "password", "expected_username", "expected_password"),
-    [("existing_username", "existing_password", "existing_username", "existing_password")],
-    ids=["happy_path_both_set"],
-)
+class MockQuestionary:
+    def __init__(self, question: any, answers: any) -> None:
+        self.question = question
+        self.answers = answers
+
+    def ask(self) -> any:
+        return self.answers[self.question]
+
+
 @patch("questionary.text")
-@patch("metrontagger.cli.LOGGER")
-def test__metron_credentials_happy_path(
-    mock_logger: any,
-    mock_questionary: any,
-    username: str,
-    password: str,
-    expected_username: str,
-    expected_password: str,
+def test__metron_credentials_existing_token_skips_prompts(
+    mock_text: MagicMock, settings: MetronTaggerSettings
+) -> None:
+    """An existing API token means no prompts are shown at all."""
+    settings["metron.auth_token"] = "existing-token"  # noqa: S105
+
+    _metron_credentials(settings)
+
+    mock_text.assert_not_called()
+    assert settings["metron.auth_token"] == "existing-token"  # noqa: S105
+
+
+@patch("questionary.confirm")
+@patch("questionary.print")
+def test__metron_credentials_offers_migration_for_existing_user_pass(
+    mock_print: MagicMock,
+    mock_confirm: MagicMock,
     settings: MetronTaggerSettings,
 ) -> None:
-    # Arrange
+    """Existing username/password users are offered a one-time token migration."""
+    settings["metron.user"] = "existing_username"
+    settings["metron.password"] = "existing_password"
 
-    if username:
-        settings["metron.username"] = username
-    if password:
-        settings["metron.password"] = password
+    mock_confirm.return_value.ask.return_value = True
+    with patch("questionary.text") as mock_text:
+        mock_text.return_value.ask.return_value = "new-token"
+        _metron_credentials(settings)
 
-    mock_questionary.side_effect = lambda question: MockQuestionary(
+    assert settings["metron.auth_token"] == "new-token"  # noqa: S105
+    assert not settings["metron.user"]
+    assert not settings["metron.password"]
+    assert settings["metron.token_migration_prompted"] is True
+    mock_print.assert_called_once()
+
+
+@patch("questionary.confirm")
+@patch("questionary.print")
+def test__metron_credentials_migration_declined_keeps_user_pass(
+    mock_print: MagicMock,
+    mock_confirm: MagicMock,
+    settings: MetronTaggerSettings,
+) -> None:
+    """Declining the migration offer keeps the existing username/password."""
+    settings["metron.user"] = "existing_username"
+    settings["metron.password"] = "existing_password"
+
+    mock_confirm.return_value.ask.return_value = False
+
+    _metron_credentials(settings)
+
+    assert settings["metron.user"] == "existing_username"
+    assert settings["metron.password"] == "existing_password"
+    assert not settings["metron.auth_token"]
+    # Should not be asked again on subsequent runs.
+    assert settings["metron.token_migration_prompted"] is True
+    mock_print.assert_called_once()
+
+
+@patch("questionary.confirm")
+@patch("questionary.print")
+def test__metron_credentials_migration_not_offered_twice(
+    mock_print: MagicMock,
+    mock_confirm: MagicMock,
+    settings: MetronTaggerSettings,
+) -> None:
+    """Once the migration has been offered, it isn't offered again."""
+    settings["metron.user"] = "existing_username"
+    settings["metron.password"] = "existing_password"
+    settings["metron.token_migration_prompted"] = True
+
+    _metron_credentials(settings)
+
+    mock_confirm.assert_not_called()
+    mock_print.assert_not_called()
+
+
+@patch("questionary.confirm")
+def test__metron_credentials_no_creds_chooses_token(
+    mock_confirm: MagicMock, settings: MetronTaggerSettings
+) -> None:
+    """With no credentials configured, choosing token auth prompts for a token."""
+    mock_confirm.return_value.ask.return_value = True
+
+    with patch("questionary.text") as mock_text:
+        mock_text.return_value.ask.return_value = "brand-new-token"
+        _metron_credentials(settings)
+
+    assert settings["metron.auth_token"] == "brand-new-token"  # noqa: S105
+    assert not settings["metron.user"]
+    assert not settings["metron.password"]
+
+
+@patch("questionary.confirm")
+def test__metron_credentials_no_creds_chooses_user_pass(
+    mock_confirm: MagicMock, settings: MetronTaggerSettings
+) -> None:
+    """With no credentials configured, declining token auth prompts for username/password."""
+    mock_confirm.return_value.ask.return_value = False
+
+    mock_questionary = lambda question: MockQuestionary(  # noqa: E731
         question,
         {
             "What is your Metron username?": "test_username",
             "What is your Metron password?": "test_password",
         },
     )
+    with patch("questionary.text", side_effect=mock_questionary):
+        _metron_credentials(settings)
 
-    # Act
-    _metron_credentials(settings)
-
-    # Assert
-    assert settings["metron.username"] == expected_username
-    assert settings["metron.password"] == expected_password
-    if username is None:
-        mock_logger.info.assert_any_call("Added Metron username")
-    if password is None:
-        mock_logger.info.assert_any_call("Added Metron password")
+    assert settings["metron.user"] == "test_username"
+    assert settings["metron.password"] == "test_password"
+    assert not settings["metron.auth_token"]
 
 
 @pytest.mark.parametrize(
@@ -80,12 +161,3 @@ def test__set_sort_directory(
 
     # Assert
     assert settings["sort.directory"] == expected_sort_dir
-
-
-class MockQuestionary:
-    def __init__(self, question: any, answers: any) -> None:
-        self.question = question
-        self.answers = answers
-
-    def ask(self) -> any:
-        return self.answers[self.question]
