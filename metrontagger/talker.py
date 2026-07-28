@@ -565,10 +565,23 @@ class Talker:
     """
 
     def __init__(
-        self, username: str, password: str, metron_info: bool, comic_info: bool
+        self,
+        username: str | None,
+        password: str | None,
+        metron_info: bool,
+        comic_info: bool,
+        api_token: str | None = None,
     ) -> None:
-        """Initialize the Talker class with API credentials."""
-        self.api = mokkari.api(username, password, user_agent=f"Metron-Tagger/{__version__}")
+        """Initialize the Talker class with API credentials.
+
+        An `api_token` takes precedence over `username`/`password` when both are provided.
+        """
+        self.api = mokkari.api(
+            username,
+            password,
+            user_agent=f"Metron-Tagger/{__version__}",
+            api_token=api_token,
+        )
         self.metron_info = metron_info
         self.comic_info = comic_info
         self.match_results = OnlineMatchResults()
@@ -611,7 +624,7 @@ class Talker:
         if status_code == HTTPStatus.UNAUTHORIZED:
             msg = (
                 "Metron authentication failed (HTTP 401). Check your username and "
-                "password. Stopping further processing."
+                "password, or your API token. Stopping further processing."
             )
         else:
             msg = f"Metron rejected the request (HTTP 400): {error}. Stopping further processing."

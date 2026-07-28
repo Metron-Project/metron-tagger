@@ -756,6 +756,7 @@ class Runner:
                 self.config["metron.password"],
                 self.args.metroninfo,
                 self.args.comicinfo,
+                api_token=self.config["metron.auth_token"] or None,
             )
             if self.args.id and len(file_list) == 1:
                 # Single file with --id: interpret as issue ID

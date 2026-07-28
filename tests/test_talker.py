@@ -11,6 +11,7 @@ from darkseid.comic import Comic
 from darkseid.metadata import Basic, Metadata, Notes
 from mokkari.exceptions import ApiError, RateLimitError
 
+from metrontagger import __version__
 from metrontagger.talker import (
     CoverHashMatcher,
     InfoSource,
@@ -564,7 +565,19 @@ def test_talker_initialization():
         assert talker.metron_info is True
         assert talker.comic_info is False
         assert isinstance(talker.match_results, OnlineMatchResults)
-        mock_api_func.assert_called_once()
+        mock_api_func.assert_called_once_with(
+            "user", "pass", user_agent=f"Metron-Tagger/{__version__}", api_token=None
+        )
+
+
+def test_talker_initialization_with_api_token():
+    """Test Talker initialization passes an API token through to mokkari."""
+    token = "my-token"  # noqa: S105
+    with patch("metrontagger.talker.mokkari.api") as mock_api_func:
+        Talker(None, None, metron_info=True, comic_info=False, api_token=token)
+        mock_api_func.assert_called_once_with(
+            None, None, user_agent=f"Metron-Tagger/{__version__}", api_token=token
+        )
 
 
 def test_talker_create_choice_list():

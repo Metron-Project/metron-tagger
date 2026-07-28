@@ -24,7 +24,12 @@ class MetronTaggerSettings:
 
     # Default configuration values
     DEFAULT_CONFIG: ClassVar[dict[str, dict[str, str] | dict[str, int | bool | str]]] = {
-        "metron": {"user": "", "password": ""},
+        "metron": {
+            "user": "",
+            "password": "",
+            "auth_token": "",
+            "token_migration_prompted": False,
+        },
         "rename": {
             "rename_issue_number_padding": 3,
             "rename_use_smart_string_cleanup": True,
@@ -37,7 +42,12 @@ class MetronTaggerSettings:
     TYPE_MAPPING: ClassVar[
         dict[str, dict[str, type[str]] | dict[str, type[int | bool | str]]]
     ] = {
-        "metron": {"user": str, "password": str},
+        "metron": {
+            "user": str,
+            "password": str,
+            "auth_token": str,
+            "token_migration_prompted": bool,
+        },
         "rename": {
             "rename_issue_number_padding": int,
             "rename_use_smart_string_cleanup": bool,
