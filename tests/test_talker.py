@@ -1,5 +1,6 @@
 """Tests for the Talker class and its helper classes."""
 
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -8,7 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 from darkseid.comic import Comic
-from darkseid.metadata import Basic, Metadata, Notes
+from darkseid.metadata import Basic, Metadata, MetronInfo, Notes
 from mokkari.exceptions import ApiError, RateLimitError
 
 from metrontagger import __version__
@@ -91,6 +92,7 @@ def create_mock_issue_response(
     rating_count=8,
     alt_number=None,
     alt_names=None,
+    language="en",
 ):
     """Create a mock Issue response object."""
 
@@ -126,6 +128,7 @@ def create_mock_issue_response(
     issue.series.series_type = Mock()
     issue.series.series_type.name = "Regular"
     issue.series.year_began = 2023
+    issue.series.language = language
     issue.series.genres = [Mock(name="Action", id=1)]
 
     # Publisher mock
@@ -469,6 +472,24 @@ def test_metadata_mapper_set_series_info_without_alt_names():
     assert md.series.alternative_names == []
 
 
+def test_metadata_mapper_set_series_info_with_language():
+    """Test setting series info maps the series language."""
+    resp = create_mock_issue_response(language="en")
+    md = Metadata()
+    MetadataMapper._set_series_info(md, resp)
+
+    assert md.series.language == "en"
+
+
+def test_metadata_mapper_set_series_info_without_language():
+    """Test setting series info when no language is present."""
+    resp = create_mock_issue_response(language=None)
+    md = Metadata()
+    MetadataMapper._set_series_info(md, resp)
+
+    assert md.series.language is None
+
+
 def test_metadata_mapper_convert_gtin_to_int_valid():
     """Test converting valid GTIN string to int."""
     result = MetadataMapper._convert_gtin_to_int("9781234567890")
@@ -555,6 +576,36 @@ def test_metadata_mapper_map_response_to_metadata_with_gtin():
     assert result.gtin is not None
     assert result.gtin.isbn == 9781234567890
     assert result.gtin.upc == 12345678901
+
+
+def test_metadata_mapper_series_language_written_to_metron_info_xml():
+    """Test that the series language mapped from a response ends up as the
+    Series element's ``lang`` attribute when writing MetronInfo.xml."""
+    resp = create_mock_issue_response(language="en")
+    md = Metadata()
+    MetadataMapper._set_series_info(md, resp)
+
+    xml_string = MetronInfo().string_from_metadata(md)
+    root = ET.fromstring(xml_string)  # noqa: S314
+
+    series_node = root.find("Series")
+    assert series_node is not None
+    assert series_node.get("lang") == "en"
+
+
+def test_metadata_mapper_series_without_language_omits_lang_attribute():
+    """Test that a missing series language leaves the ``lang`` attribute unset
+    when writing MetronInfo.xml."""
+    resp = create_mock_issue_response(language=None)
+    md = Metadata()
+    MetadataMapper._set_series_info(md, resp)
+
+    xml_string = MetronInfo().string_from_metadata(md)
+    root = ET.fromstring(xml_string)  # noqa: S314
+
+    series_node = root.find("Series")
+    assert series_node is not None
+    assert series_node.get("lang") is None
 
 
 # Talker class tests

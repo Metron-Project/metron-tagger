@@ -463,6 +463,7 @@ class MetadataMapper:
             volume=resp.series.volume,
             format=resp.series.series_type.name,
             start_year=resp.series.year_began,
+            language=resp.series.language,
         )
 
     @classmethod
