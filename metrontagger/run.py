@@ -751,18 +751,18 @@ class Runner:
             if self._no_md_fmt_set():
                 sys.exit(0)
 
-            t = Talker(
+            with Talker(
                 self.config["metron.user"],
                 self.config["metron.password"],
                 self.args.metroninfo,
                 self.args.comicinfo,
                 api_token=self.config["metron.auth_token"] or None,
-            )
-            if self.args.id and len(file_list) == 1:
-                # Single file with --id: interpret as issue ID
-                t.retrieve_single_issue(self.args.id, file_list[0])
-            else:
-                t.identify_comics(self.args, file_list)
+            ) as t:
+                if self.args.id and len(file_list) == 1:
+                    # Single file with --id: interpret as issue ID
+                    t.retrieve_single_issue(self.args.id, file_list[0])
+                else:
+                    t.identify_comics(self.args, file_list)
 
         if self.args.migrate:
             self.migrate_ci_to_mi(file_list)

@@ -925,7 +925,7 @@ requires-dist = [
     { name = "comicfn2dict", specifier = ">=0.3.1" },
     { name = "darkseid", specifier = ">=8.4.0" },
     { name = "imagehash", specifier = ">=4.3.2" },
-    { name = "mokkari", specifier = ">=4.6.0" },
+    { name = "mokkari", specifier = ">=4.8.0" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "py7zr", marker = "extra == '7zip'", specifier = ">=1.0.0" },
     { name = "pymupdf", marker = "extra == 'pdf'", specifier = ">=1.26.6" },
