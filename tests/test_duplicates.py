@@ -8,7 +8,8 @@ from unittest.mock import Mock, patch
 import pandas as pd
 import pytest
 from darkseid.comic import ComicArchiveError
-from PIL import Image
+from imagehash import average_hash, hex_to_hash
+from PIL import Image, JpegImagePlugin
 
 from metrontagger.duplicates import DuplicateIssue, Duplicates
 
@@ -116,6 +117,39 @@ def test_calculate_image_hash_success(mock_image_data):
         mock_hash.return_value = "test_hash_value"
         result = Duplicates._calculate_image_hash(mock_image_data)
         assert result == "test_hash_value"
+
+
+def _jpeg_bytes(size=(800, 1200)):
+    """Create JPEG data for a smooth gradient page."""
+    img = Image.linear_gradient("L").resize(size).convert("RGB")
+    buffer = io.BytesIO()
+    img.save(buffer, format="JPEG")
+    return buffer.getvalue()
+
+
+def test_calculate_image_hash_jpeg_uses_draft_mode():
+    """Test that JPEGs are decoded at reduced size and still hash like a full decode."""
+    data = _jpeg_bytes()
+    with patch.object(
+        JpegImagePlugin.JpegImageFile,
+        "draft",
+        autospec=True,
+        side_effect=JpegImagePlugin.JpegImageFile.draft,
+    ) as draft:
+        result = Duplicates._calculate_image_hash(data)
+
+    draft.assert_called_once()
+    with Image.open(io.BytesIO(data)) as img:
+        full_hash = average_hash(img)
+    assert result is not None
+    assert abs(hex_to_hash(result) - full_hash) <= 2
+
+
+def test_calculate_image_hash_png_unaffected_by_draft(mock_image_data):
+    """Test that non-JPEG images hash exactly as they did without draft mode."""
+    with Image.open(io.BytesIO(mock_image_data)) as img:
+        expected = str(average_hash(img))
+    assert Duplicates._calculate_image_hash(mock_image_data) == expected
 
 
 def test_calculate_image_hash_invalid_image():

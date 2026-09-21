@@ -40,6 +40,8 @@ KB_SIZE = 1024
 ROUND_TO_TENTH_PLACE = 10
 ROUND_TO_HUNDREDTH_PLACE = 100
 DEFAULT_MAX_WORKERS = 8
+# average_hash shrinks pages to 8x8, so JPEGs can be decoded at a much smaller scale.
+HASH_DRAFT_SIZE = (64, 64)
 # Formats whose pages can't be removed, so scanning them for duplicates is pointless.
 UNSUPPORTED_SUFFIXES = frozenset({CBR, PDF})
 
@@ -389,6 +391,8 @@ class Duplicates:
         """
         try:
             with Image.open(io.BytesIO(page_data)) as img:
+                # Ask the JPEG decoder for a reduced-size grayscale image; a no-op for other formats.
+                img.draft("L", HASH_DRAFT_SIZE)
                 return str(average_hash(img))
         except (UnidentifiedImageError, OSError) as e:
             LOGGER.debug("Unable to calculate hash for image: %s", e)
