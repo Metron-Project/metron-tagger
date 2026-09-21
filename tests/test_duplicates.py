@@ -1,12 +1,15 @@
 """Tests for the duplicates module."""
 
 import io
+import time
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
-from PIL import Image
+from darkseid.comic import ComicArchiveError
+from imagehash import average_hash, hex_to_hash
+from PIL import Image, JpegImagePlugin
 
 from metrontagger.duplicates import DuplicateIssue, Duplicates
 
@@ -114,6 +117,39 @@ def test_calculate_image_hash_success(mock_image_data):
         mock_hash.return_value = "test_hash_value"
         result = Duplicates._calculate_image_hash(mock_image_data)
         assert result == "test_hash_value"
+
+
+def _jpeg_bytes(size=(800, 1200)):
+    """Create JPEG data for a smooth gradient page."""
+    img = Image.linear_gradient("L").resize(size).convert("RGB")
+    buffer = io.BytesIO()
+    img.save(buffer, format="JPEG")
+    return buffer.getvalue()
+
+
+def test_calculate_image_hash_jpeg_uses_draft_mode():
+    """Test that JPEGs are decoded at reduced size and still hash like a full decode."""
+    data = _jpeg_bytes()
+    with patch.object(
+        JpegImagePlugin.JpegImageFile,
+        "draft",
+        autospec=True,
+        side_effect=JpegImagePlugin.JpegImageFile.draft,
+    ) as draft:
+        result = Duplicates._calculate_image_hash(data)
+
+    draft.assert_called_once()
+    with Image.open(io.BytesIO(data)) as img:
+        full_hash = average_hash(img)
+    assert result is not None
+    assert abs(hex_to_hash(result) - full_hash) <= 2
+
+
+def test_calculate_image_hash_png_unaffected_by_draft(mock_image_data):
+    """Test that non-JPEG images hash exactly as they did without draft mode."""
+    with Image.open(io.BytesIO(mock_image_data)) as img:
+        expected = str(average_hash(img))
+    assert Duplicates._calculate_image_hash(mock_image_data) == expected
 
 
 def test_calculate_image_hash_invalid_image():
@@ -652,3 +688,104 @@ def test_duplicates_init_quick_flag(sample_files):
 
     duplicates_quick = Duplicates(sample_files, quick=True)
     assert duplicates_quick._quick is True
+
+
+# Threaded scan tests
+def _fake_comic(path, *, writable=True, pages=2):
+    comic = Mock()
+    comic.path = Path(path)
+    comic.is_writable.return_value = writable
+    comic.get_number_of_pages.return_value = pages
+    comic.get_page.return_value = b"image_data"
+    return comic
+
+
+def test_duplicates_init_invalid_max_workers(sample_files):
+    """Test that a max_workers below 1 is rejected."""
+    with pytest.raises(ValueError, match="max_workers"):
+        Duplicates(sample_files, max_workers=0)
+
+
+def test_duplicates_init_max_workers_capped(sample_files):
+    """Test that the worker count never exceeds the number of files."""
+    assert Duplicates(sample_files, max_workers=50)._max_workers == len(sample_files)
+    assert Duplicates([Path("a.cbz")])._max_workers == 1
+
+
+@patch("metrontagger.duplicates.Comic")
+def test_generate_page_hashes_preserves_file_order(mock_comic_class, sample_files):
+    """Test that results follow the file list order even if later comics finish first."""
+    delays = {"comic1.cbz": 0.15, "comic2.cbz": 0.05, "comic3.cbz": 0.0}
+
+    def make_comic(path):
+        time.sleep(delays[Path(path).name])
+        return _fake_comic(path)
+
+    mock_comic_class.side_effect = make_comic
+    duplicates = Duplicates(sample_files, max_workers=3)
+
+    with (
+        patch.object(duplicates, "_calculate_image_hash", return_value="hash123"),
+        patch("metrontagger.duplicates.tqdm", side_effect=lambda x, **kwargs: x),
+    ):
+        rows = list(duplicates._generate_page_hashes())
+
+    assert [Path(r["path"]).name for r in rows] == [f.name for f in sample_files]
+
+
+@patch("metrontagger.duplicates.Comic")
+def test_generate_page_hashes_skips_bad_comics(mock_comic_class):
+    """Test that invalid and read-only comics are skipped without affecting the rest."""
+    files = [Path("bad.cbz"), Path("readonly.cbz"), Path("good.cbz")]
+
+    def make_comic(path):
+        name = Path(path).name
+        if name == "bad.cbz":
+            raise ComicArchiveError
+        return _fake_comic(path, writable=name != "readonly.cbz")
+
+    mock_comic_class.side_effect = make_comic
+    duplicates = Duplicates(files, max_workers=3)
+
+    with (
+        patch.object(duplicates, "_calculate_image_hash", return_value="hash123"),
+        patch("metrontagger.duplicates.tqdm", side_effect=lambda x, **kwargs: x),
+    ):
+        rows = list(duplicates._generate_page_hashes())
+
+    assert [Path(r["path"]).name for r in rows] == ["good.cbz"]
+
+
+@pytest.mark.parametrize("name", ["issue.PDF", "issue.cbr"])
+@patch("metrontagger.duplicates.Comic")
+def test_generate_page_hashes_skips_unsupported_formats(mock_comic_class, name):
+    """Test that PDFs and RARs are never opened, since their pages can't be removed."""
+    files = [Path(name), Path("issue.cbz")]
+    mock_comic_class.side_effect = _fake_comic
+    duplicates = Duplicates(files, max_workers=2)
+
+    with (
+        patch.object(duplicates, "_calculate_image_hash", return_value="hash123"),
+        patch("metrontagger.duplicates.tqdm", side_effect=lambda x, **kwargs: x),
+    ):
+        rows = list(duplicates._generate_page_hashes())
+
+    assert [Path(r["path"]).name for r in rows] == ["issue.cbz"]
+    mock_comic_class.assert_called_once_with(Path("issue.cbz"))
+
+
+@patch("metrontagger.duplicates.Comic")
+def test_generate_page_hashes_single_worker_is_serial(mock_comic_class, sample_files):
+    """Test that max_workers=1 scans without creating a thread pool."""
+    mock_comic_class.side_effect = _fake_comic
+    duplicates = Duplicates(sample_files, max_workers=1)
+
+    with (
+        patch("metrontagger.duplicates.ThreadPoolExecutor") as mock_executor,
+        patch.object(duplicates, "_calculate_image_hash", return_value="hash123"),
+        patch("metrontagger.duplicates.tqdm", side_effect=lambda x, **kwargs: x),
+    ):
+        rows = list(duplicates._generate_page_hashes())
+
+    mock_executor.assert_not_called()
+    assert len(rows) == len(sample_files)

@@ -6,8 +6,10 @@ from __future__ import annotations
 __all__ = ["DuplicateIssue", "Duplicates"]
 
 import io
+import os
 import warnings
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
@@ -16,6 +18,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import questionary
 from darkseid.comic import Comic, ComicArchiveError
+from darkseid.constants import CBR, PDF
 from imagehash import average_hash
 from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
@@ -23,7 +26,7 @@ from tqdm import tqdm
 from metrontagger.styles import Styles
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import Generator, Iterable
 
 
 LOGGER = getLogger(__name__)
@@ -36,6 +39,11 @@ warnings.filterwarnings(
 KB_SIZE = 1024
 ROUND_TO_TENTH_PLACE = 10
 ROUND_TO_HUNDREDTH_PLACE = 100
+DEFAULT_MAX_WORKERS = 8
+# average_hash shrinks pages to 8x8, so JPEGs can be decoded at a much smaller scale.
+HASH_DRAFT_SIZE = (64, 64)
+# Formats whose pages can't be removed, so scanning them for duplicates is pointless.
+UNSUPPORTED_SUFFIXES = frozenset({CBR, PDF})
 
 """Enhanced DuplicateIssue class with file size tracking."""
 
@@ -216,7 +224,13 @@ class Duplicates:
         None
     """
 
-    def __init__(self, file_lst: list[Path], *, quick: bool = False) -> None:
+    def __init__(
+        self,
+        file_lst: list[Path],
+        *,
+        quick: bool = False,
+        max_workers: int | None = None,
+    ) -> None:
         """Initialize the Duplicates class with a list of file paths.
 
         This method sets the list of file paths and initializes the data frame to None.
@@ -225,6 +239,8 @@ class Duplicates:
             file_lst: list[Path]: A list of file paths to be processed.
             quick: bool: If True, only scan the first 3 interior pages and last 3 pages
                 of each comic (skipping the cover at page 0).
+            max_workers: int | None: Maximum number of comics to scan concurrently. Defaults
+                to the CPU count (capped at 8). A value of 1 scans serially.
 
         Returns:
             None
@@ -232,9 +248,16 @@ class Duplicates:
         if not file_lst:
             msg = "File list cannot be empty"
             raise ValueError(msg)
+        if max_workers is not None and max_workers < 1:
+            msg = "max_workers must be at least 1"
+            raise ValueError(msg)
+
+        if max_workers is None:
+            max_workers = min(DEFAULT_MAX_WORKERS, os.cpu_count() or 1)
 
         self._file_lst = file_lst
         self._quick = quick
+        self._max_workers = min(max_workers, len(file_lst))
         self._data_frame: pd.DataFrame | None = None
         self._hash_cache: dict[str, list[dict[str, str | int]]] = defaultdict(list)
 
@@ -252,22 +275,57 @@ class Duplicates:
     def _generate_page_hashes(self) -> Generator[dict[str, str | int], None, None]:
         """Generator to yield page hash information for each comic page.
 
+        Comics are scanned concurrently, one comic per worker thread, with results yielded in
+        the same order as the file list.
+
         Yields:
             dict[str, str | int]: Dictionary containing file path, page index, and page hash.
         """
         questionary.print("Getting page hashes.", style=Styles.INFO)
-        for item in tqdm(self._file_lst, desc="Processing comics"):
-            try:
-                comic = Comic(item)
-            except ComicArchiveError:
-                LOGGER.exception("Comic not valid: '%s'", str(item))
-                continue
+        if self._max_workers == 1:
+            yield from self._collect_hashes(map(self._hash_comic, self._file_lst))
+            return
 
-            if not comic.is_writable():
-                LOGGER.warning("Comic %s is not writable, skipping", comic)
-                continue
+        executor = ThreadPoolExecutor(max_workers=self._max_workers)
+        try:
+            yield from self._collect_hashes(executor.map(self._hash_comic, self._file_lst))
+        finally:
+            # Drop queued comics if we're interrupted (e.g. Ctrl-C) or the consumer stops early.
+            executor.shutdown(wait=False, cancel_futures=True)
 
-            yield from self._process_comic_pages(comic)
+    def _collect_hashes(
+        self, results: Iterable[list[dict[str, str | int]]]
+    ) -> Generator[dict[str, str | int], None, None]:
+        """Yield page hashes from per-comic results, showing scan progress."""
+        for page_hashes in tqdm(results, total=len(self._file_lst), desc="Processing comics"):
+            yield from page_hashes
+
+    def _hash_comic(self, item: Path) -> list[dict[str, str | int]]:
+        """Hash the pages of a single comic.
+
+        Each call opens its own Comic, so it is safe to run from multiple threads.
+
+        Args:
+            item: Path: The comic archive to scan.
+
+        Returns:
+            list[dict[str, str | int]]: Page hash information, empty if the comic was skipped.
+        """
+        if item.suffix.lower() in UNSUPPORTED_SUFFIXES:
+            LOGGER.info("Skipping %s, pages can't be removed: '%s'", item.suffix.lower(), item)
+            return []
+
+        try:
+            comic = Comic(item)
+        except ComicArchiveError:
+            LOGGER.exception("Comic not valid: '%s'", str(item))
+            return []
+
+        if not comic.is_writable():
+            LOGGER.warning("Comic %s is not writable, skipping", comic)
+            return []
+
+        return list(self._process_comic_pages(comic))
 
     def _get_page_indices(self, num_pages: int) -> list[int]:
         """Get page indices to process based on the scanning mode.
@@ -333,6 +391,8 @@ class Duplicates:
         """
         try:
             with Image.open(io.BytesIO(page_data)) as img:
+                # Ask the JPEG decoder for a reduced-size grayscale image; a no-op for other formats.
+                img.draft("L", HASH_DRAFT_SIZE)
                 return str(average_hash(img))
         except (UnidentifiedImageError, OSError) as e:
             LOGGER.debug("Unable to calculate hash for image: %s", e)
