@@ -631,6 +631,27 @@ def test_talker_initialization_with_api_token():
         )
 
 
+def test_talker_close_closes_api_session(talker, mock_api):
+    """Test close() releases the API session's pooled connections."""
+    talker.close()
+    mock_api.close.assert_called_once_with()
+
+
+def test_talker_context_manager_closes_api_session(talker, mock_api):
+    """Test using Talker as a context manager closes the API session on exit."""
+    with talker as t:
+        assert t is talker
+        mock_api.close.assert_not_called()
+    mock_api.close.assert_called_once_with()
+
+
+def test_talker_context_manager_closes_api_session_on_error(talker, mock_api):
+    """Test the API session is closed even when the body raises."""
+    with pytest.raises(RuntimeError), talker:
+        raise RuntimeError
+    mock_api.close.assert_called_once_with()
+
+
 def test_talker_create_choice_list():
     """Test creating choice list from matches."""
     matches = [create_mock_base_issue()]

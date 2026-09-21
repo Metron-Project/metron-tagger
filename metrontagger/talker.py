@@ -592,6 +592,18 @@ class Talker:
         self.ui = UIPresenter()
         self._stop_processing = False
 
+    def close(self) -> None:
+        """Close the pooled HTTP connections held by the Metron API session."""
+        self.api.close()
+
+    def __enter__(self) -> Talker:  # noqa: PYI034 - py310 has no typing.Self
+        """Enter the context manager, returning this Talker."""
+        return self
+
+    def __exit__(self, *_exc_info: object) -> None:
+        """Exit the context manager, closing pooled connections."""
+        self.close()
+
     @staticmethod
     def _get_http_status_code(error: ApiError) -> HTTPStatus | None:
         """Extract the underlying HTTP status code from an ApiError, if any.
