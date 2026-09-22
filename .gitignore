@@ -89,3 +89,7 @@ venv.bak/
 .vscode/
 .webassets-cache
 wheels/
+
+# Ignore any AI agents or temporary files created by AI tools
+*.agent
+CLAUDE.md
