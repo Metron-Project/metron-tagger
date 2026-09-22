@@ -18,7 +18,6 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import questionary
 from darkseid.comic import Comic, ComicArchiveError
-from darkseid.constants import CBR, PDF
 from imagehash import average_hash
 from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
@@ -42,8 +41,6 @@ ROUND_TO_HUNDREDTH_PLACE = 100
 DEFAULT_MAX_WORKERS = 8
 # average_hash shrinks pages to 8x8, so JPEGs can be decoded at a much smaller scale.
 HASH_DRAFT_SIZE = (64, 64)
-# Formats whose pages can't be removed, so scanning them for duplicates is pointless.
-UNSUPPORTED_SUFFIXES = frozenset({CBR, PDF})
 
 """Enhanced DuplicateIssue class with file size tracking."""
 
@@ -311,18 +308,14 @@ class Duplicates:
         Returns:
             list[dict[str, str | int]]: Page hash information, empty if the comic was skipped.
         """
-        if item.suffix.lower() in UNSUPPORTED_SUFFIXES:
-            LOGGER.info("Skipping %s, pages can't be removed: '%s'", item.suffix.lower(), item)
-            return []
-
         try:
             comic = Comic(item)
         except ComicArchiveError:
             LOGGER.exception("Comic not valid: '%s'", str(item))
             return []
 
-        if not comic.is_writable():
-            LOGGER.warning("Comic %s is not writable, skipping", comic)
+        if not comic.can_remove_pages():
+            LOGGER.info("Skipping %s, pages can't be removed", comic)
             return []
 
         return list(self._process_comic_pages(comic))

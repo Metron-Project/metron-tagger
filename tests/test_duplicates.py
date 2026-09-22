@@ -39,6 +39,7 @@ def mock_comic():
     comic = Mock()
     comic.path = Path("test_comic.cbz")
     comic.is_writable.return_value = True
+    comic.can_remove_pages.return_value = True
     comic.get_number_of_pages.return_value = 3
     return comic
 
@@ -224,6 +225,7 @@ def test_build_dataframe_success(mock_comic_class, sample_files):
     mock_comic = Mock()
     mock_comic.path = Path("test.cbz")
     mock_comic.is_writable.return_value = True
+    mock_comic.can_remove_pages.return_value = True
     mock_comic.get_number_of_pages.return_value = 2
     mock_comic.get_page.return_value = b"image_data"
     mock_comic_class.return_value = mock_comic
@@ -248,6 +250,7 @@ def test_build_dataframe_no_valid_hashes(mock_comic_class, sample_files):
     """Test DataFrame building when no valid hashes are found."""
     mock_comic = Mock()
     mock_comic.is_writable.return_value = True
+    mock_comic.can_remove_pages.return_value = True
     mock_comic.get_number_of_pages.return_value = 1
     mock_comic.get_page.return_value = b"image_data"
     mock_comic_class.return_value = mock_comic
@@ -559,6 +562,7 @@ def test_full_duplicate_detection_workflow(mock_comic_class, mock_image_data):
     mock_comic = Mock()
     mock_comic.path = Path("test.cbz")
     mock_comic.is_writable.return_value = True
+    mock_comic.can_remove_pages.return_value = True
     mock_comic.get_number_of_pages.return_value = 2
     mock_comic.get_page.return_value = mock_image_data
     mock_comic_class.return_value = mock_comic
@@ -695,6 +699,7 @@ def _fake_comic(path, *, writable=True, pages=2):
     comic = Mock()
     comic.path = Path(path)
     comic.is_writable.return_value = writable
+    comic.can_remove_pages.return_value = writable
     comic.get_number_of_pages.return_value = pages
     comic.get_page.return_value = b"image_data"
     return comic
@@ -759,9 +764,13 @@ def test_generate_page_hashes_skips_bad_comics(mock_comic_class):
 @pytest.mark.parametrize("name", ["issue.PDF", "issue.cbr"])
 @patch("metrontagger.duplicates.Comic")
 def test_generate_page_hashes_skips_unsupported_formats(mock_comic_class, name):
-    """Test that PDFs and RARs are never opened, since their pages can't be removed."""
+    """Test that comics whose pages can't be removed (e.g. PDFs and RARs) are skipped."""
     files = [Path(name), Path("issue.cbz")]
-    mock_comic_class.side_effect = _fake_comic
+
+    def make_comic(path):
+        return _fake_comic(path, writable=Path(path).name == "issue.cbz")
+
+    mock_comic_class.side_effect = make_comic
     duplicates = Duplicates(files, max_workers=2)
 
     with (
@@ -771,7 +780,6 @@ def test_generate_page_hashes_skips_unsupported_formats(mock_comic_class, name):
         rows = list(duplicates._generate_page_hashes())
 
     assert [Path(r["path"]).name for r in rows] == ["issue.cbz"]
-    mock_comic_class.assert_called_once_with(Path("issue.cbz"))
 
 
 @patch("metrontagger.duplicates.Comic")
