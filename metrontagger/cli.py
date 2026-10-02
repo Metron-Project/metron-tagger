@@ -70,7 +70,7 @@ def _offer_token_migration(settings: MetronTaggerSettings) -> None:
 
     _prompt_for_token(settings)
     if settings["metron.auth_token"]:
-        settings.remove_option("metron.user")
+        # Keep the username: the Redis rate limiter is keyed by it.
         settings.remove_option("metron.password")
         LOGGER.info("Migrated Metron credentials to API token authentication")
 

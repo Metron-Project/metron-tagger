@@ -45,7 +45,8 @@ def test__metron_credentials_offers_migration_for_existing_user_pass(
         _metron_credentials(settings)
 
     assert settings["metron.auth_token"] == "new-token"  # noqa: S105
-    assert not settings["metron.user"]
+    # The username is kept since the Redis rate limiter is keyed by it.
+    assert settings["metron.user"] == "existing_username"
     assert not settings["metron.password"]
     assert settings["metron.token_migration_prompted"] is True
     mock_print.assert_called_once()
