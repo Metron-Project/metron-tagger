@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
+import redis
 import requests
 from darkseid.comic import Comic
 from darkseid.metadata import Basic, Metadata, MetronInfo, Notes
@@ -617,7 +618,11 @@ def test_talker_initialization():
         assert talker.comic_info is False
         assert isinstance(talker.match_results, OnlineMatchResults)
         mock_api_func.assert_called_once_with(
-            "user", "pass", user_agent=f"Metron-Tagger/{__version__}", api_token=None
+            "user",
+            "pass",
+            user_agent=f"Metron-Tagger/{__version__}",
+            api_token=None,
+            rate_limiter=None,
         )
 
 
@@ -627,8 +632,107 @@ def test_talker_initialization_with_api_token():
     with patch("metrontagger.talker.mokkari.api") as mock_api_func:
         Talker(None, None, metron_info=True, comic_info=False, api_token=token)
         mock_api_func.assert_called_once_with(
-            None, None, user_agent=f"Metron-Tagger/{__version__}", api_token=token
+            None,
+            None,
+            user_agent=f"Metron-Tagger/{__version__}",
+            api_token=token,
+            rate_limiter=None,
         )
+
+
+def test_talker_redis_account_uses_hashed_token():
+    """Test the Redis account name is derived from a hash of the token, not the token."""
+    token = "my-token"  # noqa: S105
+    account = Talker._redis_account("user", token)
+    assert account.startswith("token-")
+    assert token not in account
+    assert account == Talker._redis_account(None, token)
+
+
+def test_talker_redis_account_falls_back_to_username():
+    """Test the Redis account name is the username when no token is set."""
+    assert Talker._redis_account("user", None) == "user"
+
+
+def test_talker_redis_account_none_without_credentials():
+    """Test there's no Redis account name without a token or username."""
+    assert Talker._redis_account(None, None) is None
+    assert Talker._redis_account("", "") is None
+
+
+def test_talker_redis_account_matches_documented_format():
+    """Test the token-derived account name matches the format documented in the README."""
+    assert Talker._redis_account(None, "abc123") == "token-6ca13d52ca70c883"
+
+
+@patch("metrontagger.talker.UIPresenter.print_warning")
+def test_talker_with_redis_url_without_credentials_falls_back(mock_warning):
+    """Test Redis rate limiting is skipped when there's no account to key it by."""
+    with (
+        patch("redis.Redis.from_url") as mock_from_url,
+        patch("metrontagger.talker.mokkari.api") as mock_api_func,
+    ):
+        Talker(None, None, True, True, redis_url="redis://localhost:6379/0")
+        assert mock_api_func.call_args.kwargs["rate_limiter"] is None
+        mock_from_url.assert_not_called()
+    assert "API token or username" in mock_warning.call_args.args[0]
+
+
+def test_talker_with_redis_url_uses_redis_rate_limiter():
+    """Test a reachable Redis URL builds a RedisRateLimiter for the API session."""
+    mock_client = Mock()
+    with (
+        patch("redis.Redis.from_url", return_value=mock_client) as mock_from_url,
+        patch("mokkari.redis_rate_limit.RedisRateLimiter") as mock_limiter_cls,
+        patch("metrontagger.talker.mokkari.api") as mock_api_func,
+    ):
+        talker = Talker("user", "pass", True, True, redis_url="redis://localhost:6379/0")
+        mock_from_url.assert_called_once_with("redis://localhost:6379/0")
+        mock_client.ping.assert_called_once_with()
+        mock_limiter_cls.assert_called_once_with(mock_client, "user")
+        assert mock_api_func.call_args.kwargs["rate_limiter"] is mock_limiter_cls.return_value
+
+        talker.close()
+        mock_client.close.assert_called_once_with()
+
+
+@patch("metrontagger.talker.UIPresenter.print_warning")
+def test_talker_with_unreachable_redis_falls_back(mock_warning):
+    """Test an unreachable Redis server falls back to the default rate limiter."""
+    import redis  # noqa: PLC0415
+
+    mock_client = Mock()
+    mock_client.ping.side_effect = redis.ConnectionError("refused")
+    with (
+        patch("redis.Redis.from_url", return_value=mock_client),
+        patch("metrontagger.talker.mokkari.api") as mock_api_func,
+    ):
+        talker = Talker("user", "pass", True, True, redis_url="redis://localhost:1")
+        assert mock_api_func.call_args.kwargs["rate_limiter"] is None
+        mock_client.close.assert_called_once_with()
+        assert talker._redis_client is None
+    assert "Unable to connect to Redis" in mock_warning.call_args.args[0]
+
+
+@patch("metrontagger.talker.UIPresenter.print_warning")
+def test_talker_with_invalid_redis_url_falls_back(mock_warning):
+    """Test an invalid Redis URL falls back to the default rate limiter."""
+    with patch("metrontagger.talker.mokkari.api") as mock_api_func:
+        Talker("user", "pass", True, True, redis_url="bogus://nowhere")
+        assert mock_api_func.call_args.kwargs["rate_limiter"] is None
+    assert "Invalid Redis URL" in mock_warning.call_args.args[0]
+
+
+@patch("metrontagger.talker.UIPresenter.print_warning")
+def test_talker_without_redis_installed_falls_back(mock_warning):
+    """Test a missing redis package falls back to the default rate limiter."""
+    with (
+        patch.dict("sys.modules", {"redis": None}),
+        patch("metrontagger.talker.mokkari.api") as mock_api_func,
+    ):
+        Talker("user", "pass", True, True, redis_url="redis://localhost:6379/0")
+        assert mock_api_func.call_args.kwargs["rate_limiter"] is None
+    assert "metron-tagger[redis]" in mock_warning.call_args.args[0]
 
 
 def test_talker_close_closes_api_session(talker, mock_api):
@@ -1503,6 +1607,67 @@ def test_handle_api_call_rate_limit_zero_retry_after(talker):
     result = talker._handle_api_call(mock_call)
     assert result is None
     mock_call.assert_called_once()
+
+
+@patch("metrontagger.talker.UIPresenter.print_error")
+def test_handle_api_call_redis_error_stops_processing(mock_error, talker):
+    """Test a Redis rate limiter error stops further processing."""
+    talker._redis_errors = (redis.RedisError,)
+    mock_call = Mock(side_effect=redis.ConnectionError("refused"))
+
+    result = talker._handle_api_call(mock_call, "Failed to retrieve data")
+
+    assert result is None
+    assert talker._stop_processing is True
+    assert "Redis rate limiter error" in mock_error.call_args.args[0]
+
+
+def test_handle_api_call_redis_error_not_caught_without_redis(talker):
+    """Test Redis errors aren't swallowed when no Redis rate limiter is in use."""
+    mock_call = Mock(side_effect=redis.ConnectionError("refused"))
+
+    with pytest.raises(redis.ConnectionError):
+        talker._handle_api_call(mock_call)
+
+
+@patch("metrontagger.talker.UIPresenter.print_error")
+@patch("metrontagger.talker.time.sleep")
+def test_handle_api_call_redis_error_on_retry_stops_processing(mock_sleep, mock_error, talker):
+    """Test a Redis error raised while retrying after a rate limit stops processing."""
+    talker._redis_errors = (redis.RedisError,)
+    error = RateLimitError("Rate limit exceeded", retry_after=30)
+    mock_call = Mock(side_effect=[error, redis.ConnectionError("refused")])
+
+    result = talker._handle_api_call(mock_call)
+
+    assert result is None
+    assert talker._stop_processing is True
+    mock_sleep.assert_called_once_with(32)
+    assert "Redis rate limiter error" in mock_error.call_args.args[0]
+
+
+@patch("metrontagger.talker.UIPresenter.print_error")
+@patch("metrontagger.talker.time.sleep")
+def test_handle_api_call_redis_error_on_second_retry_stops_processing(
+    mock_sleep, mock_error, talker
+):
+    """Test a Redis error raised on the second short rate-limit retry stops processing."""
+    talker._redis_errors = (redis.RedisError,)
+    mock_call = Mock(
+        side_effect=[
+            RateLimitError("Rate limit exceeded", retry_after=30),
+            RateLimitError("Rate limit exceeded", retry_after=10),
+            redis.ConnectionError("refused"),
+        ]
+    )
+
+    result = talker._handle_api_call(mock_call)
+
+    assert result is None
+    assert talker._stop_processing is True
+    assert mock_call.call_count == 3
+    assert mock_sleep.call_count == 2
+    assert "Redis rate limiter error" in mock_error.call_args.args[0]
 
 
 @patch("metrontagger.talker.time.sleep")
