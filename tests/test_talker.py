@@ -15,6 +15,7 @@ from mokkari.exceptions import ApiError, RateLimitError
 
 from metrontagger import __version__
 from metrontagger.talker import (
+    REDIS_SOCKET_TIMEOUT,
     CoverHashMatcher,
     InfoSource,
     MetadataExtractor,
@@ -687,7 +688,11 @@ def test_talker_with_redis_url_uses_redis_rate_limiter():
         patch("metrontagger.talker.mokkari.api") as mock_api_func,
     ):
         talker = Talker("user", "pass", True, True, redis_url="redis://localhost:6379/0")
-        mock_from_url.assert_called_once_with("redis://localhost:6379/0")
+        mock_from_url.assert_called_once_with(
+            "redis://localhost:6379/0",
+            socket_connect_timeout=REDIS_SOCKET_TIMEOUT,
+            socket_timeout=REDIS_SOCKET_TIMEOUT,
+        )
         mock_client.ping.assert_called_once_with()
         mock_limiter_cls.assert_called_once_with(mock_client, "user")
         assert mock_api_func.call_args.kwargs["rate_limiter"] is mock_limiter_cls.return_value

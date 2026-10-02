@@ -67,6 +67,9 @@ warnings.filterwarnings(
 HAMMING_DISTANCE = 10
 RATE_LIMIT_AUTO_RETRY_THRESHOLD = 60  # seconds
 RATE_LIMIT_RETRY_BUFFER = 2  # seconds added to retry_after to account for clock skew
+# Bound Redis connects/reads so an unreachable or stalled server raises a RedisError
+# instead of hanging; redis-py waits indefinitely by default.
+REDIS_SOCKET_TIMEOUT = 5  # seconds
 
 # HTTP statuses where retrying (or continuing with other files) is pointless: bad
 # credentials or a malformed request will fail identically on every subsequent call.
@@ -647,7 +650,11 @@ class Talker:
             return None
 
         try:
-            client = redis.Redis.from_url(redis_url)
+            client = redis.Redis.from_url(
+                redis_url,
+                socket_connect_timeout=REDIS_SOCKET_TIMEOUT,
+                socket_timeout=REDIS_SOCKET_TIMEOUT,
+            )
         except ValueError as e:
             self.ui.print_warning(
                 f"Invalid Redis URL '{redis_url}': {e}. Using the default rate limiter."
