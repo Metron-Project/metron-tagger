@@ -2,7 +2,6 @@ from __future__ import annotations
 
 __all__ = ["Talker"]
 
-import hashlib
 import io
 import time
 import warnings
@@ -596,9 +595,7 @@ class Talker:
         # `redis` is an optional dependency.
         self._redis_errors: tuple[type[Exception], ...] = ()
         rate_limiter = (
-            self._create_redis_rate_limiter(redis_url, username, api_token)
-            if redis_url
-            else None
+            self._create_redis_rate_limiter(redis_url, username) if redis_url else None
         )
         if rate_limiter is None:
             rate_limiter = HeaderPacedRateLimiter()
@@ -617,29 +614,19 @@ class Talker:
         self.metadata_mapper = MetadataMapper()
         self._stop_processing = False
 
-    @staticmethod
-    def _redis_account(username: str | None, api_token: str | None) -> str | None:
-        """Return the account name used to key the shared Redis rate-limit state.
-
-        This must match how other mokkari-based software derives it (see the README),
-        or their requests won't share a rate limit with ours. The token is hashed since
-        the account name appears in Redis key names.
-
-        Returns:
-            The account name, or None if there are no credentials to derive it from.
-        """
-        if api_token:
-            return f"token-{hashlib.sha256(api_token.encode()).hexdigest()[:16]}"
-        return username or None
-
     def _create_redis_rate_limiter(
-        self, redis_url: str, username: str | None, api_token: str | None
+        self, redis_url: str, username: str | None
     ) -> RateLimiter | None:
-        """Create a Redis-backed rate limiter, or None to fall back to a local limiter."""
-        account = self._redis_account(username, api_token)
-        if account is None:
+        """Create a Redis-backed rate limiter, or None to fall back to a local limiter.
+
+        The shared rate-limit state is keyed by the Metron username, even when
+        authenticating with an API token, since each application typically has its own
+        token while the account's rate limit is shared across all of them.
+        """
+        if not username:
             self.ui.print_warning(
-                "Redis rate limiting requires a Metron API token or username. "
+                "Redis rate limiting requires your Metron username to be set as 'user' in "
+                "the [metron] section of your settings.ini, even when using an API token. "
                 "Using the local rate limiter."
             )
             return None
@@ -678,7 +665,7 @@ class Talker:
 
         self._redis_client = client
         self._redis_errors = (redis.RedisError,)
-        return RedisRateLimiter(client, account)
+        return RedisRateLimiter(client, username)
 
     def close(self) -> None:
         """Close the Metron API session's pooled connections and any Redis client."""

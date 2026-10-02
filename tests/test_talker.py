@@ -648,44 +648,26 @@ def test_talker_initialization_with_api_token():
         )
 
 
-def test_talker_redis_account_uses_hashed_token():
-    """Test the Redis account name is derived from a hash of the token, not the token."""
-    token = "my-token"  # noqa: S105
-    account = Talker._redis_account("user", token)
-    assert account.startswith("token-")
-    assert token not in account
-    assert account == Talker._redis_account(None, token)
-
-
-def test_talker_redis_account_falls_back_to_username():
-    """Test the Redis account name is the username when no token is set."""
-    assert Talker._redis_account("user", None) == "user"
-
-
-def test_talker_redis_account_none_without_credentials():
-    """Test there's no Redis account name without a token or username."""
-    assert Talker._redis_account(None, None) is None
-    assert Talker._redis_account("", "") is None
-
-
-def test_talker_redis_account_matches_documented_format():
-    """Test the token-derived account name matches the format documented in the README."""
-    assert Talker._redis_account(None, "abc123") == "token-6ca13d52ca70c883"
-
-
 @patch("metrontagger.talker.UIPresenter.print_warning")
-def test_talker_with_redis_url_without_credentials_falls_back(mock_warning):
-    """Test Redis rate limiting is skipped when there's no account to key it by."""
+def test_talker_with_redis_url_without_username_falls_back(mock_warning):
+    """Test Redis rate limiting is skipped without a username, even with an API token."""
     with (
         patch("redis.Redis.from_url") as mock_from_url,
         patch("metrontagger.talker.mokkari.api") as mock_api_func,
     ):
-        Talker(None, None, True, True, redis_url="redis://localhost:6379/0")
+        Talker(
+            None,
+            None,
+            True,
+            True,
+            api_token="my-token",  # noqa: S106
+            redis_url="redis://localhost:6379/0",
+        )
         assert isinstance(
             mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
         )
         mock_from_url.assert_not_called()
-    assert "API token or username" in mock_warning.call_args.args[0]
+    assert "Metron username" in mock_warning.call_args.args[0]
 
 
 def test_talker_with_redis_url_uses_redis_rate_limiter():
@@ -708,6 +690,24 @@ def test_talker_with_redis_url_uses_redis_rate_limiter():
 
         talker.close()
         mock_client.close.assert_called_once_with()
+
+
+def test_talker_with_redis_url_and_token_keys_by_username():
+    """Test the Redis rate limiter is keyed by username, not the API token."""
+    with (
+        patch("redis.Redis.from_url", return_value=Mock()),
+        patch("mokkari.redis_rate_limit.RedisRateLimiter") as mock_limiter_cls,
+        patch("metrontagger.talker.mokkari.api"),
+    ):
+        Talker(
+            "user",
+            None,
+            True,
+            True,
+            api_token="my-token",  # noqa: S106
+            redis_url="redis://localhost:6379/0",
+        )
+        assert mock_limiter_cls.call_args.args[1] == "user"
 
 
 @patch("metrontagger.talker.UIPresenter.print_warning")

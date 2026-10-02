@@ -34,39 +34,35 @@ The optional dependencies are:
 **How do I use the Redis rate limiter?**
 
 - Install the `redis` extra (e.g. `pipx install metron-tagger[redis]`), and set
-  `redis_url` in the `[metron]` section of your `settings.ini`:
+  `redis_url` and your Metron username (`user`) in the `[metron]` section of
+  your `settings.ini`:
 
   ```ini
   [metron]
+  user = your-metron-username
   redis_url = redis://localhost:6379/0
   ```
 
-  Every metron-tagger process using the same Metron account and Redis server
-  will then share one rate limit, so running several at once won't exceed
-  Metron's limits. If Redis can't be reached, metron-tagger falls back to its
-  local rate limiter. If Redis fails partway through a run, metron-tagger stops
-  processing the remaining files.
+  The username is required even if you authenticate with an API token, since the
+  shared rate limit is keyed by your Metron account rather than by token (each
+  application usually has its own token). Every metron-tagger process using the
+  same Metron username and Redis server will then share one rate limit, so
+  running several at once won't exceed Metron's limits. If the username isn't
+  set or Redis can't be reached, metron-tagger falls back to its local rate
+  limiter. If Redis fails partway through a run, metron-tagger stops processing
+  the remaining files.
 
 **How do I share the rate limit with other mokkari-based software?**
 
 - Other software using mokkari's `RedisRateLimiter` will share metron-tagger's
   rate limit as long as it uses the same Redis server and database, mokkari's
-  default `key_prefix` (`mokkari:ratelimit`), and the same `account` name.
-  metron-tagger derives the `account` name from your Metron credentials:
-  - With an API token: `token-` followed by the first 16 hex characters of the
-    token's SHA-256 hash. The token itself is never used, since the account name
-    appears in Redis key names.
-  - With a username and password (deprecated): the username.
-
-  For example:
+  default `key_prefix` (`mokkari:ratelimit`), and your Metron username as the
+  `account` name. For example:
 
   ```python
-  import hashlib
-
   from mokkari.redis_rate_limit import RedisRateLimiter
 
-  account = f"token-{hashlib.sha256(api_token.encode()).hexdigest()[:16]}"
-  rate_limiter = RedisRateLimiter(redis_client, account)
+  rate_limiter = RedisRateLimiter(redis_client, metron_username)
   ```
 
 **What comics formats are supported?**
