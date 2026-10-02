@@ -3,7 +3,7 @@ name = "metron-tagger"
 version = "4.16.1"
 description = "A program to write metadata from metron.cloud to a comic archive"
 authors = [{ name = "Brian Pepple", email = "bpepple@metron.cloud" }]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 readme = "README.md"
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
@@ -26,11 +26,11 @@ classifiers = [
   "Environment :: Console",
   "Intended Audience :: End Users/Desktop",
   "Natural Language :: English",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Topic :: Utilities",
   "Topic :: Other/Nonlisted Topic",
   "Operating System :: MacOS :: MacOS X",
@@ -64,7 +64,12 @@ redis = ["mokkari[redis]>=4.9.0rc1"]
 
 [dependency-groups]
 dev = ["hatchling>=1.27.0", "pre-commit>=4", "tox>=4.14.1,<5", "tox-uv>=1.25.0"]
-test = ["coverage[toml]~=7.0", "pytest-cov>=6", "pytest-mock>=3.6.1,<4", "redis>=5"]
+test = [
+  "coverage[toml]~=7.0",
+  "pytest-cov>=6",
+  "pytest-mock>=3.6.1,<4",
+  "redis>=5",
+]
 lint = [
   "codespell>=2.1.0,<3",
   "pyright>=1.1.232,<2",
@@ -124,7 +129,7 @@ ignore-words-list = 'thead,ro,jupyter,coverd,searched,ws'
 extend-exclude = ["typings"]
 line-length = 95
 show-fixes = true
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 extend-ignore = [
@@ -273,7 +278,7 @@ exclude = [
 useLibraryCodeForTypes = true
 reportMissingImports = true
 reportImportCycles = true
-pythonVersion = "3.10"
+pythonVersion = "3.11"
 pythonPlatform = "All"
 
 [tool.pytest.ini_options]
@@ -294,7 +299,7 @@ testpaths = "tests"
 exclude = "*~,.git/*,.mypy_cache/*,.pytest_cache/*,.venv*,__pycache__/*,cache/*,dist/*,node_modules/*,test-results/*,typings/*,.tox/*"
 
 [tool.tox]
-env_list = ["3.10", "3.11", "3.12", "3.13"]
+env_list = ["3.11", "3.12", "3.13", "3.14", "3.15"]
 min_version = "4.22"
 
 [tool.tox.env_run_base]

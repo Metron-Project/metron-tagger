@@ -1,10 +1,12 @@
 *~
 *$py.class
+*.agent
 build
 build/
 .cache
 celerybeat.pid
 celerybeat-schedule
+CLAUDE.md
 *.cover
 .coverage
 .coverage.*
@@ -31,6 +33,7 @@ env.bak/
 htmlcov/
 .hypothesis/
 .idea
+# Ignore any AI agents or temporary files created by AI tools
 .installed.cfg
 instance/
 .ipynb_checkpoints
@@ -89,7 +92,3 @@ venv.bak/
 .vscode/
 .webassets-cache
 wheels/
-
-# Ignore any AI agents or temporary files created by AI tools
-*.agent
-CLAUDE.md
