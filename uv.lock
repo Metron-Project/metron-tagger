@@ -930,6 +930,7 @@ test = [
     { name = "coverage", extra = ["toml"] },
     { name = "pytest-cov" },
     { name = "pytest-mock" },
+    { name = "redis" },
 ]
 
 [package.metadata]
@@ -967,6 +968,7 @@ test = [
     { name = "coverage", extras = ["toml"], specifier = "~=7.0" },
     { name = "pytest-cov", specifier = ">=6" },
     { name = "pytest-mock", specifier = ">=3.6.1,<4" },
+    { name = "redis", specifier = ">=5" },
 ]
 
 [[package]]
