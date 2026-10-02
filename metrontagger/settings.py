@@ -29,6 +29,7 @@ class MetronTaggerSettings:
             "password": "",
             "auth_token": "",
             "token_migration_prompted": False,
+            "redis_url": "",
         },
         "rename": {
             "rename_issue_number_padding": 3,
@@ -47,6 +48,7 @@ class MetronTaggerSettings:
             "password": str,
             "auth_token": str,
             "token_migration_prompted": bool,
+            "redis_url": str,
         },
         "rename": {
             "rename_issue_number_padding": int,

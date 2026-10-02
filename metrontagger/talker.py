@@ -2,6 +2,7 @@ from __future__ import annotations
 
 __all__ = ["Talker"]
 
+import hashlib
 import io
 import time
 import warnings
@@ -18,8 +19,10 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
+    from mokkari.rate_limit import RateLimiter
     from mokkari.schemas.generic import GenericItem
     from mokkari.schemas.issue import BaseIssue, Credit as MokkariCredit, Issue
+    from redis import Redis
 
 from contextlib import suppress
 
@@ -64,6 +67,9 @@ warnings.filterwarnings(
 HAMMING_DISTANCE = 10
 RATE_LIMIT_AUTO_RETRY_THRESHOLD = 60  # seconds
 RATE_LIMIT_RETRY_BUFFER = 2  # seconds added to retry_after to account for clock skew
+# Bound Redis connects/reads so an unreachable or stalled server raises a RedisError
+# instead of hanging; redis-py waits indefinitely by default.
+REDIS_SOCKET_TIMEOUT = 5  # seconds
 
 # HTTP statuses where retrying (or continuing with other files) is pointless: bad
 # credentials or a malformed request will fail identically on every subsequent call.
@@ -565,23 +571,38 @@ class Talker:
     This class provides methods for identifying comics, retrieving single issues, and processing match results.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         username: str | None,
         password: str | None,
         metron_info: bool,
         comic_info: bool,
+        *,
         api_token: str | None = None,
+        redis_url: str | None = None,
     ) -> None:
         """Initialize the Talker class with API credentials.
 
         An `api_token` takes precedence over `username`/`password` when both are provided.
+        When `redis_url` is given, API requests are paced by a Redis-backed rate limiter
+        shared by every process using the same Metron account.
         """
+        self.ui = UIPresenter()
+        self._redis_client: Redis | None = None
+        # Errors raised by the Redis rate limiter; empty unless one is in use, since
+        # `redis` is an optional dependency.
+        self._redis_errors: tuple[type[Exception], ...] = ()
+        rate_limiter = (
+            self._create_redis_rate_limiter(redis_url, username, api_token)
+            if redis_url
+            else None
+        )
         self.api = mokkari.api(
             username,
             password,
             user_agent=f"Metron-Tagger/{__version__}",
             api_token=api_token,
+            rate_limiter=rate_limiter,
         )
         self.metron_info = metron_info
         self.comic_info = comic_info
@@ -589,12 +610,77 @@ class Talker:
         self.metadata_extractor = MetadataExtractor()
         self.cover_matcher = CoverHashMatcher()
         self.metadata_mapper = MetadataMapper()
-        self.ui = UIPresenter()
         self._stop_processing = False
 
+    @staticmethod
+    def _redis_account(username: str | None, api_token: str | None) -> str | None:
+        """Return the account name used to key the shared Redis rate-limit state.
+
+        This must match how other mokkari-based software derives it (see the README),
+        or their requests won't share a rate limit with ours. The token is hashed since
+        the account name appears in Redis key names.
+
+        Returns:
+            The account name, or None if there are no credentials to derive it from.
+        """
+        if api_token:
+            return f"token-{hashlib.sha256(api_token.encode()).hexdigest()[:16]}"
+        return username or None
+
+    def _create_redis_rate_limiter(
+        self, redis_url: str, username: str | None, api_token: str | None
+    ) -> RateLimiter | None:
+        """Create a Redis-backed rate limiter, or None to use mokkari's default limiter."""
+        account = self._redis_account(username, api_token)
+        if account is None:
+            self.ui.print_warning(
+                "Redis rate limiting requires a Metron API token or username. "
+                "Using the default rate limiter."
+            )
+            return None
+
+        try:
+            import redis  # noqa: PLC0415 - optional dependency
+            from mokkari.redis_rate_limit import RedisRateLimiter  # noqa: PLC0415
+        except ImportError:
+            self.ui.print_warning(
+                "Redis rate limiting requires the 'redis' extra (metron-tagger[redis]). "
+                "Using the default rate limiter."
+            )
+            return None
+
+        try:
+            client = redis.Redis.from_url(
+                redis_url,
+                socket_connect_timeout=REDIS_SOCKET_TIMEOUT,
+                socket_timeout=REDIS_SOCKET_TIMEOUT,
+            )
+        except ValueError as e:
+            self.ui.print_warning(
+                f"Invalid Redis URL '{redis_url}': {e}. Using the default rate limiter."
+            )
+            return None
+
+        try:
+            client.ping()
+        except redis.RedisError as e:
+            client.close()
+            self.ui.print_warning(
+                f"Unable to connect to Redis at '{redis_url}': {e}. "
+                "Using the default rate limiter."
+            )
+            return None
+
+        self._redis_client = client
+        self._redis_errors = (redis.RedisError,)
+        return RedisRateLimiter(client, account)
+
     def close(self) -> None:
-        """Close the pooled HTTP connections held by the Metron API session."""
+        """Close the Metron API session's pooled connections and any Redis client."""
         self.api.close()
+        if self._redis_client is not None:
+            self._redis_client.close()
+            self._redis_client = None
 
     def __enter__(self) -> Talker:  # noqa: PYI034 - py310 has no typing.Self
         """Enter the context manager, returning this Talker."""
@@ -645,6 +731,19 @@ class Talker:
         self._stop_processing = True
         return True
 
+    def _handle_redis_error(self, error: Exception, error_context: str) -> None:
+        """Stop further processing after the Redis rate limiter fails.
+
+        Every request goes through the rate limiter, so once Redis is unavailable
+        every subsequent request will fail the same way.
+        """
+        LOGGER.error("%s: Redis rate limiter error: %s", error_context, error)
+        self.ui.print_error(
+            f"Redis rate limiter error: {error}. Check your Redis server or remove "
+            "'redis_url' from your settings. Stopping further processing."
+        )
+        self._stop_processing = True
+
     def _retry_after_short_rate_limit(
         self, api_call: Callable[[], T], retry_error: RateLimitError
     ) -> T | None:
@@ -660,6 +759,9 @@ class Talker:
                 return None
             LOGGER.exception("Retry failed after second wait")
             self.ui.print_error(f"Retry failed: {final_error!s}")
+            return None
+        except self._redis_errors as final_error:
+            self._handle_redis_error(final_error, "Retry failed")
             return None
 
     def _retry_api_call(self, api_call: Callable[[], T]) -> T | None:
@@ -688,6 +790,9 @@ class Talker:
                 return None
             LOGGER.exception("Retry failed")
             self.ui.print_error(f"Retry failed: {retry_error!s}")
+            return None
+        except self._redis_errors as retry_error:
+            self._handle_redis_error(retry_error, "Retry failed")
             return None
 
     def _handle_rate_limit_error(
@@ -751,6 +856,9 @@ class Talker:
                 return None
             LOGGER.exception(error_context)
             self.ui.print_error(f"{error_context}: {e!r}")
+            return None
+        except self._redis_errors as e:
+            self._handle_redis_error(e, error_context)
             return None
 
     def _create_comic(self, filename: Path) -> Comic | None:

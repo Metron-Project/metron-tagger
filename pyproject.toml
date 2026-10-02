@@ -40,7 +40,7 @@ classifiers = [
   "Operating System :: Microsoft :: Windows",
 ]
 dependencies = [
-  "mokkari>=4.8.0",
+  "mokkari>=4.9.0rc1",
   "questionary>=2.1.1",
   "pyxdg>=0.28",
   "imagehash>=4.3.2",
@@ -60,10 +60,11 @@ metron-tagger = "metrontagger.cli:main"
 [project.optional-dependencies]
 7zip = ["py7zr>=1.0.0"]
 pdf = ["pymupdf>=1.26.6"]
+redis = ["mokkari[redis]>=4.9.0rc1"]
 
 [dependency-groups]
 dev = ["hatchling>=1.27.0", "pre-commit>=4", "tox>=4.14.1,<5", "tox-uv>=1.25.0"]
-test = ["coverage[toml]~=7.0", "pytest-cov>=6", "pytest-mock>=3.6.1,<4"]
+test = ["coverage[toml]~=7.0", "pytest-cov>=6", "pytest-mock>=3.6.1,<4", "redis>=5"]
 lint = [
   "codespell>=2.1.0,<3",
   "pyright>=1.1.232,<2",

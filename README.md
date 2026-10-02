@@ -27,8 +27,47 @@ The optional dependencies are:
 
 - 7zip: Provides support for reading/writing to CB7 files.
 - pdf: Provides support for reading/writing to PDF files.
+- redis: Provides a Redis-backed rate limiter for the Metron API.
 
 ## FAQ
+
+**How do I use the Redis rate limiter?**
+
+- Install the `redis` extra (e.g. `pipx install metron-tagger[redis]`), and set
+  `redis_url` in the `[metron]` section of your `settings.ini`:
+
+  ```ini
+  [metron]
+  redis_url = redis://localhost:6379/0
+  ```
+
+  Every metron-tagger process using the same Metron account and Redis server
+  will then share one rate limit, so running several at once won't exceed
+  Metron's limits. If Redis can't be reached, metron-tagger falls back to its
+  default rate limiter. If Redis fails partway through a run, metron-tagger
+  stops processing the remaining files.
+
+**How do I share the rate limit with other mokkari-based software?**
+
+- Other software using mokkari's `RedisRateLimiter` will share metron-tagger's
+  rate limit as long as it uses the same Redis server and database, mokkari's
+  default `key_prefix` (`mokkari:ratelimit`), and the same `account` name.
+  metron-tagger derives the `account` name from your Metron credentials:
+  - With an API token: `token-` followed by the first 16 hex characters of the
+    token's SHA-256 hash. The token itself is never used, since the account name
+    appears in Redis key names.
+  - With a username and password (deprecated): the username.
+
+  For example:
+
+  ```python
+  import hashlib
+
+  from mokkari.redis_rate_limit import RedisRateLimiter
+
+  account = f"token-{hashlib.sha256(api_token.encode()).hexdigest()[:16]}"
+  rate_limiter = RedisRateLimiter(redis_client, account)
+  ```
 
 **What comics formats are supported?**
 
