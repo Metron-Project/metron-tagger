@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import ANY, Mock, patch
 
 import pytest
 import redis
@@ -12,6 +12,7 @@ import requests
 from darkseid.comic import Comic
 from darkseid.metadata import Basic, Metadata, MetronInfo, Notes
 from mokkari.exceptions import ApiError, RateLimitError
+from mokkari.rate_limit import HeaderPacedRateLimiter
 
 from metrontagger import __version__
 from metrontagger.talker import (
@@ -623,7 +624,10 @@ def test_talker_initialization():
             "pass",
             user_agent=f"Metron-Tagger/{__version__}",
             api_token=None,
-            rate_limiter=None,
+            rate_limiter=ANY,
+        )
+        assert isinstance(
+            mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
         )
 
 
@@ -637,7 +641,10 @@ def test_talker_initialization_with_api_token():
             None,
             user_agent=f"Metron-Tagger/{__version__}",
             api_token=token,
-            rate_limiter=None,
+            rate_limiter=ANY,
+        )
+        assert isinstance(
+            mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
         )
 
 
@@ -674,7 +681,9 @@ def test_talker_with_redis_url_without_credentials_falls_back(mock_warning):
         patch("metrontagger.talker.mokkari.api") as mock_api_func,
     ):
         Talker(None, None, True, True, redis_url="redis://localhost:6379/0")
-        assert mock_api_func.call_args.kwargs["rate_limiter"] is None
+        assert isinstance(
+            mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
+        )
         mock_from_url.assert_not_called()
     assert "API token or username" in mock_warning.call_args.args[0]
 
@@ -703,7 +712,7 @@ def test_talker_with_redis_url_uses_redis_rate_limiter():
 
 @patch("metrontagger.talker.UIPresenter.print_warning")
 def test_talker_with_unreachable_redis_falls_back(mock_warning):
-    """Test an unreachable Redis server falls back to the default rate limiter."""
+    """Test an unreachable Redis server falls back to the local rate limiter."""
     import redis  # noqa: PLC0415
 
     mock_client = Mock()
@@ -713,7 +722,9 @@ def test_talker_with_unreachable_redis_falls_back(mock_warning):
         patch("metrontagger.talker.mokkari.api") as mock_api_func,
     ):
         talker = Talker("user", "pass", True, True, redis_url="redis://localhost:1")
-        assert mock_api_func.call_args.kwargs["rate_limiter"] is None
+        assert isinstance(
+            mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
+        )
         mock_client.close.assert_called_once_with()
         assert talker._redis_client is None
     assert "Unable to connect to Redis" in mock_warning.call_args.args[0]
@@ -721,22 +732,26 @@ def test_talker_with_unreachable_redis_falls_back(mock_warning):
 
 @patch("metrontagger.talker.UIPresenter.print_warning")
 def test_talker_with_invalid_redis_url_falls_back(mock_warning):
-    """Test an invalid Redis URL falls back to the default rate limiter."""
+    """Test an invalid Redis URL falls back to the local rate limiter."""
     with patch("metrontagger.talker.mokkari.api") as mock_api_func:
         Talker("user", "pass", True, True, redis_url="bogus://nowhere")
-        assert mock_api_func.call_args.kwargs["rate_limiter"] is None
+        assert isinstance(
+            mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
+        )
     assert "Invalid Redis URL" in mock_warning.call_args.args[0]
 
 
 @patch("metrontagger.talker.UIPresenter.print_warning")
 def test_talker_without_redis_installed_falls_back(mock_warning):
-    """Test a missing redis package falls back to the default rate limiter."""
+    """Test a missing redis package falls back to the local rate limiter."""
     with (
         patch.dict("sys.modules", {"redis": None}),
         patch("metrontagger.talker.mokkari.api") as mock_api_func,
     ):
         Talker("user", "pass", True, True, redis_url="redis://localhost:6379/0")
-        assert mock_api_func.call_args.kwargs["rate_limiter"] is None
+        assert isinstance(
+            mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
+        )
     assert "metron-tagger[redis]" in mock_warning.call_args.args[0]
 
 
