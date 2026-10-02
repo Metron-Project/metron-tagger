@@ -44,8 +44,8 @@ The optional dependencies are:
   Every metron-tagger process using the same Metron account and Redis server
   will then share one rate limit, so running several at once won't exceed
   Metron's limits. If Redis can't be reached, metron-tagger falls back to its
-  default rate limiter. If Redis fails partway through a run, metron-tagger
-  stops processing the remaining files.
+  local rate limiter. If Redis fails partway through a run, metron-tagger stops
+  processing the remaining files.
 
 **How do I share the rate limit with other mokkari-based software?**
 

@@ -51,6 +51,7 @@ from darkseid.metadata import (
 from darkseid.utils import get_issue_id_from_note
 from imagehash import ImageHash, hex_to_hash, phash
 from mokkari.exceptions import ApiError, RateLimitError
+from mokkari.rate_limit import HeaderPacedRateLimiter
 from PIL import Image
 from requests.exceptions import HTTPError
 
@@ -585,7 +586,9 @@ class Talker:
 
         An `api_token` takes precedence over `username`/`password` when both are provided.
         When `redis_url` is given, API requests are paced by a Redis-backed rate limiter
-        shared by every process using the same Metron account.
+        shared by every process using the same Metron account. Otherwise, or if Redis
+        can't be used, they're paced by a local limiter that spreads requests evenly
+        across Metron's rate-limit window.
         """
         self.ui = UIPresenter()
         self._redis_client: Redis | None = None
@@ -597,6 +600,8 @@ class Talker:
             if redis_url
             else None
         )
+        if rate_limiter is None:
+            rate_limiter = HeaderPacedRateLimiter()
         self.api = mokkari.api(
             username,
             password,
@@ -630,12 +635,12 @@ class Talker:
     def _create_redis_rate_limiter(
         self, redis_url: str, username: str | None, api_token: str | None
     ) -> RateLimiter | None:
-        """Create a Redis-backed rate limiter, or None to use mokkari's default limiter."""
+        """Create a Redis-backed rate limiter, or None to fall back to a local limiter."""
         account = self._redis_account(username, api_token)
         if account is None:
             self.ui.print_warning(
                 "Redis rate limiting requires a Metron API token or username. "
-                "Using the default rate limiter."
+                "Using the local rate limiter."
             )
             return None
 
@@ -645,7 +650,7 @@ class Talker:
         except ImportError:
             self.ui.print_warning(
                 "Redis rate limiting requires the 'redis' extra (metron-tagger[redis]). "
-                "Using the default rate limiter."
+                "Using the local rate limiter."
             )
             return None
 
@@ -657,7 +662,7 @@ class Talker:
             )
         except ValueError as e:
             self.ui.print_warning(
-                f"Invalid Redis URL '{redis_url}': {e}. Using the default rate limiter."
+                f"Invalid Redis URL '{redis_url}': {e}. Using the local rate limiter."
             )
             return None
 
@@ -667,7 +672,7 @@ class Talker:
             client.close()
             self.ui.print_warning(
                 f"Unable to connect to Redis at '{redis_url}': {e}. "
-                "Using the default rate limiter."
+                "Using the local rate limiter."
             )
             return None
 

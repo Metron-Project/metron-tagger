@@ -6,13 +6,13 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'win32'",
-    "python_full_version == '3.12.*' and sys_platform == 'win32'",
-    "python_full_version < '3.12' and sys_platform == 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
-    "python_full_version < '3.12' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.12.*' and sys_platform == 'win32'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.12.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version < '3.12' and sys_platform == 'win32'",
+    "python_full_version < '3.12' and sys_platform == 'emscripten'",
     "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 
@@ -835,8 +835,8 @@ requires-dist = [
     { name = "comicfn2dict", specifier = ">=0.3.1" },
     { name = "darkseid", specifier = ">=8.4.1" },
     { name = "imagehash", specifier = ">=4.3.2" },
-    { name = "mokkari", specifier = ">=4.9.0rc1" },
-    { name = "mokkari", extras = ["redis"], marker = "extra == 'redis'", specifier = ">=4.9.0rc1" },
+    { name = "mokkari", specifier = ">=4.9.0" },
+    { name = "mokkari", extras = ["redis"], marker = "extra == 'redis'", specifier = ">=4.9.0" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "py7zr", marker = "extra == '7zip'", specifier = ">=1.0.0" },
     { name = "pymupdf", marker = "extra == 'pdf'", specifier = ">=1.26.6" },
@@ -870,15 +870,15 @@ test = [
 
 [[package]]
 name = "mokkari"
-version = "4.9.0rc1"
+version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ec/e0/2f007767c739d22497fdfb451196e31c7847bf2f2d44d8de4bfbeeefbfc5/mokkari-4.9.0rc1.tar.gz", hash = "sha256:68e535c407bd9fe3594aa524115ea7cfcb8336576024d4c7c37b53822b65b0c9", size = 105789, upload-time = "2026-10-02T14:23:49.85Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/bb/1ab6da55b62b36278a0d15b5bc9089dc179043e524a8ddd46454c14abb1b/mokkari-4.9.0.tar.gz", hash = "sha256:e601109e9810784546f81725922750a48f332b4a7513967d17cc3206e47f7431", size = 105847, upload-time = "2026-10-02T16:59:47.042Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e5/e7/7130fd30c3c78457a4240f9349780fc109a0b46c1c5797dc0fb97802b120/mokkari-4.9.0rc1-py3-none-any.whl", hash = "sha256:4ecb0f74b5dc02487e127561f3d9f8a7594e381d8921da09e55c17f2b4153efb", size = 76288, upload-time = "2026-10-02T14:23:48.52Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/53/91c0cc80b493e09ed8b2731890baf2f8cf1f8a00479b6c267e158198f626/mokkari-4.9.0-py3-none-any.whl", hash = "sha256:5ad3f1b5c8214276b765e359b616a02feb638aae7da6377659abed17daba5777", size = 76214, upload-time = "2026-10-02T16:59:45.987Z" },
 ]
 
 [package.optional-dependencies]
@@ -1006,10 +1006,10 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'win32'",
-    "python_full_version == '3.12.*' and sys_platform == 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.12.*' and sys_platform == 'win32'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.12.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/13/01/11703282db468b85f6f7b8c7f22d058de5970d5c7e60a3a8aaa313c3de36/numpy-2.5.3.tar.gz", hash = "sha256:df2d5874ff183595a4ba404edd04f6bd9b5505c1d7708573f6a6c17489a67563", size = 20791231, upload-time = "2026-09-06T16:27:47.073Z" }
@@ -1817,10 +1817,10 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'win32'",
-    "python_full_version == '3.12.*' and sys_platform == 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.12.*' and sys_platform == 'win32'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.12.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
@@ -2124,10 +2124,10 @@ resolution-markers = [
     "python_full_version >= '3.14' and sys_platform == 'emscripten'",
     "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'win32'",
-    "python_full_version == '3.12.*' and sys_platform == 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.12.*' and sys_platform == 'win32'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.12.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
 ]
 dependencies = [
