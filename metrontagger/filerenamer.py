@@ -6,9 +6,9 @@ from __future__ import annotations
 __all__ = ["FileRenamer"]
 
 import contextlib
-import datetime
 import re
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -291,9 +291,7 @@ class FileRenamer:
         with contextlib.suppress(ValueError, TypeError):
             month_int = int(month)
             if 1 <= month_int <= self.MAXIMUM_MONTH_NUMBER:
-                return datetime.datetime(
-                    1970, month_int, 1, tzinfo=datetime.timezone.utc
-                ).strftime("%B")
+                return datetime(1970, month_int, 1, tzinfo=UTC).strftime("%B")
         return None
 
     def _extract_metadata_values(self) -> dict[TokenType, Any]:

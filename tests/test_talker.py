@@ -1,7 +1,7 @@
 """Tests for the Talker class and its helper classes."""
 
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -1500,7 +1500,7 @@ def test_talker_identify_comics_prints_rate_limit_status(talker):
 
 def test_talker_print_rate_limit_status(talker):
     """Test that Talker._print_rate_limit_status reads the sustained window from the API."""
-    reset = datetime(2026, 7, 21, tzinfo=timezone.utc)
+    reset = datetime(2026, 7, 21, tzinfo=UTC)
     talker.api.rate_limit_status.sustained.remaining = 4823
     talker.api.rate_limit_status.sustained.limit = 5000
     talker.api.rate_limit_status.sustained.reset = reset
@@ -1512,7 +1512,7 @@ def test_talker_print_rate_limit_status(talker):
 
 def test_ui_presenter_print_rate_limit_status():
     """Test that the rate limit message is printed when limit data is known."""
-    reset = datetime(2026, 7, 21, tzinfo=timezone.utc)
+    reset = datetime(2026, 7, 21, tzinfo=UTC)
     with patch("metrontagger.talker.questionary.print") as mock_print:
         UIPresenter.print_rate_limit_status(4823, 5000, reset)
         mock_print.assert_called_once()
