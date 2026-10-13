@@ -167,6 +167,11 @@ def test_calculate_image_hash_os_error():
         assert result is None
 
 
+def test_calculate_image_hash_none_page_data():
+    """Test hash calculation when the page couldn't be read (e.g. exceeds the size limit)."""
+    assert Duplicates._calculate_image_hash(None) is None
+
+
 # Comic processing tests
 @patch("metrontagger.duplicates.Comic")
 def test_process_comic_pages_success(mock_comic_class, sample_files, mock_image_data):

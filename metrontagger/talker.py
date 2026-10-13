@@ -361,8 +361,12 @@ class CoverHashMatcher:
         Returns:
             The image hash of the comic cover, or None if unable to calculate.
         """
+        cover = comic.get_page(0)
+        if cover is None:
+            questionary.print("Unable to get cover hash.", style=Styles.ERROR)
+            return None
         try:
-            with Image.open(io.BytesIO(comic.get_page(0))) as img:
+            with Image.open(io.BytesIO(cover)) as img:
                 return phash(img)
         except OSError:
             questionary.print("Unable to get cover hash.", style=Styles.ERROR)

@@ -373,15 +373,17 @@ class Duplicates:
                 LOGGER.exception("Failed to process page %d of '%s'", page_idx, comic)
 
     @staticmethod
-    def _calculate_image_hash(page_data: bytes) -> str | None:
+    def _calculate_image_hash(page_data: bytes | None) -> str | None:
         """Calculate the hash for a single image page.
 
         Args:
-            page_data: Raw image data as bytes
+            page_data: Raw image data as bytes, or None if the page couldn't be read
 
         Returns:
             str | None: Hash string or None if calculation failed
         """
+        if page_data is None:
+            return None
         try:
             with Image.open(io.BytesIO(page_data)) as img:
                 # Ask the JPEG decoder for a reduced-size grayscale image; a no-op for other formats.
