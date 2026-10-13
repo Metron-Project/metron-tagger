@@ -39,9 +39,7 @@ def settings(tmp_path: Path) -> MetronTaggerSettings:
 
 @pytest.fixture(scope="session")
 def talker() -> Talker:
-    username = "Foo"
-    password = "Bar"  # noqa: S105
-    return Talker(username, password, True, True)
+    return Talker("dummy-token", True, True)
 
 
 @pytest.fixture()

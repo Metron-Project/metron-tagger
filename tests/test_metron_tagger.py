@@ -4,7 +4,6 @@ from metrontagger.talker import Talker
 
 
 def test_create_metron_talker(settings) -> None:
-    settings["metron.user"] = "test"
-    settings["metron.password"] = "test_password"
-    talker = Talker(settings["metron.user"], settings["metron.password"], True, True)
+    settings["metron.auth_token"] = "test-token"  # noqa: S105
+    talker = Talker(settings["metron.auth_token"], True, True)
     assert isinstance(talker, Talker)

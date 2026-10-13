@@ -752,11 +752,10 @@ class Runner:
                 sys.exit(0)
 
             with Talker(
-                self.config["metron.user"],
-                self.config["metron.password"],
+                self.config["metron.auth_token"],
                 self.args.metroninfo,
                 self.args.comicinfo,
-                api_token=self.config["metron.auth_token"] or None,
+                username=self.config["metron.user"] or None,
                 redis_url=self.config["metron.redis_url"] or None,
             ) as t:
                 if self.args.id and len(file_list) == 1:
