@@ -43,14 +43,14 @@ The optional dependencies are:
   redis_url = redis://localhost:6379/0
   ```
 
-  The username is required even if you authenticate with an API token, since the
-  shared rate limit is keyed by your Metron account rather than by token (each
-  application usually has its own token). Every metron-tagger process using the
-  same Metron username and Redis server will then share one rate limit, so
-  running several at once won't exceed Metron's limits. If the username isn't
-  set or Redis can't be reached, metron-tagger falls back to its local rate
-  limiter. If Redis fails partway through a run, metron-tagger stops processing
-  the remaining files.
+  The username is required even though you authenticate with an API token, since
+  the shared rate limit is keyed by your Metron account rather than by token
+  (each application usually has its own token). Every metron-tagger process
+  using the same Metron username and Redis server will then share one rate
+  limit, so running several at once won't exceed Metron's limits. If the
+  username isn't set or Redis can't be reached, metron-tagger falls back to its
+  local rate limiter. If Redis fails partway through a run, metron-tagger stops
+  processing the remaining files.
 
 **How do I share the rate limit with other mokkari-based software?**
 

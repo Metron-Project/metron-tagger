@@ -59,7 +59,7 @@ def mock_comic():
 def talker(mock_api):
     """Create a Talker instance with mocked API."""
     with patch("metrontagger.talker.mokkari.api", return_value=mock_api):
-        return Talker("username", "password", metron_info=True, comic_info=True)
+        return Talker("my-token", metron_info=True, comic_info=True)
 
 
 @pytest.fixture
@@ -615,15 +615,13 @@ def test_metadata_mapper_series_without_language_omits_lang_attribute():
 def test_talker_initialization():
     """Test Talker initialization."""
     with patch("metrontagger.talker.mokkari.api") as mock_api_func:
-        talker = Talker("user", "pass", metron_info=True, comic_info=False)
+        talker = Talker("my-token", metron_info=True, comic_info=False)
         assert talker.metron_info is True
         assert talker.comic_info is False
         assert isinstance(talker.match_results, OnlineMatchResults)
         mock_api_func.assert_called_once_with(
-            "user",
-            "pass",
             user_agent=f"Metron-Tagger/{__version__}",
-            api_token=None,
+            api_token="my-token",  # noqa: S106
             rate_limiter=ANY,
         )
         assert isinstance(
@@ -631,14 +629,12 @@ def test_talker_initialization():
         )
 
 
-def test_talker_initialization_with_api_token():
-    """Test Talker initialization passes an API token through to mokkari."""
+def test_talker_initialization_with_username_only_used_for_redis():
+    """Test a username isn't passed to mokkari, since Basic Auth is no longer used."""
     token = "my-token"  # noqa: S105
     with patch("metrontagger.talker.mokkari.api") as mock_api_func:
-        Talker(None, None, metron_info=True, comic_info=False, api_token=token)
+        Talker(token, metron_info=True, comic_info=False, username="user")
         mock_api_func.assert_called_once_with(
-            None,
-            None,
             user_agent=f"Metron-Tagger/{__version__}",
             api_token=token,
             rate_limiter=ANY,
@@ -656,11 +652,9 @@ def test_talker_with_redis_url_without_username_falls_back(mock_warning):
         patch("metrontagger.talker.mokkari.api") as mock_api_func,
     ):
         Talker(
-            None,
-            None,
+            "my-token",
             True,
             True,
-            api_token="my-token",  # noqa: S106
             redis_url="redis://localhost:6379/0",
         )
         assert isinstance(
@@ -678,7 +672,9 @@ def test_talker_with_redis_url_uses_redis_rate_limiter():
         patch("mokkari.redis_rate_limit.RedisRateLimiter") as mock_limiter_cls,
         patch("metrontagger.talker.mokkari.api") as mock_api_func,
     ):
-        talker = Talker("user", "pass", True, True, redis_url="redis://localhost:6379/0")
+        talker = Talker(
+            "my-token", True, True, username="user", redis_url="redis://localhost:6379/0"
+        )
         mock_from_url.assert_called_once_with(
             "redis://localhost:6379/0",
             socket_connect_timeout=REDIS_SOCKET_TIMEOUT,
@@ -700,11 +696,10 @@ def test_talker_with_redis_url_and_token_keys_by_username():
         patch("metrontagger.talker.mokkari.api"),
     ):
         Talker(
-            "user",
-            None,
+            "my-token",
             True,
             True,
-            api_token="my-token",  # noqa: S106
+            username="user",
             redis_url="redis://localhost:6379/0",
         )
         assert mock_limiter_cls.call_args.args[1] == "user"
@@ -721,7 +716,9 @@ def test_talker_with_unreachable_redis_falls_back(mock_warning):
         patch("redis.Redis.from_url", return_value=mock_client),
         patch("metrontagger.talker.mokkari.api") as mock_api_func,
     ):
-        talker = Talker("user", "pass", True, True, redis_url="redis://localhost:1")
+        talker = Talker(
+            "my-token", True, True, username="user", redis_url="redis://localhost:1"
+        )
         assert isinstance(
             mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
         )
@@ -734,7 +731,7 @@ def test_talker_with_unreachable_redis_falls_back(mock_warning):
 def test_talker_with_invalid_redis_url_falls_back(mock_warning):
     """Test an invalid Redis URL falls back to the local rate limiter."""
     with patch("metrontagger.talker.mokkari.api") as mock_api_func:
-        Talker("user", "pass", True, True, redis_url="bogus://nowhere")
+        Talker("my-token", True, True, username="user", redis_url="bogus://nowhere")
         assert isinstance(
             mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
         )
@@ -748,7 +745,7 @@ def test_talker_without_redis_installed_falls_back(mock_warning):
         patch.dict("sys.modules", {"redis": None}),
         patch("metrontagger.talker.mokkari.api") as mock_api_func,
     ):
-        Talker("user", "pass", True, True, redis_url="redis://localhost:6379/0")
+        Talker("my-token", True, True, username="user", redis_url="redis://localhost:6379/0")
         assert isinstance(
             mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
         )
@@ -786,7 +783,7 @@ def test_talker_create_choice_list():
 
 def test_talker_handle_existing_id_metron():
     """Test handling existing Metron ID."""
-    talker = Talker("user", "pass", True, True)
+    talker = Talker("my-token", True, True)
     result = talker._handle_existing_id(InfoSource.METRON, 123)
     assert result == 123
 
@@ -800,7 +797,7 @@ def test_talker_handle_existing_id_comic_vine(talker):
 
 def test_talker_handle_existing_id_unknown():
     """Test handling unknown source ID."""
-    talker = Talker("user", "pass", True, True)
+    talker = Talker("my-token", True, True)
     result = talker._handle_existing_id(InfoSource.UNKNOWN, 123)
     assert result is None
 

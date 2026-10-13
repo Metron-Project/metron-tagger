@@ -571,19 +571,17 @@ class Talker:
     This class provides methods for identifying comics, retrieving single issues, and processing match results.
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
-        username: str | None,
-        password: str | None,
+        api_token: str,
         metron_info: bool,
         comic_info: bool,
         *,
-        api_token: str | None = None,
+        username: str | None = None,
         redis_url: str | None = None,
     ) -> None:
-        """Initialize the Talker class with API credentials.
+        """Initialize the Talker class with a Metron API token.
 
-        An `api_token` takes precedence over `username`/`password` when both are provided.
         When `redis_url` is given, API requests are paced by a Redis-backed rate limiter
         shared by every process using the same Metron account. Otherwise, or if Redis
         can't be used, they're paced by a local limiter that spreads requests evenly
@@ -600,8 +598,6 @@ class Talker:
         if rate_limiter is None:
             rate_limiter = HeaderPacedRateLimiter()
         self.api = mokkari.api(
-            username,
-            password,
             user_agent=f"Metron-Tagger/{__version__}",
             api_token=api_token,
             rate_limiter=rate_limiter,

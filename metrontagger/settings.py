@@ -26,9 +26,7 @@ class MetronTaggerSettings:
     DEFAULT_CONFIG: ClassVar[dict[str, dict[str, str] | dict[str, int | bool | str]]] = {
         "metron": {
             "user": "",
-            "password": "",
             "auth_token": "",
-            "token_migration_prompted": False,
             "redis_url": "",
         },
         "rename": {
@@ -45,9 +43,7 @@ class MetronTaggerSettings:
     ] = {
         "metron": {
             "user": str,
-            "password": str,
             "auth_token": str,
-            "token_migration_prompted": bool,
             "redis_url": str,
         },
         "rename": {
@@ -56,6 +52,11 @@ class MetronTaggerSettings:
             "rename_template": str,
         },
         "sort": {"directory": str},
+    }
+
+    # Options from older versions that are no longer used and are removed on load
+    OBSOLETE_OPTIONS: ClassVar[dict[str, tuple[str, ...]]] = {
+        "metron": ("password", "token_migration_prompted"),
     }
 
     def __init__(self, config_dir: str | Path | None = None) -> None:
@@ -100,6 +101,9 @@ class MetronTaggerSettings:
         # Create directory and file if needed
         self._ensure_file_exists()
 
+        # Drop options no longer used, e.g. the Basic Auth password
+        self._remove_obsolete_options()
+
     def _ensure_sections(self) -> None:
         """Ensure all required configuration sections exist."""
         required_sections = list(self.DEFAULT_CONFIG.keys())
@@ -124,6 +128,17 @@ class MetronTaggerSettings:
                     LOGGER.debug(
                         "Set default value for %s.%s: %s", section_name, option, default_value
                     )
+
+    def _remove_obsolete_options(self) -> None:
+        """Remove options no longer used by Metron-Tagger and save if any were found."""
+        removed = False
+        for section_name, options in self.OBSOLETE_OPTIONS.items():
+            for option in options:
+                if self.config.remove_option(section_name, option):
+                    LOGGER.info("Removed obsolete setting: %s.%s", section_name, option)
+                    removed = True
+        if removed:
+            self._save_config()
 
     def _ensure_file_exists(self) -> None:
         """Create configuration directory and file if they don't exist."""
@@ -281,33 +296,6 @@ class MetronTaggerSettings:
             return self.config.has_option(section, option)
         except ValueError:
             return False
-
-    def remove_option(self, key: str) -> bool:
-        """Remove a configuration option.
-
-        Args:
-            key: The setting key in "section.option" format.
-
-        Returns:
-            True if the option was removed, False if it didn't exist.
-
-        Raises:
-            ValueError: If key format is invalid.
-            OSError: If unable to save configuration file.
-        """
-        try:
-            section, option = self._parse_key(key)
-        except ValueError:
-            LOGGER.exception("Invalid configuration key")
-            raise
-
-        if self.config.has_option(section, option):
-            self.config.remove_option(section, option)
-            self._save_config()
-            LOGGER.debug("Removed configuration option: %s", key)
-            return True
-
-        return False
 
     def get_section(self, section_name: str) -> dict[str, Any]:
         """Get all options from a configuration section.
