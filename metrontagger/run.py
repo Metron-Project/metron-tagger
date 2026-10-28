@@ -281,6 +281,10 @@ class Runner:
                 f"'{comic.path.name}' has a valid MetronInfo Version 1.1",
                 Styles.SUCCESS,
             ),
+            SchemaVersion.METRON_INFO_V1_2: (
+                f"'{comic.path.name}' has a valid MetronInfo Version 1.2",
+                Styles.SUCCESS,
+            ),
         }
 
         message, style = messages.get(
