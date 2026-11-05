@@ -20,6 +20,8 @@ from PIL import Image
 
 from metrontagger import __version__
 from metrontagger.talker import (
+    HALF_COVER_HAMMING_DISTANCE,
+    HAMMING_DISTANCE,
     REDIS_SOCKET_TIMEOUT,
     CoverHashMatcher,
     InfoSource,
@@ -408,6 +410,33 @@ def test_cover_hash_matcher_is_within_hamming_distance_no_hashes():
     """No cover hashes means no match."""
     with patch.object(CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=()):
         assert CoverHashMatcher.is_within_hamming_distance(Mock(), "abcdef") is False
+
+
+@pytest.mark.parametrize(
+    ("full_distance", "half_distance", "expected"),
+    [
+        (HAMMING_DISTANCE, 99, True),  # Full cover uses the normal limit
+        (99, HALF_COVER_HAMMING_DISTANCE, True),  # Half within the stricter limit
+        (99, HAMMING_DISTANCE, False),  # Half within normal but not stricter limit
+    ],
+)
+def test_cover_hash_matcher_half_cover_uses_stricter_distance(
+    full_distance, half_distance, expected
+):
+    """Half-cover crops must be closer than the full cover to count as a match."""
+    full_hash, half_hash = Mock(), Mock()
+    full_hash.__sub__ = Mock(return_value=full_distance)
+    half_hash.__sub__ = Mock(return_value=half_distance)
+
+    with (
+        patch.object(
+            CoverHashMatcher,
+            "get_comic_cover_hashes_cached",
+            return_value=(full_hash, half_hash, half_hash),
+        ),
+        patch("metrontagger.talker.hex_to_hash"),
+    ):
+        assert CoverHashMatcher.is_within_hamming_distance(Mock(), "abcdef") is expected
 
 
 @pytest.mark.parametrize("front", ["right", "left"])

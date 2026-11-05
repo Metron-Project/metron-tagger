@@ -65,6 +65,10 @@ warnings.filterwarnings(
 )  # Ignore 'UserWarning: Corrupt EXIF data' warnings
 
 HAMMING_DISTANCE = 10
+# Stricter limit for the half-cover crops of a double-page spread. Each spread
+# gets extra chances to match, so the halves must be closer to avoid the back
+# cover (or an unrelated half) auto-matching the wrong issue.
+HALF_COVER_HAMMING_DISTANCE = 6
 # Width/height ratio above which a cover is treated as a double-page spread.
 # Single covers are ~0.65; two-page spreads are ~1.3.
 DOUBLE_SPREAD_ASPECT_RATIO = 1.0
@@ -401,21 +405,28 @@ class CoverHashMatcher:
 
     @classmethod
     def is_within_hamming_distance(cls, comic: Comic, metron_hash: str | None = None) -> bool:
-        """Check if any of the comic cover hashes is within the specified Hamming distance."""
+        """Check if the comic cover matches the Metron cover hash.
+
+        The full cover must be within HAMMING_DISTANCE; the half-cover crops of a
+        double-page spread must be within the stricter HALF_COVER_HAMMING_DISTANCE.
+        """
         if metron_hash is None:
             return False
 
         comic_hashes = cls.get_comic_cover_hashes_cached(comic)
         if not comic_hashes:
             return False
+        full_hash, *half_hashes = comic_hashes
         try:
             target = hex_to_hash(metron_hash)
-            hamming = min(comic_hash - target for comic_hash in comic_hashes)
+            if full_hash - target <= HAMMING_DISTANCE:
+                return True
+            return any(
+                half_hash - target <= HALF_COVER_HAMMING_DISTANCE for half_hash in half_hashes
+            )
         except ValueError:
             LOGGER.exception("Failed to get Hamming distance for comic %s", comic.name)
             return False
-
-        return bool(hamming <= HAMMING_DISTANCE)
 
     @classmethod
     def filter_by_hamming_distance(
