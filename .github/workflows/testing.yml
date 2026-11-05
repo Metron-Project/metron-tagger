@@ -8,6 +8,13 @@ on:
     branches:
       - main
 
+# Only one run per PR at a time: a new push cancels the PR's in-flight run, so
+# superseded runs don't tie up scarce macOS runners. Pushes to main are never
+# cancelled, so every commit on main gets a full run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   tox:
     name: "Tests"
@@ -19,6 +26,15 @@ jobs:
           - ubuntu-latest
           - macos-latest
           # - windows-latest
+        # macOS runners are capacity-constrained, so only test the oldest and
+        # newest supported Python there; Ubuntu covers every version.
+        exclude:
+          - os: macos-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.13"
+          - os: macos-latest
+            python-version: "3.14"
     runs-on: ${{ matrix.os }}
     steps:
       #----------------------------------------------
