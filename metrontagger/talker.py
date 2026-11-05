@@ -51,7 +51,7 @@ from darkseid.utils import get_issue_id_from_note
 from imagehash import ImageHash, hex_to_hash, phash
 from mokkari.exceptions import ApiError, RateLimitError
 from mokkari.rate_limit import HeaderPacedRateLimiter
-from PIL import Image
+from PIL import ExifTags, Image, ImageOps
 from requests.exceptions import HTTPError
 
 from metrontagger import __version__
@@ -70,8 +70,9 @@ HAMMING_DISTANCE = 10
 # cover (or an unrelated half) auto-matching the wrong issue.
 HALF_COVER_HAMMING_DISTANCE = 6
 # Width/height ratio above which a cover is treated as a double-page spread.
-# Single covers are ~0.65; two-page spreads are ~1.3.
-DOUBLE_SPREAD_ASPECT_RATIO = 1.0
+# Single covers are ~0.65; two-page spreads are ~1.3. The margin above 1.0 keeps
+# square-ish single covers from being split.
+DOUBLE_SPREAD_ASPECT_RATIO = 1.2
 RATE_LIMIT_AUTO_RETRY_THRESHOLD = 60  # seconds
 RATE_LIMIT_RETRY_BUFFER = 2  # seconds added to retry_after to account for clock skew
 # Bound Redis connects/reads so an unreachable or stalled server raises a RedisError
@@ -358,8 +359,15 @@ class CoverHashMatcher:
     """Handles cover hash matching for comics."""
 
     @staticmethod
+    def upright(img: Image.Image) -> Image.Image:
+        """Return the image as displayed, applying any EXIF orientation rotation."""
+        if img.getexif().get(ExifTags.Base.Orientation, 1) == 1:
+            return img
+        return ImageOps.exif_transpose(img)
+
+    @staticmethod
     def is_double_spread(img: Image.Image) -> bool:
-        """Return True if the image is landscape, i.e. likely a two-page spread."""
+        """Return True if the image is clearly landscape, i.e. likely a two-page spread."""
         width, height = img.size
         return height > 0 and width / height > DOUBLE_SPREAD_ASPECT_RATIO
 
@@ -372,11 +380,14 @@ class CoverHashMatcher:
         stores only the single front cover, so each half is hashed as well.
         """
         hashes = [phash(img)]
-        if cls.is_double_spread(img):
-            width, height = img.size
+        # Judge the shape as displayed, so a portrait cover stored sideways with an
+        # EXIF rotation isn't mistaken for a spread.
+        upright = cls.upright(img)
+        if cls.is_double_spread(upright):
+            width, height = upright.size
             mid = width // 2
-            hashes.append(phash(img.crop((mid, 0, width, height))))  # Right half
-            hashes.append(phash(img.crop((0, 0, mid, height))))  # Left half
+            hashes.append(phash(upright.crop((mid, 0, width, height))))  # Right half
+            hashes.append(phash(upright.crop((0, 0, mid, height))))  # Left half
         return tuple(hashes)
 
     @classmethod

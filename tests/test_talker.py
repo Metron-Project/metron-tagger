@@ -16,7 +16,7 @@ from darkseid.metadata import Basic, Metadata, MetronInfo, Notes
 from imagehash import phash
 from mokkari.exceptions import ApiError, RateLimitError
 from mokkari.rate_limit import HeaderPacedRateLimiter
-from PIL import Image
+from PIL import ExifTags, Image
 
 from metrontagger import __version__
 from metrontagger.talker import (
@@ -325,7 +325,7 @@ def _clear_cover_hash_cache():
 
 @pytest.mark.parametrize(
     ("size", "expected"),
-    [((650, 1000), False), ((1000, 1000), False), ((1300, 1000), True)],
+    [((650, 1000), False), ((1000, 1000), False), ((1150, 1000), False), ((1300, 1000), True)],
 )
 def test_cover_hash_matcher_is_double_spread(size, expected):
     """Only landscape images are treated as double-page spreads."""
@@ -352,6 +352,21 @@ def test_cover_hash_matcher_get_comic_cover_hashes_double_spread():
     assert len(result) == 3
     assert str(result[1]) == _hash_hex(right)
     assert str(result[2]) == _hash_hex(left)
+
+
+@pytest.mark.parametrize(("orientation", "expected_len"), [(1, 3), (6, 1), (8, 1)])
+def test_cover_hash_matcher_get_comic_cover_hashes_exif_orientation(orientation, expected_len):
+    """A landscape-stored cover that EXIF rotates to portrait isn't treated as a spread."""
+    with Image.open(io.BytesIO(_make_image_bytes((130, 100)))) as img:
+        exif = Image.Exif()
+        exif[ExifTags.Base.Orientation] = orientation
+        buf = io.BytesIO()
+        img.convert("RGB").save(buf, format="JPEG", exif=exif)
+    mock_comic = Mock()
+    mock_comic.get_page.return_value = buf.getvalue()
+
+    result = CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic)
+    assert len(result) == expected_len
 
 
 def test_cover_hash_matcher_get_comic_cover_hashes_no_page():
