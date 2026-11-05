@@ -65,10 +65,11 @@ warnings.filterwarnings(
 )  # Ignore 'UserWarning: Corrupt EXIF data' warnings
 
 HAMMING_DISTANCE = 10
-# Stricter limit for the half-cover crops of a double-page spread. Each spread
-# gets extra chances to match, so the halves must be closer to avoid the back
-# cover (or an unrelated half) auto-matching the wrong issue.
-HALF_COVER_HAMMING_DISTANCE = 6
+# Limit for the half-cover crops of a double-page spread, kept separate from
+# HAMMING_DISTANCE so it can be tuned on its own. Real spread covers put the
+# front-cover half at 6-10 from Metron's cover and the back-cover half at 28-38,
+# so the normal limit separates them cleanly.
+HALF_COVER_HAMMING_DISTANCE = 10
 # Width/height ratio above which a cover is treated as a double-page spread.
 # Single covers are ~0.65; two-page spreads are ~1.3. The margin above 1.0 keeps
 # square-ish single covers from being split.
@@ -433,7 +434,7 @@ class CoverHashMatcher:
         """Check if the comic cover matches the Metron cover hash.
 
         The full cover must be within HAMMING_DISTANCE; the half-cover crops of a
-        double-page spread must be within the stricter HALF_COVER_HAMMING_DISTANCE.
+        double-page spread must be within HALF_COVER_HAMMING_DISTANCE.
         """
         if metron_hash is None:
             return False

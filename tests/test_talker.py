@@ -442,15 +442,16 @@ def test_cover_hash_matcher_is_within_hamming_distance_no_hashes():
 @pytest.mark.parametrize(
     ("full_distance", "half_distance", "expected"),
     [
-        (HAMMING_DISTANCE, 99, True),  # Full cover uses the normal limit
-        (99, HALF_COVER_HAMMING_DISTANCE, True),  # Half within the stricter limit
-        (99, HAMMING_DISTANCE, False),  # Half within normal but not stricter limit
+        (HAMMING_DISTANCE, 99, True),  # Full cover within its limit
+        (HAMMING_DISTANCE + 1, 99, False),  # Full cover just over its limit
+        (99, HALF_COVER_HAMMING_DISTANCE, True),  # Half within its limit
+        (99, HALF_COVER_HAMMING_DISTANCE + 1, False),  # Half just over its limit
     ],
 )
-def test_cover_hash_matcher_half_cover_uses_stricter_distance(
+def test_cover_hash_matcher_half_cover_uses_own_distance(
     full_distance, half_distance, expected
 ):
-    """Half-cover crops must be closer than the full cover to count as a match."""
+    """The full cover and the half-cover crops are each checked against their own limit."""
     full_hash, half_hash = Mock(), Mock()
     full_hash.__sub__ = Mock(return_value=full_distance)
     half_hash.__sub__ = Mock(return_value=half_distance)
