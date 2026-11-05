@@ -373,10 +373,10 @@ class CoverHashMatcher:
     def is_double_spread(img: Image.Image) -> bool:
         """Return True if the image is clearly landscape, i.e. likely a two-page spread."""
         width, height = img.size
-        return height > 0 and width / height > DOUBLE_SPREAD_ASPECT_RATIO
+        return width / height > DOUBLE_SPREAD_ASPECT_RATIO
 
-    @classmethod
-    def hash_cover_image(cls, img: Image.Image) -> tuple[ImageHash, ...]:
+    @staticmethod
+    def hash_cover_image(img: Image.Image) -> tuple[ImageHash, ...]:
         """Hash a cover image, including each half if it's a double-page spread.
 
         A double-spread cover usually has the front cover on the right half
@@ -386,24 +386,27 @@ class CoverHashMatcher:
         cropped from the outer edge at single-cover width rather than split at
         the midpoint.
         """
-        hashes = [phash(img)]
+        # phash converts to grayscale itself; doing it once up front avoids repeating
+        # the full-size conversion for each half-cover crop.
+        gray = img.convert("L")
+        hashes = [phash(gray)]
         # Judge the shape as displayed, so a portrait cover stored sideways with an
         # EXIF rotation isn't mistaken for a spread.
-        upright = cls.upright(img)
-        if cls.is_double_spread(upright):
-            width, height = upright.size
+        upright = CoverHashMatcher.upright(img)
+        if CoverHashMatcher.is_double_spread(upright):
+            upright_gray = gray if upright is img else upright.convert("L")
+            width, height = upright_gray.size
             # Crop each cover from its outer edge, at single-cover width (capped at
             # half), so any spine strip in the middle is left out.
             cover_width = min(width // 2, round(height * SINGLE_COVER_ASPECT_RATIO))
-            hashes.append(
-                phash(upright.crop((width - cover_width, 0, width, height)))
-            )  # Right
-            hashes.append(phash(upright.crop((0, 0, cover_width, height))))  # Left
+            right = upright_gray.crop((width - cover_width, 0, width, height))
+            left = upright_gray.crop((0, 0, cover_width, height))
+            hashes.extend((phash(right), phash(left)))
         return tuple(hashes)
 
-    @classmethod
+    @staticmethod
     @lru_cache(maxsize=128)
-    def get_comic_cover_hashes_cached(cls, comic: Comic) -> tuple[ImageHash, ...]:
+    def get_comic_cover_hashes_cached(comic: Comic) -> tuple[ImageHash, ...]:
         """Get the image hash(es) of a comic cover.
 
         Args:
@@ -420,7 +423,7 @@ class CoverHashMatcher:
             return ()
         try:
             with Image.open(io.BytesIO(cover)) as img:
-                return cls.hash_cover_image(img)
+                return CoverHashMatcher.hash_cover_image(img)
         except OSError:
             questionary.print("Unable to get cover hash.", style=Styles.ERROR)
             return ()

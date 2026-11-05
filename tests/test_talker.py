@@ -322,8 +322,9 @@ def _hash_hex(data: bytes) -> str:
         return str(phash(img))
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def _clear_cover_hash_cache():
+    """Clear the cover-hash cache around tests that compute real cover hashes."""
     CoverHashMatcher.get_comic_cover_hashes_cached.cache_clear()
     yield
     CoverHashMatcher.get_comic_cover_hashes_cached.cache_clear()
@@ -338,6 +339,7 @@ def test_cover_hash_matcher_is_double_spread(size, expected):
     assert CoverHashMatcher.is_double_spread(Image.new("L", size)) is expected
 
 
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
 def test_cover_hash_matcher_get_comic_cover_hashes_single_cover():
     """A portrait cover yields a single hash."""
     mock_comic = Mock()
@@ -347,6 +349,7 @@ def test_cover_hash_matcher_get_comic_cover_hashes_single_cover():
     assert len(result) == 1
 
 
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
 def test_cover_hash_matcher_get_comic_cover_hashes_double_spread():
     """A landscape cover yields full, right-half, and left-half hashes."""
     left = _make_image_bytes((65, 100), seed=1)
@@ -360,6 +363,7 @@ def test_cover_hash_matcher_get_comic_cover_hashes_double_spread():
     assert str(result[2]) == _hash_hex(left)
 
 
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
 @pytest.mark.parametrize(("orientation", "expected_len"), [(1, 3), (6, 1), (8, 1)])
 def test_cover_hash_matcher_get_comic_cover_hashes_exif_orientation(orientation, expected_len):
     """A landscape-stored cover that EXIF rotates to portrait isn't treated as a spread."""
@@ -375,6 +379,7 @@ def test_cover_hash_matcher_get_comic_cover_hashes_exif_orientation(orientation,
     assert len(result) == expected_len
 
 
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
 def test_cover_hash_matcher_get_comic_cover_hashes_no_page():
     """Missing cover page yields no hashes."""
     mock_comic = Mock()
@@ -384,6 +389,7 @@ def test_cover_hash_matcher_get_comic_cover_hashes_no_page():
         assert CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic) == ()
 
 
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
 @patch("metrontagger.talker.Image.open", side_effect=OSError("Invalid image"))
 def test_cover_hash_matcher_get_comic_cover_hash_failure(_):  # noqa: PT019
     """Test cover hash calculation failure."""
@@ -460,6 +466,7 @@ def test_cover_hash_matcher_half_cover_uses_stricter_distance(
         assert CoverHashMatcher.is_within_hamming_distance(Mock(), "abcdef") is expected
 
 
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
 @pytest.mark.parametrize("front", ["right", "left"])
 def test_cover_hash_matcher_double_spread_matches_single_cover(front):
     """A double-spread cover matches Metron's single front cover on either half."""
@@ -476,6 +483,7 @@ def test_cover_hash_matcher_double_spread_matches_single_cover(front):
     assert CoverHashMatcher.is_within_hamming_distance(mock_comic, _hash_hex(cover)) is True
 
 
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
 @pytest.mark.parametrize("front", ["right", "left"])
 def test_cover_hash_matcher_wraparound_with_spine_matches_single_cover(front):
     """A wraparound cover with a spine strip still matches the single front cover."""
@@ -490,6 +498,7 @@ def test_cover_hash_matcher_wraparound_with_spine_matches_single_cover(front):
     assert CoverHashMatcher.is_within_hamming_distance(mock_comic, _hash_hex(cover)) is True
 
 
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
 def test_cover_hash_matcher_double_spread_no_match():
     """A double-spread cover doesn't match an unrelated cover."""
     spread = _make_spread_bytes(
