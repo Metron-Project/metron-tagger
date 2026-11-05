@@ -73,6 +73,10 @@ HALF_COVER_HAMMING_DISTANCE = 6
 # Single covers are ~0.65; two-page spreads are ~1.3. The margin above 1.0 keeps
 # square-ish single covers from being split.
 DOUBLE_SPREAD_ASPECT_RATIO = 1.2
+# Width/height ratio of a single cover (US comic trim is 6.625" x 10.1875").
+# Used to crop the front/back cover from the outer edges of a wraparound cover,
+# so a spine strip in the middle isn't included in the half-cover hash.
+SINGLE_COVER_ASPECT_RATIO = 0.65
 RATE_LIMIT_AUTO_RETRY_THRESHOLD = 60  # seconds
 RATE_LIMIT_RETRY_BUFFER = 2  # seconds added to retry_after to account for clock skew
 # Bound Redis connects/reads so an unreachable or stalled server raises a RedisError
@@ -378,6 +382,9 @@ class CoverHashMatcher:
         A double-spread cover usually has the front cover on the right half
         (left half for right-to-left books like manga), while Metron typically
         stores only the single front cover, so each half is hashed as well.
+        Wraparound covers may have a spine strip in the middle, so each half is
+        cropped from the outer edge at single-cover width rather than split at
+        the midpoint.
         """
         hashes = [phash(img)]
         # Judge the shape as displayed, so a portrait cover stored sideways with an
@@ -385,9 +392,13 @@ class CoverHashMatcher:
         upright = cls.upright(img)
         if cls.is_double_spread(upright):
             width, height = upright.size
-            mid = width // 2
-            hashes.append(phash(upright.crop((mid, 0, width, height))))  # Right half
-            hashes.append(phash(upright.crop((0, 0, mid, height))))  # Left half
+            # Crop each cover from its outer edge, at single-cover width (capped at
+            # half), so any spine strip in the middle is left out.
+            cover_width = min(width // 2, round(height * SINGLE_COVER_ASPECT_RATIO))
+            hashes.append(
+                phash(upright.crop((width - cover_width, 0, width, height)))
+            )  # Right
+            hashes.append(phash(upright.crop((0, 0, cover_width, height))))  # Left
         return tuple(hashes)
 
     @classmethod
