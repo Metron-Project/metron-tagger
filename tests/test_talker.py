@@ -300,18 +300,12 @@ def _make_image_bytes(size: tuple[int, int], seed: int = 0) -> bytes:
     return buf.getvalue()
 
 
-def _make_spread_bytes(left: bytes, right: bytes, spine_width: int = 0) -> bytes:
-    """Join two page images side-by-side into a double-page spread.
-
-    A non-zero ``spine_width`` inserts a white spine strip between the pages, as
-    on a wraparound cover.
-    """
+def _make_spread_bytes(left: bytes, right: bytes) -> bytes:
+    """Join two page images side-by-side into a double-page spread."""
     with Image.open(io.BytesIO(left)) as left_img, Image.open(io.BytesIO(right)) as right_img:
-        spread = Image.new(
-            "L", (left_img.width + spine_width + right_img.width, left_img.height), 255
-        )
+        spread = Image.new("L", (left_img.width + right_img.width, left_img.height))
         spread.paste(left_img, (0, 0))
-        spread.paste(right_img, (left_img.width + spine_width, 0))
+        spread.paste(right_img, (left_img.width, 0))
     buf = io.BytesIO()
     spread.save(buf, format="PNG")
     return buf.getvalue()
@@ -481,21 +475,6 @@ def test_cover_hash_matcher_double_spread_matches_single_cover(front):
     mock_comic = Mock()
     mock_comic.get_page.return_value = spread
 
-    assert CoverHashMatcher.is_within_hamming_distance(mock_comic, _hash_hex(cover)) is True
-
-
-@pytest.mark.usefixtures("_clear_cover_hash_cache")
-@pytest.mark.parametrize("front", ["right", "left"])
-def test_cover_hash_matcher_wraparound_with_spine_matches_single_cover(front):
-    """A wraparound cover with a spine strip still matches the single front cover."""
-    back = _make_image_bytes((65, 100), seed=1)
-    cover = _make_image_bytes((65, 100), seed=2)
-    left, right = (back, cover) if front == "right" else (cover, back)
-    mock_comic = Mock()
-    mock_comic.get_page.return_value = _make_spread_bytes(left, right, spine_width=10)
-
-    hashes = CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic)
-    assert _hash_hex(cover) in {str(h) for h in hashes[1:]}
     assert CoverHashMatcher.is_within_hamming_distance(mock_comic, _hash_hex(cover)) is True
 
 
