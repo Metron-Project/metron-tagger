@@ -51,7 +51,7 @@ from darkseid.utils import get_issue_id_from_note
 from imagehash import ImageHash, hex_to_hash, phash
 from mokkari.exceptions import ApiError, RateLimitError
 from mokkari.rate_limit import HeaderPacedRateLimiter
-from PIL import Image
+from PIL import ExifTags, Image, ImageOps
 from requests.exceptions import HTTPError
 
 from metrontagger import __version__
@@ -65,6 +65,15 @@ warnings.filterwarnings(
 )  # Ignore 'UserWarning: Corrupt EXIF data' warnings
 
 HAMMING_DISTANCE = 10
+# Limit for the half-cover crops of a double-page spread, kept separate from
+# HAMMING_DISTANCE so it can be tuned on its own. Real spread covers put the
+# front-cover half at 6-10 from Metron's cover and the back-cover half at 28-38,
+# so the normal limit separates them cleanly.
+HALF_COVER_HAMMING_DISTANCE = 10
+# Width/height ratio above which a cover is treated as a double-page spread.
+# Single covers are ~0.65; two-page spreads are ~1.3. The margin above 1.0 keeps
+# square-ish single covers from being split.
+DOUBLE_SPREAD_ASPECT_RATIO = 1.2
 RATE_LIMIT_AUTO_RETRY_THRESHOLD = 60  # seconds
 RATE_LIMIT_RETRY_BUFFER = 2  # seconds added to retry_after to account for clock skew
 # Bound Redis connects/reads so an unreachable or stalled server raises a RedisError
@@ -351,43 +360,92 @@ class CoverHashMatcher:
     """Handles cover hash matching for comics."""
 
     @staticmethod
+    def upright(img: Image.Image) -> Image.Image:
+        """Return the image as displayed, applying any EXIF orientation rotation."""
+        if img.getexif().get(ExifTags.Base.Orientation, 1) == 1:
+            return img
+        return ImageOps.exif_transpose(img)
+
+    @staticmethod
+    def is_double_spread(img: Image.Image) -> bool:
+        """Return True if the image is clearly landscape, i.e. likely a two-page spread."""
+        width, height = img.size
+        return width / height > DOUBLE_SPREAD_ASPECT_RATIO
+
+    @staticmethod
+    def hash_cover_image(img: Image.Image) -> tuple[ImageHash, ...]:
+        """Hash a cover image, including each half if it's a double-page spread.
+
+        A double-spread cover usually has the front cover on the right half
+        (left half for right-to-left books like manga), while Metron typically
+        stores only the single front cover, so each half is hashed as well.
+        The split is exactly at the midpoint: phash is sensitive to where the
+        cut lands, and even a 1px shift can change the hash by a few bits.
+        """
+        # phash converts to grayscale itself; doing it once up front avoids repeating
+        # the full-size conversion for each half-cover crop.
+        gray = img.convert("L")
+        hashes = [phash(gray)]
+        # Judge the shape as displayed, so a portrait cover stored sideways with an
+        # EXIF rotation isn't mistaken for a spread.
+        upright = CoverHashMatcher.upright(img)
+        if CoverHashMatcher.is_double_spread(upright):
+            upright_gray = gray if upright is img else upright.convert("L")
+            width, height = upright_gray.size
+            mid = width // 2
+            right = upright_gray.crop((mid, 0, width, height))
+            left = upright_gray.crop((0, 0, mid, height))
+            hashes.extend((phash(right), phash(left)))
+        return tuple(hashes)
+
+    @staticmethod
     @lru_cache(maxsize=128)
-    def get_comic_cover_hash_cached(comic: Comic) -> ImageHash | None:
-        """Get the image hash of a comic cover.
+    def get_comic_cover_hashes_cached(comic: Comic) -> tuple[ImageHash, ...]:
+        """Get the image hash(es) of a comic cover.
 
         Args:
             comic: The Comic object representing the comic.
 
         Returns:
-            The image hash of the comic cover, or None if unable to calculate.
+            A tuple of cover hashes: the full cover, plus the right and left
+            halves if the cover is a double-page spread. Empty if unable to
+            calculate.
         """
         cover = comic.get_page(0)
         if cover is None:
             questionary.print("Unable to get cover hash.", style=Styles.ERROR)
-            return None
+            return ()
         try:
             with Image.open(io.BytesIO(cover)) as img:
-                return phash(img)
+                return CoverHashMatcher.hash_cover_image(img)
         except OSError:
             questionary.print("Unable to get cover hash.", style=Styles.ERROR)
-            return None
+            return ()
 
     @classmethod
     def is_within_hamming_distance(cls, comic: Comic, metron_hash: str | None = None) -> bool:
-        """Check if the comic cover hash is within the specified Hamming distance."""
+        """Check if the comic cover matches the Metron cover hash.
+
+        The full cover must be within HAMMING_DISTANCE; the half-cover crops of a
+        double-page spread must be within HALF_COVER_HAMMING_DISTANCE.
+        """
         if metron_hash is None:
             return False
 
-        comic_hash = cls.get_comic_cover_hash_cached(comic)
-        if comic_hash is None:
+        comic_hashes = cls.get_comic_cover_hashes_cached(comic)
+        if not comic_hashes:
             return False
+        full_hash, *half_hashes = comic_hashes
         try:
-            hamming = comic_hash - hex_to_hash(metron_hash)
+            target = hex_to_hash(metron_hash)
+            if full_hash - target <= HAMMING_DISTANCE:
+                return True
+            return any(
+                half_hash - target <= HALF_COVER_HAMMING_DISTANCE for half_hash in half_hashes
+            )
         except ValueError:
             LOGGER.exception("Failed to get Hamming distance for comic %s", comic.name)
             return False
-
-        return hamming <= HAMMING_DISTANCE
 
     @classmethod
     def filter_by_hamming_distance(

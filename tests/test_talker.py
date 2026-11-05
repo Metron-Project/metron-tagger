@@ -1,5 +1,7 @@
 """Tests for the Talker class and its helper classes."""
 
+import io
+import random
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
@@ -11,11 +13,15 @@ import redis
 import requests
 from darkseid.comic import Comic
 from darkseid.metadata import Basic, Metadata, MetronInfo, Notes
+from imagehash import phash
 from mokkari.exceptions import ApiError, RateLimitError
 from mokkari.rate_limit import HeaderPacedRateLimiter
+from PIL import ExifTags, Image
 
 from metrontagger import __version__
 from metrontagger.talker import (
+    HALF_COVER_HAMMING_DISTANCE,
+    HAMMING_DISTANCE,
     REDIS_SOCKET_TIMEOUT,
     CoverHashMatcher,
     InfoSource,
@@ -284,20 +290,100 @@ def test_metadata_extractor_get_id_from_comic_info_invalid_id():
 # CoverHashMatcher tests
 
 
-@patch("metrontagger.talker.phash")
-@patch("metrontagger.talker.Image.open")
-def test_cover_hash_matcher_get_comic_cover_hash_success(_, mock_phash):  # noqa: PT019
-    """Test successful cover hash calculation."""
+def _make_image_bytes(size: tuple[int, int], seed: int = 0) -> bytes:
+    """Create a PNG with a random noise pattern so phash values are distinctive."""
+    rng = random.Random(seed)  # noqa: S311 - deterministic test data
+    img = Image.new("L", size)
+    img.putdata([rng.randint(0, 255) for _ in range(size[0] * size[1])])
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _make_spread_bytes(left: bytes, right: bytes) -> bytes:
+    """Join two page images side-by-side into a double-page spread."""
+    with Image.open(io.BytesIO(left)) as left_img, Image.open(io.BytesIO(right)) as right_img:
+        spread = Image.new("L", (left_img.width + right_img.width, left_img.height))
+        spread.paste(left_img, (0, 0))
+        spread.paste(right_img, (left_img.width, 0))
+    buf = io.BytesIO()
+    spread.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _hash_hex(data: bytes) -> str:
+    with Image.open(io.BytesIO(data)) as img:
+        return str(phash(img))
+
+
+@pytest.fixture
+def _clear_cover_hash_cache():
+    """Clear the cover-hash cache around tests that compute real cover hashes."""
+    CoverHashMatcher.get_comic_cover_hashes_cached.cache_clear()
+    yield
+    CoverHashMatcher.get_comic_cover_hashes_cached.cache_clear()
+
+
+@pytest.mark.parametrize(
+    ("size", "expected"),
+    [((650, 1000), False), ((1000, 1000), False), ((1150, 1000), False), ((1300, 1000), True)],
+)
+def test_cover_hash_matcher_is_double_spread(size, expected):
+    """Only landscape images are treated as double-page spreads."""
+    assert CoverHashMatcher.is_double_spread(Image.new("L", size)) is expected
+
+
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
+def test_cover_hash_matcher_get_comic_cover_hashes_single_cover():
+    """A portrait cover yields a single hash."""
     mock_comic = Mock()
-    mock_comic.get_page.return_value = b"fake_image_data"
-    mock_hash = Mock()
-    mock_phash.return_value = mock_hash
+    mock_comic.get_page.return_value = _make_image_bytes((65, 100))
 
-    result = CoverHashMatcher.get_comic_cover_hash_cached(mock_comic)
-    assert result == mock_hash
-    mock_phash.assert_called_once()
+    result = CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic)
+    assert len(result) == 1
 
 
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
+def test_cover_hash_matcher_get_comic_cover_hashes_double_spread():
+    """A landscape cover yields full, right-half, and left-half hashes."""
+    left = _make_image_bytes((65, 100), seed=1)
+    right = _make_image_bytes((65, 100), seed=2)
+    mock_comic = Mock()
+    mock_comic.get_page.return_value = _make_spread_bytes(left, right)
+
+    result = CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic)
+    assert len(result) == 3
+    assert str(result[1]) == _hash_hex(right)
+    assert str(result[2]) == _hash_hex(left)
+
+
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
+@pytest.mark.parametrize(("orientation", "expected_len"), [(1, 3), (6, 1), (8, 1)])
+def test_cover_hash_matcher_get_comic_cover_hashes_exif_orientation(orientation, expected_len):
+    """A landscape-stored cover that EXIF rotates to portrait isn't treated as a spread."""
+    with Image.open(io.BytesIO(_make_image_bytes((130, 100)))) as img:
+        exif = Image.Exif()
+        exif[ExifTags.Base.Orientation] = orientation
+        buf = io.BytesIO()
+        img.convert("RGB").save(buf, format="JPEG", exif=exif)
+    mock_comic = Mock()
+    mock_comic.get_page.return_value = buf.getvalue()
+
+    result = CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic)
+    assert len(result) == expected_len
+
+
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
+def test_cover_hash_matcher_get_comic_cover_hashes_no_page():
+    """Missing cover page yields no hashes."""
+    mock_comic = Mock()
+    mock_comic.get_page.return_value = None
+
+    with patch("metrontagger.talker.questionary.print"):
+        assert CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic) == ()
+
+
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
 @patch("metrontagger.talker.Image.open", side_effect=OSError("Invalid image"))
 def test_cover_hash_matcher_get_comic_cover_hash_failure(_):  # noqa: PT019
     """Test cover hash calculation failure."""
@@ -305,8 +391,8 @@ def test_cover_hash_matcher_get_comic_cover_hash_failure(_):  # noqa: PT019
     mock_comic.get_page.return_value = b"fake_image_data"
 
     with patch("metrontagger.talker.questionary.print"):
-        result = CoverHashMatcher.get_comic_cover_hash_cached(mock_comic)
-        assert result is None
+        result = CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic)
+        assert result == ()
 
 
 def test_cover_hash_matcher_is_within_hamming_distance_success():
@@ -316,7 +402,9 @@ def test_cover_hash_matcher_is_within_hamming_distance_success():
     mock_hash.__sub__ = Mock(return_value=5)  # Within distance
 
     with (
-        patch.object(CoverHashMatcher, "get_comic_cover_hash_cached", return_value=mock_hash),
+        patch.object(
+            CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=(mock_hash,)
+        ),
         patch("metrontagger.talker.hex_to_hash", return_value=mock_hash),
     ):
         result = CoverHashMatcher.is_within_hamming_distance(mock_comic, "abcdef")
@@ -330,11 +418,77 @@ def test_cover_hash_matcher_is_within_hamming_distance_failure():
     mock_hash.__sub__ = Mock(return_value=15)  # Outside distance
 
     with (
-        patch.object(CoverHashMatcher, "get_comic_cover_hash_cached", return_value=mock_hash),
+        patch.object(
+            CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=(mock_hash,)
+        ),
         patch("metrontagger.talker.hex_to_hash", return_value=mock_hash),
     ):
         result = CoverHashMatcher.is_within_hamming_distance(mock_comic, "abcdef")
         assert result is False
+
+
+def test_cover_hash_matcher_is_within_hamming_distance_no_hashes():
+    """No cover hashes means no match."""
+    with patch.object(CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=()):
+        assert CoverHashMatcher.is_within_hamming_distance(Mock(), "abcdef") is False
+
+
+@pytest.mark.parametrize(
+    ("full_distance", "half_distance", "expected"),
+    [
+        (HAMMING_DISTANCE, 99, True),  # Full cover within its limit
+        (HAMMING_DISTANCE + 1, 99, False),  # Full cover just over its limit
+        (99, HALF_COVER_HAMMING_DISTANCE, True),  # Half within its limit
+        (99, HALF_COVER_HAMMING_DISTANCE + 1, False),  # Half just over its limit
+    ],
+)
+def test_cover_hash_matcher_half_cover_uses_own_distance(
+    full_distance, half_distance, expected
+):
+    """The full cover and the half-cover crops are each checked against their own limit."""
+    full_hash, half_hash = Mock(), Mock()
+    full_hash.__sub__ = Mock(return_value=full_distance)
+    half_hash.__sub__ = Mock(return_value=half_distance)
+
+    with (
+        patch.object(
+            CoverHashMatcher,
+            "get_comic_cover_hashes_cached",
+            return_value=(full_hash, half_hash, half_hash),
+        ),
+        patch("metrontagger.talker.hex_to_hash"),
+    ):
+        assert CoverHashMatcher.is_within_hamming_distance(Mock(), "abcdef") is expected
+
+
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
+@pytest.mark.parametrize("front", ["right", "left"])
+def test_cover_hash_matcher_double_spread_matches_single_cover(front):
+    """A double-spread cover matches Metron's single front cover on either half."""
+    back = _make_image_bytes((65, 100), seed=1)
+    cover = _make_image_bytes((65, 100), seed=2)
+    spread = (
+        _make_spread_bytes(back, cover)
+        if front == "right"
+        else _make_spread_bytes(cover, back)
+    )
+    mock_comic = Mock()
+    mock_comic.get_page.return_value = spread
+
+    assert CoverHashMatcher.is_within_hamming_distance(mock_comic, _hash_hex(cover)) is True
+
+
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
+def test_cover_hash_matcher_double_spread_no_match():
+    """A double-spread cover doesn't match an unrelated cover."""
+    spread = _make_spread_bytes(
+        _make_image_bytes((65, 100), seed=1), _make_image_bytes((65, 100), seed=2)
+    )
+    mock_comic = Mock()
+    mock_comic.get_page.return_value = spread
+    unrelated = _hash_hex(_make_image_bytes((65, 100), seed=3))
+
+    assert CoverHashMatcher.is_within_hamming_distance(mock_comic, unrelated) is False
 
 
 def test_cover_hash_matcher_filter_by_hamming_distance():
