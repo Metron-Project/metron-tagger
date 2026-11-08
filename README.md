@@ -27,7 +27,10 @@ The optional dependencies are:
 
 - 7zip: Provides support for reading/writing to CB7 files.
 - jxl: Provides support for JPEG XL (.jxl) page images, needed for cover
-  matching and duplicate-page detection on comics that use them.
+  matching and duplicate-page detection on comics that use them. JXL pages are
+  always decoded at full resolution, so duplicate detection on large JXL comics
+  uses noticeably more CPU and memory than on JPEG comics. Using
+  `--quick-duplicates` reduces this by only checking a few pages per comic.
 - pdf: Provides support for reading/writing to PDF files.
 - redis: Provides a Redis-backed rate limiter for the Metron API.
 

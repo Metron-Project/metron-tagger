@@ -386,7 +386,9 @@ class Duplicates:
             return None
         try:
             with Image.open(io.BytesIO(page_data)) as img:
-                # Ask the JPEG decoder for a reduced-size grayscale image; a no-op for other formats.
+                # Ask the JPEG decoder for a reduced-size grayscale image; a no-op for other
+                # formats. pillow-jxl-plugin decodes the full image inside Image.open(), so
+                # JXL pages always arrive at full resolution.
                 img.draft("L", HASH_DRAFT_SIZE)
                 return str(average_hash(img))
         # pillow-jxl-plugin raises RuntimeError on corrupt/truncated JXL data.
