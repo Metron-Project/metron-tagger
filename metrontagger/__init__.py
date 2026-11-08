@@ -3,12 +3,23 @@
 __all__ = ["__version__", "init_logging"]
 
 import logging
+from contextlib import suppress
 from importlib.metadata import version
 from logging import basicConfig
 
 from metrontagger.utils import get_settings_folder
 
 __version__ = version("metron-tagger")
+
+# Registers a JPEG XL decoder with Pillow when the optional `jxl` extra is installed,
+# so .jxl comic pages can be cover-hashed and duplicate-checked like any other image.
+with suppress(ImportError):
+    from pillow_jxl import JpegXLImagePlugin
+
+    # The plugin defaults to one decoder thread per CPU core for every image. Duplicate
+    # detection already decodes pages in a thread pool, so per-image threading would
+    # oversubscribe the CPU; 0 disables the decoder's own parallelism.
+    JpegXLImagePlugin.DECODE_THREADS = 0
 
 DATE_FMT = "%Y-%m-%d %H:%M:%S %Z"
 LOG_FMT = "{asctime} {levelname:8} {message}"

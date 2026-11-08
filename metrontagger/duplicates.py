@@ -386,10 +386,13 @@ class Duplicates:
             return None
         try:
             with Image.open(io.BytesIO(page_data)) as img:
-                # Ask the JPEG decoder for a reduced-size grayscale image; a no-op for other formats.
+                # Ask the JPEG decoder for a reduced-size grayscale image; a no-op for other
+                # formats. pillow-jxl-plugin decodes the full image inside Image.open(), so
+                # JXL pages always arrive at full resolution.
                 img.draft("L", HASH_DRAFT_SIZE)
                 return str(average_hash(img))
-        except (UnidentifiedImageError, OSError) as e:
+        # pillow-jxl-plugin raises RuntimeError on corrupt/truncated JXL data.
+        except (UnidentifiedImageError, OSError, RuntimeError) as e:
             LOGGER.debug("Unable to calculate hash for image: %s", e)
             return None
 

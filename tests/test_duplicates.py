@@ -167,6 +167,24 @@ def test_calculate_image_hash_os_error():
         assert result is None
 
 
+def test_calculate_image_hash_runtime_error():
+    """A decoder RuntimeError (e.g. from pillow-jxl-plugin) is treated as a failed hash."""
+    with patch(
+        "metrontagger.duplicates.Image.open", side_effect=RuntimeError("decode failed")
+    ):
+        assert Duplicates._calculate_image_hash(b"some_data") is None
+
+
+def test_calculate_image_hash_corrupt_jxl():
+    """A truncated JPEG XL page yields no hash instead of raising."""
+    pytest.importorskip("pillow_jxl")
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 64), color="red").save(buf, format="JXL", lossless=True)
+    truncated = buf.getvalue()[: len(buf.getvalue()) // 2]
+
+    assert Duplicates._calculate_image_hash(truncated) is None
+
+
 def test_calculate_image_hash_none_page_data():
     """Test hash calculation when the page couldn't be read (e.g. exceeds the size limit)."""
     assert Duplicates._calculate_image_hash(None) is None
