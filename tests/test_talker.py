@@ -388,6 +388,31 @@ def test_cover_hash_matcher_get_comic_cover_hashes_jxl():
 
 
 @pytest.mark.usefixtures("_clear_cover_hash_cache")
+def test_cover_hash_matcher_get_comic_cover_hashes_corrupt_jxl():
+    """A truncated JPEG XL cover yields no hashes instead of raising."""
+    pytest.importorskip("pillow_jxl")
+    with Image.open(io.BytesIO(_make_image_bytes((65, 100)))) as img:
+        buf = io.BytesIO()
+        img.save(buf, format="JXL", lossless=True)
+    mock_comic = Mock()
+    mock_comic.get_page.return_value = buf.getvalue()[: len(buf.getvalue()) // 2]
+
+    with patch("metrontagger.talker.questionary.print"):
+        assert CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic) == ()
+
+
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
+@patch("metrontagger.talker.Image.open", side_effect=RuntimeError("decode failed"))
+def test_cover_hash_matcher_get_comic_cover_hash_runtime_error(_):  # noqa: PT019
+    """A decoder RuntimeError (e.g. from pillow-jxl-plugin) yields no hashes."""
+    mock_comic = Mock()
+    mock_comic.get_page.return_value = b"fake_image_data"
+
+    with patch("metrontagger.talker.questionary.print"):
+        assert CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic) == ()
+
+
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
 def test_cover_hash_matcher_get_comic_cover_hashes_no_page():
     """Missing cover page yields no hashes."""
     mock_comic = Mock()

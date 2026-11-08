@@ -389,7 +389,8 @@ class Duplicates:
                 # Ask the JPEG decoder for a reduced-size grayscale image; a no-op for other formats.
                 img.draft("L", HASH_DRAFT_SIZE)
                 return str(average_hash(img))
-        except (UnidentifiedImageError, OSError) as e:
+        # pillow-jxl-plugin raises RuntimeError on corrupt/truncated JXL data.
+        except (UnidentifiedImageError, OSError, RuntimeError) as e:
             LOGGER.debug("Unable to calculate hash for image: %s", e)
             return None
 

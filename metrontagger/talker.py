@@ -418,7 +418,8 @@ class CoverHashMatcher:
         try:
             with Image.open(io.BytesIO(cover)) as img:
                 return CoverHashMatcher.hash_cover_image(img)
-        except OSError:
+        except (OSError, RuntimeError):
+            # pillow-jxl-plugin raises RuntimeError on corrupt/truncated JXL data.
             questionary.print("Unable to get cover hash.", style=Styles.ERROR)
             return ()
 
