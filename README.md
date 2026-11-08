@@ -26,6 +26,8 @@ of them in braces e.g. metron-tagger[7zip]
 The optional dependencies are:
 
 - 7zip: Provides support for reading/writing to CB7 files.
+- jxl: Provides support for JPEG XL (.jxl) page images, needed for cover
+  matching and duplicate-page detection on comics that use them.
 - pdf: Provides support for reading/writing to PDF files.
 - redis: Provides a Redis-backed rate limiter for the Metron API.
 

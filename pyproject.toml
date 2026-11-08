@@ -60,6 +60,7 @@ metron-tagger = "metrontagger.cli:main"
 [project.optional-dependencies]
 7zip = ["py7zr>=1.0.0"]
 pdf = ["pymupdf>=1.26.6"]
+jxl = ["pillow-jxl-plugin>=1.3.8"]
 redis = ["mokkari[redis]>=5.0.0"]
 
 [dependency-groups]

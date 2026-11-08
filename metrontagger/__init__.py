@@ -3,12 +3,18 @@
 __all__ = ["__version__", "init_logging"]
 
 import logging
+from contextlib import suppress
 from importlib.metadata import version
 from logging import basicConfig
 
 from metrontagger.utils import get_settings_folder
 
 __version__ = version("metron-tagger")
+
+# Registers a JPEG XL decoder with Pillow when the optional `jxl` extra is installed,
+# so .jxl comic pages can be cover-hashed and duplicate-checked like any other image.
+with suppress(ImportError):
+    import pillow_jxl  # noqa: F401
 
 DATE_FMT = "%Y-%m-%d %H:%M:%S %Z"
 LOG_FMT = "{asctime} {levelname:8} {message}"

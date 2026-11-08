@@ -374,6 +374,20 @@ def test_cover_hash_matcher_get_comic_cover_hashes_exif_orientation(orientation,
 
 
 @pytest.mark.usefixtures("_clear_cover_hash_cache")
+def test_cover_hash_matcher_get_comic_cover_hashes_jxl():
+    """A JPEG XL cover is hashed when the optional `jxl` extra is installed."""
+    pytest.importorskip("pillow_jxl")
+    with Image.open(io.BytesIO(_make_image_bytes((65, 100)))) as img:
+        buf = io.BytesIO()
+        img.save(buf, format="JXL", lossless=True)
+    mock_comic = Mock()
+    mock_comic.get_page.return_value = buf.getvalue()
+
+    result = CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic)
+    assert len(result) == 1
+
+
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
 def test_cover_hash_matcher_get_comic_cover_hashes_no_page():
     """Missing cover page yields no hashes."""
     mock_comic = Mock()
