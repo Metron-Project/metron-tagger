@@ -47,3 +47,20 @@ def test_settings_removes_obsolete_options(tmp_path) -> None:
     assert not config.has_option("metron.password")
     assert not config.has_option("metron.token_migration_prompted")
     assert "password" not in settings_file.read_text(encoding="utf-8")
+
+
+def test_settings_rewrites_corrupt_file(tmp_path) -> None:
+    """A corrupt settings file is replaced with the repaired configuration."""
+    import configparser  # noqa: PLC0415
+
+    from metrontagger.settings import MetronTaggerSettings  # noqa: PLC0415
+
+    settings_file = tmp_path / "settings.ini"
+    settings_file.write_text("this is not a valid ini file ((((", encoding="utf-8")
+
+    config = MetronTaggerSettings(config_dir=tmp_path)
+
+    assert config["rename.rename_issue_number_padding"] == 3
+    repaired = configparser.RawConfigParser()
+    repaired.read(settings_file, encoding="utf-8")
+    assert repaired.getint("rename", "rename_issue_number_padding") == 3
