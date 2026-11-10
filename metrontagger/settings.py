@@ -83,6 +83,7 @@ class MetronTaggerSettings:
 
     def _initialize_config(self) -> None:
         """Initialize configuration file and default sections."""
+        corrupted = False
         # Read existing configuration
         if self.settings_file.exists():
             try:
@@ -91,6 +92,7 @@ class MetronTaggerSettings:
             except configparser.Error as e:
                 LOGGER.warning("Configuration file corrupt, recreating: %s", e)
                 self.config = configparser.RawConfigParser()
+                corrupted = True
 
         # Ensure required sections exist
         self._ensure_sections()
@@ -100,6 +102,11 @@ class MetronTaggerSettings:
 
         # Create directory and file if needed
         self._ensure_file_exists()
+
+        # A corrupt file is never repaired by the steps above, so replace it
+        # with the configuration rebuilt from defaults.
+        if corrupted:
+            self._save_config()
 
         # Drop options no longer used, e.g. the Basic Auth password
         self._remove_obsolete_options()
