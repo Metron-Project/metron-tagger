@@ -56,7 +56,7 @@ from requests.exceptions import HTTPError
 
 from metrontagger import __version__
 from metrontagger.styles import Styles
-from metrontagger.utils import create_print_title, create_query_params
+from metrontagger.utils import create_print_title, create_query_params, normalize_issue_number
 
 LOGGER = getLogger(__name__)
 
@@ -74,6 +74,9 @@ HALF_COVER_HAMMING_DISTANCE = 10
 # Single covers are ~0.65; two-page spreads are ~1.3. The margin above 1.0 keeps
 # square-ish single covers from being split.
 DOUBLE_SPREAD_ASPECT_RATIO = 1.2
+# How far a cover-hash candidate's cover year may be from the filename's year. Filename
+# years are often the release year, which can differ from the cover year.
+COVER_YEAR_TOLERANCE = 1
 RATE_LIMIT_AUTO_RETRY_THRESHOLD = 60  # seconds
 RATE_LIMIT_RETRY_BUFFER = 2  # seconds added to retry_after to account for clock skew
 # Bound Redis connects/reads so an unreachable or stalled server raises a RedisError
@@ -447,6 +450,18 @@ class CoverHashMatcher:
         except ValueError:
             LOGGER.exception("Failed to get Hamming distance for comic %s", comic.name)
             return False
+
+    @classmethod
+    def get_search_hashes(cls, comic: Comic) -> tuple[str, ...]:
+        """Get the cover hash(es) to send to Metron's ``cover_hash_near`` filter.
+
+        Metron stores only the single front cover, so for a double-page spread
+        the whole spread won't match and only its halves are returned: the
+        right half first (the usual front cover), then the left half (the front
+        cover of right-to-left books like manga).
+        """
+        comic_hashes = cls.get_comic_cover_hashes_cached(comic)
+        return tuple(str(h) for h in comic_hashes[1:] or comic_hashes)
 
     @classmethod
     def filter_by_hamming_distance(
@@ -1011,6 +1026,10 @@ class Talker:
 
         params = create_query_params(metadata)
         if params is None:
+            if (
+                result := self._search_by_cover_hash(filename, comic, config, metadata)
+            ) is not None:
+                return result
             self.ui.print_error(f"Unable to correctly parse filename: {filename.name}")
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
@@ -1022,8 +1041,12 @@ class Talker:
 
         result_count = len(i_list)
 
-        # No matches
+        # No matches, so fall back to searching by the cover image.
         if result_count <= 0:
+            if (
+                result := self._search_by_cover_hash(filename, comic, config, metadata)
+            ) is not None:
+                return result
             self.match_results.add_no_match(filename)
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
@@ -1049,6 +1072,94 @@ class Talker:
         # Single match - check hamming distance or accept if auto-accept is enabled
         single_match = i_list[0]
         return self._handle_single_match(filename, comic, single_match, config)
+
+    @staticmethod
+    def _parse_year(value: object) -> int | None:
+        """Return the filename's year as an int, or None if it's missing or not a number."""
+        try:
+            return int(str(value))
+        except ValueError:
+            return None
+
+    @classmethod
+    def _corroborated_by_filename(
+        cls, candidates: list[BaseIssue], metadata: dict[str, str | tuple[str, ...]]
+    ) -> list[BaseIssue]:
+        """Return the candidates whose issue number and cover year agree with the filename.
+
+        A cover hash alone can't confirm a match: unrelated covers can be within a few
+        bits of each other, and collected editions often reuse an issue's cover. So a
+        candidate needs the filename's issue number, and, if the filename has a year,
+        a cover year within COVER_YEAR_TOLERANCE of it.
+        """
+        issue = metadata.get("issue")
+        if issue is None:
+            return []
+        number = normalize_issue_number(issue).casefold()
+        year = cls._parse_year(metadata["year"]) if "year" in metadata else None
+        return [
+            c
+            for c in candidates
+            if normalize_issue_number(c.number).casefold() == number
+            and (year is None or abs(c.cover_date.year - year) <= COVER_YEAR_TOLERANCE)
+        ]
+
+    def _search_by_cover_hash(
+        self,
+        filename: Path,
+        comic: Comic,
+        config: ProcessingConfig,
+        metadata: dict[str, str | tuple[str, ...]],
+    ) -> SearchResult | None:
+        """Search Metron for issues whose cover is near the comic's cover hash.
+
+        Used as a fallback when the filename search finds nothing. Metron's
+        ``cover_hash_near`` filter uses a default distance of 10 bits, the same as
+        HAMMING_DISTANCE, and every result is re-checked locally. The hash only
+        proposes candidates: one is accepted automatically only when it is the single
+        candidate whose issue number and cover year agree with the filename. Otherwise
+        the candidates are left for the user to choose from.
+
+        Returns:
+            The search result, or None if no cover matched (or the cover couldn't
+            be hashed), so the caller can report the file its own way.
+        """
+        for cover_hash in self.cover_matcher.get_search_hashes(comic):
+            params: dict[str, str | int] = {"cover_hash_near": cover_hash}
+            if config.series_id is not None:
+                params["series_id"] = config.series_id
+            i_list = self._handle_api_call(
+                lambda p=params: self.api.issues_list(params=p), "Failed to retrieve data"
+            )
+            if i_list is None:
+                # API error, already reported by _handle_api_call.
+                return SearchResult(issue_id=None, has_multiple_matches=False)
+
+            candidates = self.cover_matcher.filter_by_hamming_distance(comic, i_list)
+            if not candidates:
+                continue
+
+            corroborated = self._corroborated_by_filename(candidates, metadata)
+            LOGGER.debug(
+                "Cover hash search for '%s' found %d candidate(s), %d matching the filename",
+                comic,
+                len(candidates),
+                len(corroborated),
+            )
+            if len(corroborated) == 1:
+                self.match_results.add_good_match(filename)
+                return SearchResult(issue_id=corroborated[0].id, has_multiple_matches=False)
+
+            if config.skip_multiple:
+                self.match_results.add_skipped_match(filename)
+                return SearchResult(issue_id=None, has_multiple_matches=False)
+
+            # Offer only the candidates that agree with the filename when there are some.
+            choices = corroborated or candidates
+            self.match_results.add_multiple_match(MultipleMatch(filename, choices))
+            return SearchResult(issue_id=None, has_multiple_matches=True)
+
+        return None
 
     def _handle_single_match(
         self,

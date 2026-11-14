@@ -84,12 +84,13 @@ def create_http_api_error(status_code: int, message: str = "HTTP error") -> ApiE
     return api_error
 
 
-def create_mock_base_issue(issue_id=123, cover_hash="abcdef123456"):
+def create_mock_base_issue(issue_id=123, cover_hash="abcdef123456", number="1", year=2023):
     """Create a mock BaseIssue object."""
     issue = Mock()
     issue.id = issue_id
-    issue.issue_name = "Test Comic #1"
-    issue.cover_date = datetime(2023, 1, 1, tzinfo=tzinfo).date()
+    issue.issue_name = f"Test Comic #{number}"
+    issue.number = number
+    issue.cover_date = datetime(year, 1, 1, tzinfo=tzinfo).date()
     issue.cover_hash = cover_hash
     return issue
 
@@ -1186,11 +1187,232 @@ def test_talker_search_by_filename_no_matches(
 
     talker.api.issues_list.return_value = []
 
-    config = ProcessingConfig()
-    search_result = talker._search_by_filename(Path("test.cbz"), mock_comic, config)
+    with patch.object(
+        talker.cover_matcher, "get_search_hashes", return_value=("c585eb18bf1e5423",)
+    ):
+        config = ProcessingConfig()
+        search_result = talker._search_by_filename(Path("test.cbz"), mock_comic, config)
     assert search_result.issue_id is None
     assert search_result.has_multiple_matches is False
     assert len(talker.match_results.no_matches) == 1
+    # The filename search, then the cover hash fallback.
+    assert talker.api.issues_list.call_count == 2
+    talker.api.issues_list.assert_called_with(params={"cover_hash_near": "c585eb18bf1e5423"})
+
+
+@pytest.mark.usefixtures("_clear_cover_hash_cache")
+def test_cover_hash_matcher_get_search_hashes_single_cover():
+    """A single cover is searched by its full-cover hash."""
+    full = Mock(__str__=Mock(return_value="full"))
+    with patch.object(CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=(full,)):
+        assert CoverHashMatcher.get_search_hashes(Mock()) == ("full",)
+
+
+def test_cover_hash_matcher_get_search_hashes_double_spread():
+    """A spread is searched by its right then left half, not the whole spread."""
+    full, right, left = (Mock(__str__=Mock(return_value=n)) for n in ("full", "right", "left"))
+    with patch.object(
+        CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=(full, right, left)
+    ):
+        assert CoverHashMatcher.get_search_hashes(Mock()) == ("right", "left")
+
+
+def test_cover_hash_matcher_get_search_hashes_no_cover():
+    """No hashes when the cover can't be hashed."""
+    with patch.object(CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=()):
+        assert CoverHashMatcher.get_search_hashes(Mock()) == ()
+
+
+ISSUE_1 = {"series": "Test", "issue": "1"}
+
+
+@patch("metrontagger.talker.comicfn2dict")
+@patch("metrontagger.talker.create_query_params")
+def test_search_by_filename_falls_back_to_cover_hash(
+    mock_create_params, mock_comicfn2dict, talker
+):
+    """No filename match, but a single verified cover hash match is accepted."""
+    mock_comicfn2dict.return_value = {"series": "Test", "issue": "1"}
+    mock_create_params.return_value = {"series_q": "Test", "number": "1"}
+    match = create_mock_base_issue(321, "c585eb18bf1e5423")
+    talker.api.issues_list.side_effect = [[], [match]]
+
+    with (
+        patch.object(
+            talker.cover_matcher, "get_search_hashes", return_value=("c585eb18bf1e5423",)
+        ),
+        patch.object(CoverHashMatcher, "is_within_hamming_distance", return_value=True),
+    ):
+        search_result = talker._search_by_filename(
+            Path("test.cbz"), Mock(), ProcessingConfig()
+        )
+
+    assert search_result.issue_id == 321
+    assert search_result.has_multiple_matches is False
+    assert len(talker.match_results.good_matches) == 1
+    assert len(talker.match_results.no_matches) == 0
+
+
+@patch("metrontagger.talker.comicfn2dict")
+@patch("metrontagger.talker.create_query_params", return_value=None)
+def test_search_by_filename_unparsable_uses_cover_hash(_, mock_comicfn2dict, talker):  # noqa: PT019
+    """An unparsable filename is searched by cover hash, narrowed by a given series id.
+
+    With no issue number to corroborate it, even a single candidate goes to the user.
+    """
+    mock_comicfn2dict.return_value = {}
+    match = create_mock_base_issue(321, "c585eb18bf1e5423")
+    talker.api.issues_list.return_value = [match]
+
+    with (
+        patch.object(
+            talker.cover_matcher, "get_search_hashes", return_value=("c585eb18bf1e5423",)
+        ),
+        patch.object(CoverHashMatcher, "is_within_hamming_distance", return_value=True),
+    ):
+        config = ProcessingConfig(series_id=42)
+        search_result = talker._search_by_filename(Path("test.cbz"), Mock(), config)
+
+    assert search_result.issue_id is None
+    assert search_result.has_multiple_matches is True
+    assert talker.match_results.multiple_matches[0].matches == [match]
+    talker.api.issues_list.assert_called_once_with(
+        params={"cover_hash_near": "c585eb18bf1e5423", "series_id": 42}
+    )
+
+
+def test_search_by_cover_hash_tries_left_half_after_right(talker):
+    """For a spread, the left half is searched when the right half finds nothing."""
+    match = create_mock_base_issue(321, "left")
+    talker.api.issues_list.side_effect = [[], [match]]
+
+    with (
+        patch.object(
+            talker.cover_matcher, "get_search_hashes", return_value=("right", "left")
+        ),
+        patch.object(CoverHashMatcher, "is_within_hamming_distance", return_value=True),
+    ):
+        result = talker._search_by_cover_hash(
+            Path("test.cbz"), Mock(), ProcessingConfig(), ISSUE_1
+        )
+
+    assert result is not None
+    assert result.issue_id == 321
+    assert talker.api.issues_list.call_count == 2
+
+
+def test_search_by_cover_hash_ignores_unverified_results(talker):
+    """Results that fail the local Hamming check are discarded."""
+    talker.api.issues_list.return_value = [create_mock_base_issue(321, "ffffffffffffffff")]
+
+    with (
+        patch.object(
+            talker.cover_matcher, "get_search_hashes", return_value=("0000000000000000",)
+        ),
+        patch.object(CoverHashMatcher, "is_within_hamming_distance", return_value=False),
+    ):
+        result = talker._search_by_cover_hash(
+            Path("test.cbz"), Mock(), ProcessingConfig(), ISSUE_1
+        )
+
+    assert result is None
+    assert not talker.match_results.has_results
+
+
+@pytest.mark.parametrize(
+    ("skip_multiple", "has_multiple", "skipped", "multiple"),
+    [(False, True, 0, 1), (True, False, 1, 0)],
+)
+def test_search_by_cover_hash_multiple_matches(
+    talker, skip_multiple, has_multiple, skipped, multiple
+):
+    """Several candidates agreeing with the filename are never auto-picked."""
+    matches = [create_mock_base_issue(1, "a"), create_mock_base_issue(2, "b")]
+    talker.api.issues_list.return_value = matches
+
+    with (
+        patch.object(talker.cover_matcher, "get_search_hashes", return_value=("abc",)),
+        patch.object(CoverHashMatcher, "is_within_hamming_distance", return_value=True),
+    ):
+        config = ProcessingConfig(skip_multiple=skip_multiple)
+        result = talker._search_by_cover_hash(Path("test.cbz"), Mock(), config, ISSUE_1)
+
+    assert result is not None
+    assert result.issue_id is None
+    assert result.has_multiple_matches is has_multiple
+    assert len(talker.match_results.skipped_matches) == skipped
+    assert len(talker.match_results.multiple_matches) == multiple
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected_ids"),
+    [
+        pytest.param({"issue": "007"}, [2], id="number-leading-zeros"),
+        pytest.param({"issue": "7", "year": "2018"}, [2], id="year-within-tolerance"),
+        pytest.param({"issue": "7", "year": "2020"}, [], id="year-too-far"),
+        pytest.param({"issue": "7", "year": "unknown"}, [2], id="unparsable-year-ignored"),
+        pytest.param({"issue": ".5"}, [3], id="half-issue"),
+        pytest.param({"year": "2017"}, [], id="no-issue-number"),
+    ],
+)
+def test_corroborated_by_filename(metadata, expected_ids):
+    """Candidates must match the filename's issue number and (if given) its year."""
+    candidates = [
+        create_mock_base_issue(1, number="1", year=2017),
+        create_mock_base_issue(2, number="7", year=2017),
+        create_mock_base_issue(3, number="½", year=2017),
+    ]
+    result = Talker._corroborated_by_filename(candidates, metadata)
+    assert [c.id for c in result] == expected_ids
+
+
+def test_search_by_cover_hash_accepts_only_corroborated_candidate(talker):
+    """An issue and a TPB reusing its cover: the one matching the filename is accepted."""
+    issue = create_mock_base_issue(1, "aaaa", number="17", year=2021)
+    tpb = create_mock_base_issue(2, "aaaa", number="4", year=2021)
+    talker.api.issues_list.return_value = [tpb, issue]
+
+    with (
+        patch.object(talker.cover_matcher, "get_search_hashes", return_value=("aaaa",)),
+        patch.object(CoverHashMatcher, "is_within_hamming_distance", return_value=True),
+    ):
+        metadata = {"issue": "17", "year": "2021"}
+        result = talker._search_by_cover_hash(
+            Path("test.cbz"), Mock(), ProcessingConfig(), metadata
+        )
+
+    assert result is not None
+    assert result.issue_id == 1
+    assert len(talker.match_results.good_matches) == 1
+
+
+def test_search_by_cover_hash_uncorroborated_single_candidate_is_not_accepted(talker):
+    """A lone cover match whose number disagrees with the filename goes to the user."""
+    match = create_mock_base_issue(1, "aaaa", number="4")
+    talker.api.issues_list.return_value = [match]
+
+    with (
+        patch.object(talker.cover_matcher, "get_search_hashes", return_value=("aaaa",)),
+        patch.object(CoverHashMatcher, "is_within_hamming_distance", return_value=True),
+    ):
+        result = talker._search_by_cover_hash(
+            Path("test.cbz"), Mock(), ProcessingConfig(), {"issue": "17"}
+        )
+
+    assert result is not None
+    assert result.issue_id is None
+    assert result.has_multiple_matches is True
+    assert talker.match_results.multiple_matches[0].matches == [match]
+
+
+def test_search_by_cover_hash_no_hashes(talker):
+    """No API call is made when the cover can't be hashed."""
+    with patch.object(talker.cover_matcher, "get_search_hashes", return_value=()):
+        assert (
+            talker._search_by_cover_hash(Path("t.cbz"), Mock(), ProcessingConfig(), ISSUE_1)
+            is None
+        )
+    talker.api.issues_list.assert_not_called()
 
 
 @patch("metrontagger.talker.comicfn2dict")
@@ -1763,10 +1985,20 @@ def test_talker_search_by_filename_parse_error(
     mock_comic = Mock()
     mock_comic_class.return_value = mock_comic
 
-    config = ProcessingConfig()
-    search_result = talker._search_by_filename(Path("unparseable.cbz"), mock_comic, config)
+    talker.api.issues_list.return_value = []
+
+    with patch.object(
+        CoverHashMatcher, "get_search_hashes", return_value=("c585eb18bf1e5423",)
+    ):
+        config = ProcessingConfig()
+        search_result = talker._search_by_filename(Path("unparseable.cbz"), mock_comic, config)
     assert search_result.issue_id is None
     assert search_result.has_multiple_matches is False
+    # Only the cover hash fallback is searched; the file isn't counted as a no-match.
+    talker.api.issues_list.assert_called_once_with(
+        params={"cover_hash_near": "c585eb18bf1e5423"}
+    )
+    assert not talker.match_results.has_results
 
 
 @patch("metrontagger.talker.Comic")
