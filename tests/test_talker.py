@@ -13,13 +13,16 @@ import redis
 import requests
 from darkseid.comic import Comic
 from darkseid.metadata import Basic, Metadata, MetronInfo, Notes
-from imagehash import phash
+from imagehash import hex_to_hash, phash
 from mokkari.exceptions import ApiError, RateLimitError
 from mokkari.rate_limit import HeaderPacedRateLimiter
 from PIL import ExifTags, Image
 
 from metrontagger import __version__
 from metrontagger.talker import (
+    COVER_ACCEPT_DISTANCE,
+    COVER_ACCEPT_MARGIN,
+    COVER_SEARCH_MAX_DISTANCE,
     HALF_COVER_HAMMING_DISTANCE,
     HAMMING_DISTANCE,
     REDIS_SOCKET_TIMEOUT,
@@ -2106,3 +2109,207 @@ def test_retry_api_call_fatal_http_error_after_short_rate_limit_wait(mock_sleep,
     assert talker._stop_processing is True
     assert mock_call.call_count == 2
     mock_sleep.assert_called_once_with(12)
+
+
+# Cover-first search
+BOBA_FETT = Path("Star Wars - The Book of Boba Fett 005 (2027) (Digital).cbz")
+SEARCH_HASH = hex_to_hash("0000000000000000")
+
+
+def hash_at_distance(bits: int) -> str:
+    """A cover hash exactly `bits` bits from SEARCH_HASH."""
+    return f"{(1 << bits) - 1:016x}"
+
+
+def test_get_search_hashes_single_cover():
+    """A single cover is searched by its full-cover hash."""
+    with patch.object(
+        CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=("full",)
+    ):
+        assert CoverHashMatcher.get_search_hashes(Mock()) == ("full",)
+
+
+def test_get_search_hashes_double_spread():
+    """A spread is searched by its right then left half, not the whole spread."""
+    with patch.object(
+        CoverHashMatcher,
+        "get_comic_cover_hashes_cached",
+        return_value=("full", "right", "left"),
+    ):
+        assert CoverHashMatcher.get_search_hashes(Mock()) == ("right", "left")
+
+
+def test_get_search_hashes_no_cover():
+    """No hashes when the cover can't be hashed."""
+    with patch.object(CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=()):
+        assert CoverHashMatcher.get_search_hashes(Mock()) == ()
+
+
+def test_cover_search_params():
+    """The filename's number and a year either side of its year narrow the search."""
+    params = Talker._cover_search_params({"issue": "005", "year": "2027"}, None)
+    assert params == {
+        "number": "5",
+        "cover_date_range_after": "2026-01-01",
+        "cover_date_range_before": "2028-12-31",
+        "cover_hash_max_distance": COVER_SEARCH_MAX_DISTANCE,
+    }
+
+
+def test_cover_search_params_series_id():
+    """A given series id narrows the search further."""
+    params = Talker._cover_search_params({"issue": "1", "year": "2020"}, 42)
+    assert params is not None
+    assert params["series_id"] == 42
+
+
+@pytest.mark.parametrize(
+    "metadata",
+    [
+        pytest.param({"year": "2027"}, id="no-issue"),
+        pytest.param({"issue": "5"}, id="no-year"),
+        pytest.param({"issue": "5", "year": "20xx"}, id="bad-year"),
+    ],
+)
+def test_cover_search_params_missing_fields(metadata):
+    """Without both an issue number and a year, the cover search isn't used."""
+    assert Talker._cover_search_params(metadata, None) is None
+
+
+def test_rank_by_cover_distance():
+    """Issues are ranked closest first; ones without a valid hash are dropped."""
+    far = create_mock_base_issue(1, hash_at_distance(12))
+    near = create_mock_base_issue(2, hash_at_distance(2))
+    bad = create_mock_base_issue(3, "")
+    ranked = Talker._rank_by_cover_distance(SEARCH_HASH, [far, bad, near])
+    assert [(d, i.id) for d, i in ranked] == [(2, 2), (12, 1)]
+
+
+def search_by_cover(talker, results, config=None, hashes=(SEARCH_HASH,), filename=BOBA_FETT):
+    """Run _search_by_cover with the API returning `results` (a list per request)."""
+    talker.api.issues_list.side_effect = results
+    with patch.object(talker.cover_matcher, "get_search_hashes", return_value=hashes):
+        return talker._search_by_cover(filename, Mock(), config or ProcessingConfig())
+
+
+def test_search_by_cover_accepts_clear_closest_match(talker):
+    """The Boba Fett case: the closest issue is 16 bits off but clear of the next."""
+    issue = create_mock_base_issue(185209, hash_at_distance(16))
+    other = create_mock_base_issue(171897, hash_at_distance(16 + COVER_ACCEPT_MARGIN))
+    result = search_by_cover(talker, [[other, issue]])
+
+    assert result == SearchResult(issue_id=185209, has_multiple_matches=False)
+    assert talker.match_results.good_matches == [BOBA_FETT]
+    talker.api.issues_list.assert_called_once_with(
+        params={
+            "number": "5",
+            "cover_date_range_after": "2026-01-01",
+            "cover_date_range_before": "2028-12-31",
+            "cover_hash_max_distance": COVER_SEARCH_MAX_DISTANCE,
+            "cover_hash_near": str(SEARCH_HASH),
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    ("distances", "reason"),
+    [
+        ((4, 4 + COVER_ACCEPT_MARGIN - 1), "runner-up too close"),
+        ((COVER_ACCEPT_DISTANCE + 1,), "too far"),
+    ],
+)
+def test_search_by_cover_prompts_when_not_clear(talker, distances, reason):
+    """Results that are too far or too close together go to the user, closest first."""
+    issues = [create_mock_base_issue(i, hash_at_distance(d)) for i, d in enumerate(distances)]
+    result = search_by_cover(talker, [list(reversed(issues))])
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=True), reason
+    assert talker.match_results.multiple_matches == [MultipleMatch(BOBA_FETT, issues)]
+
+
+def test_search_by_cover_skip_multiple(talker):
+    """With --skip-multiple, an unclear result is skipped."""
+    issues = [
+        create_mock_base_issue(1, hash_at_distance(4)),
+        create_mock_base_issue(2, hash_at_distance(4)),
+    ]
+    result = search_by_cover(talker, [issues], ProcessingConfig(skip_multiple=True))
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=False)
+    assert talker.match_results.skipped_matches == [BOBA_FETT]
+
+
+def test_search_by_cover_accept_only_single_result(talker):
+    """With --accept-only, a single result is accepted even if it's far."""
+    issue = create_mock_base_issue(7, hash_at_distance(COVER_ACCEPT_DISTANCE + 2))
+    result = search_by_cover(talker, [[issue]], ProcessingConfig(accept_only=True))
+
+    assert result == SearchResult(issue_id=7, has_multiple_matches=False)
+
+
+def test_search_by_cover_tries_left_half_of_spread(talker):
+    """For a spread, the left half is searched when the right half finds nothing."""
+    left = hex_to_hash(hash_at_distance(8))
+    issue = create_mock_base_issue(9, hash_at_distance(8))
+    result = search_by_cover(talker, [[], [issue]], hashes=(SEARCH_HASH, left))
+
+    assert result == SearchResult(issue_id=9, has_multiple_matches=False)
+    assert talker.api.issues_list.call_count == 2
+
+
+def test_search_by_cover_no_results(talker):
+    """No cover match returns None so the filename search can run."""
+    assert search_by_cover(talker, [[]]) is None
+    assert not talker.match_results.has_results
+
+
+def test_search_by_cover_api_error(talker):
+    """An API error ends the search for this file without a filename fallback."""
+    with patch.object(talker, "_handle_api_call", return_value=None):
+        result = search_by_cover(talker, [[]])
+    assert result == SearchResult(issue_id=None, has_multiple_matches=False)
+
+
+@pytest.mark.parametrize(
+    ("filename", "hashes"),
+    [
+        pytest.param(Path("Star Wars 005.cbz"), (SEARCH_HASH,), id="no-year"),
+        pytest.param(BOBA_FETT, (), id="no-cover-hash"),
+    ],
+)
+def test_search_by_cover_skipped(talker, filename, hashes):
+    """Without a year or a cover hash, no cover search request is made."""
+    assert search_by_cover(talker, [], hashes=hashes, filename=filename) is None
+    talker.api.issues_list.assert_not_called()
+
+
+def make_writable_comic():
+    comic = Mock()
+    comic.is_writable.return_value = True
+    comic.seems_to_be_a_comic_archive.return_value = True
+    return comic
+
+
+def test_process_file_uses_cover_search_first(talker):
+    """A cover match is used without running the filename search."""
+    cover_result = SearchResult(issue_id=1, has_multiple_matches=False)
+    with (
+        patch.object(talker, "_create_comic", return_value=make_writable_comic()),
+        patch.object(talker, "_get_existing_metadata_id", return_value=None),
+        patch.object(talker, "_search_by_cover", return_value=cover_result),
+        patch.object(talker, "_search_by_filename") as by_filename,
+    ):
+        assert talker._process_file(BOBA_FETT, ProcessingConfig()) is cover_result
+    by_filename.assert_not_called()
+
+
+def test_process_file_falls_back_to_filename_search(talker):
+    """When the cover search can't decide, the filename search runs."""
+    filename_result = SearchResult(issue_id=2, has_multiple_matches=False)
+    with (
+        patch.object(talker, "_create_comic", return_value=make_writable_comic()),
+        patch.object(talker, "_get_existing_metadata_id", return_value=None),
+        patch.object(talker, "_search_by_cover", return_value=None),
+        patch.object(talker, "_search_by_filename", return_value=filename_result),
+    ):
+        assert talker._process_file(BOBA_FETT, ProcessingConfig()) is filename_result

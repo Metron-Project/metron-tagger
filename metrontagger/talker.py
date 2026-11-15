@@ -56,7 +56,7 @@ from requests.exceptions import HTTPError
 
 from metrontagger import __version__
 from metrontagger.styles import Styles
-from metrontagger.utils import create_print_title, create_query_params
+from metrontagger.utils import create_print_title, create_query_params, normalize_issue_number
 
 LOGGER = getLogger(__name__)
 
@@ -74,6 +74,19 @@ HALF_COVER_HAMMING_DISTANCE = 10
 # Single covers are ~0.65; two-page spreads are ~1.3. The margin above 1.0 keeps
 # square-ish single covers from being split.
 DOUBLE_SPREAD_ASPECT_RATIO = 1.2
+# Cover search: Metron's cover_hash_near filter, narrowed by the filename's issue number
+# and a cover-date range around its year. Tuned on 633 tagged comics: the correct issue
+# was always the closest result; most were within 2 bits, while digital editions without
+# the print cover's price/UPC box were 10-18 bits off. At 20 bits one comic whose number
+# Metron writes differently ("16" vs "16.NOW") matched the wrong issue, so results are
+# only accepted up to 18. The closest result must also lead the next one by
+# COVER_ACCEPT_MARGIN bits (the closest correct leads seen were 2), so ties are never
+# auto-picked.
+COVER_SEARCH_MAX_DISTANCE = 20  # Metron's maximum cover_hash_max_distance
+COVER_ACCEPT_DISTANCE = 18
+COVER_ACCEPT_MARGIN = 2
+# Filename years are often the release year, which can differ from the cover year.
+COVER_YEAR_TOLERANCE = 1
 RATE_LIMIT_AUTO_RETRY_THRESHOLD = 60  # seconds
 RATE_LIMIT_RETRY_BUFFER = 2  # seconds added to retry_after to account for clock skew
 # Bound Redis connects/reads so an unreachable or stalled server raises a RedisError
@@ -447,6 +460,18 @@ class CoverHashMatcher:
         except ValueError:
             LOGGER.exception("Failed to get Hamming distance for comic %s", comic.name)
             return False
+
+    @classmethod
+    def get_search_hashes(cls, comic: Comic) -> tuple[ImageHash, ...]:
+        """Get the cover hash(es) to search Metron with, in the order to try them.
+
+        Metron stores only the single front cover, so for a double-page spread the
+        whole spread won't match and only its halves are returned: the right half
+        first (the usual front cover), then the left half (the front cover of
+        right-to-left books like manga).
+        """
+        comic_hashes = cls.get_comic_cover_hashes_cached(comic)
+        return comic_hashes[1:] or comic_hashes
 
     @classmethod
     def filter_by_hamming_distance(
@@ -1050,6 +1075,109 @@ class Talker:
         single_match = i_list[0]
         return self._handle_single_match(filename, comic, single_match, config)
 
+    @staticmethod
+    def _cover_search_params(
+        metadata: dict[str, str | tuple[str, ...]], series_id: int | None
+    ) -> dict[str, str | int] | None:
+        """Build the cover search filters from the filename, or None if it lacks them.
+
+        The issue number and year do most of the narrowing: a cover hash on its own
+        can't tell apart unrelated covers that are only a few bits apart.
+        """
+        issue = metadata.get("issue")
+        year = metadata.get("year")
+        if issue is None or not isinstance(year, str) or not year.isdigit():
+            return None
+        params: dict[str, str | int] = {
+            "number": normalize_issue_number(issue),
+            "cover_date_range_after": f"{int(year) - COVER_YEAR_TOLERANCE}-01-01",
+            "cover_date_range_before": f"{int(year) + COVER_YEAR_TOLERANCE}-12-31",
+            "cover_hash_max_distance": COVER_SEARCH_MAX_DISTANCE,
+        }
+        if series_id is not None:
+            params["series_id"] = series_id
+        return params
+
+    @staticmethod
+    def _rank_by_cover_distance(
+        search_hash: ImageHash, issues: list[BaseIssue]
+    ) -> list[tuple[int, BaseIssue]]:
+        """Pair each issue with its cover's distance from search_hash, closest first."""
+        ranked = []
+        for issue in issues:
+            try:
+                ranked.append((int(search_hash - hex_to_hash(issue.cover_hash)), issue))
+            except ValueError:
+                LOGGER.debug("Skipping issue %s with invalid cover hash", issue.id)
+        return sorted(ranked, key=lambda pair: pair[0])
+
+    def _search_by_cover(
+        self,
+        filename: Path,
+        comic: Comic,
+        config: ProcessingConfig,
+    ) -> SearchResult | None:
+        """Search Metron for the comic by its cover hash, issue number, and year.
+
+        The closest result is accepted if it's within COVER_ACCEPT_DISTANCE and leads
+        the next one by COVER_ACCEPT_MARGIN; otherwise the results go to the user.
+
+        Returns:
+            The search result, or None if the filename lacks an issue number or year,
+            the cover can't be hashed, or no cover matched, so the caller can fall
+            back to the filename search.
+        """
+        metadata: dict[str, str | tuple[str, ...]] = comicfn2dict(filename, verbose=0)
+        base_params = self._cover_search_params(metadata, config.series_id)
+        if base_params is None:
+            return None
+
+        for search_hash in self.cover_matcher.get_search_hashes(comic):
+            params = base_params | {"cover_hash_near": str(search_hash)}
+            i_list = self._handle_api_call(
+                lambda p=params: self.api.issues_list(params=p), "Failed to retrieve data"
+            )
+            if i_list is None:
+                # API error, already reported by _handle_api_call.
+                return SearchResult(issue_id=None, has_multiple_matches=False)
+
+            ranked = self._rank_by_cover_distance(search_hash, i_list)
+            if not ranked:
+                continue
+            return self._handle_cover_matches(filename, ranked, config)
+
+        return None
+
+    def _handle_cover_matches(
+        self,
+        filename: Path,
+        ranked: list[tuple[int, BaseIssue]],
+        config: ProcessingConfig,
+    ) -> SearchResult:
+        """Accept the closest cover match if it's close and clear of the rest."""
+        best_distance, best = ranked[0]
+        runner_up = ranked[1][0] if len(ranked) > 1 else None
+        LOGGER.debug(
+            "Cover search for '%s': closest %d bits, next %s",
+            filename,
+            best_distance,
+            runner_up,
+        )
+        is_close = best_distance <= COVER_ACCEPT_DISTANCE
+        is_clear = runner_up is None or runner_up - best_distance >= COVER_ACCEPT_MARGIN
+        if (is_close and is_clear) or (config.accept_only and len(ranked) == 1):
+            self.match_results.add_good_match(filename)
+            return SearchResult(issue_id=best.id, has_multiple_matches=False)
+
+        if config.skip_multiple:
+            self.match_results.add_skipped_match(filename)
+            return SearchResult(issue_id=None, has_multiple_matches=False)
+
+        self.match_results.add_multiple_match(
+            MultipleMatch(filename, [issue for _, issue in ranked])
+        )
+        return SearchResult(issue_id=None, has_multiple_matches=True)
+
     def _handle_single_match(
         self,
         filename: Path,
@@ -1104,7 +1232,9 @@ class Talker:
                     modified=None if config.ignore_modified else modified,
                 )
 
-        # Search by filename if no existing metadata or ID handling failed
+        # Search by cover first, then fall back to the filename search.
+        if (result := self._search_by_cover(fn, comic, config)) is not None:
+            return result
         return self._search_by_filename(fn, comic, config)
 
     def _print_rate_limit_status(self) -> None:

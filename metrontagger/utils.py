@@ -116,17 +116,17 @@ def _clean_series_name(name: str) -> str:
     return cleaned.strip()
 
 
-def _clean_issue_number(number: Any) -> str:
-    """Format and encode an issue number for search queries.
+def normalize_issue_number(number: Any) -> str:
+    """Normalize an issue number so differently written forms compare equal.
 
-    This function converts the issue number to a string, strips leading zeros, handles special cases,
-    and URL-encodes the result.
+    Converts the issue number to a string, strips leading zeros (keeping "0" if that's
+    all there is), and writes a lone half issue as "½".
 
     Args:
         number: The issue number, which may be a string, tuple, or other type.
 
     Returns:
-        The URL-encoded issue number as a string.
+        The normalized issue number.
     """
     if isinstance(number, tuple):
         issue_str = " ".join(str(i) for i in number)
@@ -135,11 +135,21 @@ def _clean_issue_number(number: Any) -> str:
     else:
         issue_str = str(number)
 
-    # Remove leading zeros but preserve "0" if that's all there is
     issue_str = issue_str.lstrip("0") or "0"
+    return "½" if issue_str == ".5" else issue_str
 
-    # Handle special case for half issues
-    return "½" if issue_str == ".5" else quote_plus(issue_str.encode("utf-8"))
+
+def _clean_issue_number(number: Any) -> str:
+    """Format and encode an issue number for search queries.
+
+    Args:
+        number: The issue number, which may be a string, tuple, or other type.
+
+    Returns:
+        The normalized, URL-encoded issue number as a string.
+    """
+    issue_str = normalize_issue_number(number)
+    return issue_str if issue_str == "½" else quote_plus(issue_str.encode("utf-8"))
 
 
 def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str, str] | None:
