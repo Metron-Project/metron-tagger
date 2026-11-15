@@ -59,7 +59,7 @@ from metrontagger.styles import Styles
 from metrontagger.utils import (
     create_print_title,
     create_query_params,
-    normalize_issue_number,
+    search_issue_number,
     series_words,
 )
 
@@ -493,16 +493,24 @@ class CoverHashMatcher:
             return None
 
     @classmethod
-    def get_search_hashes(cls, comic: Comic) -> tuple[ImageHash, ...]:
+    def get_search_hashes(cls, comic: Comic) -> tuple[tuple[ImageHash, int], ...]:
         """Get the cover hash(es) to search Metron with, in the order to try them.
 
+        Each comes with the distance up to which a match on it may be accepted.
         Metron stores only the single front cover, so for a double-page spread its
         halves come first: the right half (the usual front cover), then the left half
-        (the front cover of right-to-left books like manga). The whole cover comes
-        last, in case it's a genuinely landscape single cover.
+        (the front cover of right-to-left books like manga). They're held to
+        HALF_COVER_HAMMING_DISTANCE, as in is_within_hamming_distance, since one of
+        them is the back cover. The whole cover comes last, held to
+        COVER_ACCEPT_DISTANCE, in case it's a genuinely landscape single cover.
         """
-        comic_hashes = cls.get_comic_cover_hashes_cached(comic)
-        return (*comic_hashes[1:], *comic_hashes[:1])
+        full, *halves = cls.get_comic_cover_hashes_cached(comic) or (None,)
+        if full is None:
+            return ()
+        return (
+            *((half, HALF_COVER_HAMMING_DISTANCE) for half in halves),
+            (full, COVER_ACCEPT_DISTANCE),
+        )
 
     @classmethod
     def rank_by_distance(
@@ -1150,9 +1158,8 @@ class Talker:
         A filename without an issue number is searched as #1, as the filename search
         does, since that's usually a one-shot or first issue.
         """
-        issue = metadata.get("issue")
         params: dict[str, str | int] = {
-            "number": normalize_issue_number(issue) if issue is not None else "1",
+            "number": search_issue_number(metadata),
             "cover_hash_max_distance": COVER_SEARCH_MAX_DISTANCE,
         }
         if series_id is not None:
@@ -1199,7 +1206,7 @@ class Talker:
         # issue's closest distance. (Metron only returns issues with a valid cover
         # hash for cover_hash_near, so every result can be ranked.)
         closest: dict[int, tuple[int, BaseIssue]] = {}
-        for search_hash in self.cover_matcher.get_search_hashes(comic):
+        for search_hash, accept_distance in self.cover_matcher.get_search_hashes(comic):
             params = base_params | {"cover_hash_near": str(search_hash)}
             i_list = self._handle_api_call(
                 lambda p=params: self.api.issues_list(params=p), "Failed to retrieve data"
@@ -1209,7 +1216,12 @@ class Talker:
                 break
 
             ranked = self.cover_matcher.rank_by_distance(search_hash, i_list)
-            accepted = self._choose_cover_match(filename, ranked, config, metadata)
+            LOGGER.debug(
+                "Cover search for '%s': distances %s",
+                filename,
+                [distance for distance, _ in ranked[:3]],
+            )
+            accepted = self._choose_cover_match(ranked, accept_distance, config, metadata)
             if accepted is not None:
                 return CoverMatches(accepted=accepted)
 
@@ -1229,21 +1241,22 @@ class Talker:
 
     def _choose_cover_match(
         self,
-        filename: Path,
         ranked: list[tuple[int, BaseIssue]],
+        accept_distance: int,
         config: ProcessingConfig,
         metadata: dict[str, str | tuple[str, ...]],
     ) -> BaseIssue | None:
         """Return the closest cover match if it can be accepted, else None.
 
-        It's accepted if it's within COVER_ACCEPT_DISTANCE, leads the next one by
+        It's accepted if it's within accept_distance, leads the next one by
         COVER_ACCEPT_MARGIN, and its series agrees with the filename. --accept-only
         doesn't loosen this: if the cover match isn't accepted, the filename search
         runs and applies --accept-only to its own single series and number match.
 
         Args:
-            filename: The comic's path, for logging.
             ranked: The results, closest cover first.
+            accept_distance: The furthest the closest cover may be: see
+                CoverHashMatcher.get_search_hashes.
             config: The processing options.
             metadata: The parsed filename.
         """
@@ -1251,13 +1264,7 @@ class Talker:
             return None
         best_distance, best = ranked[0]
         runner_up = ranked[1][0] if len(ranked) > 1 else None
-        LOGGER.debug(
-            "Cover search for '%s': closest %d bits, next %s",
-            filename,
-            best_distance,
-            runner_up,
-        )
-        is_close = best_distance <= COVER_ACCEPT_DISTANCE
+        is_close = best_distance <= accept_distance
         is_clear = runner_up is None or runner_up - best_distance >= COVER_ACCEPT_MARGIN
         # With --id the search is already limited to the series, so the filename's
         # series name (which may not match Metron's) isn't checked.

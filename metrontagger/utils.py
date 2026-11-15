@@ -6,6 +6,7 @@ __all__ = [
     "create_query_params",
     "get_settings_folder",
     "normalize_issue_number",
+    "search_issue_number",
     "series_words",
 ]
 
@@ -144,6 +145,23 @@ def normalize_issue_number(number: Any) -> str:
     return "½" if issue_str == ".5" else issue_str
 
 
+def search_issue_number(metadata: dict[str, str | tuple[str, ...]]) -> str:
+    """Return the issue number to search Metron for, from a parsed filename.
+
+    A filename without an issue number is searched as #1, since that's usually a
+    one-shot or first issue. The number is sent as-is: the HTTP client URL-encodes
+    query parameters itself.
+
+    Args:
+        metadata: The filename parsed by comicfn2dict.
+
+    Returns:
+        The normalized issue number, or "1".
+    """
+    issue = metadata.get("issue")
+    return normalize_issue_number(issue) if issue is not None else "1"
+
+
 # Too common in series names to show that two names refer to the same series, on top
 # of the articles and stop words darkseid's remove_articles() drops.
 _SERIES_EXTRA_STOP_WORDS = frozenset({"vs"})
@@ -218,7 +236,5 @@ def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str,
         return None
 
     # Handle issue number
-    issue = metadata.get("issue")
-    # Sent as-is: the HTTP client URL-encodes query parameters itself.
-    params["number"] = normalize_issue_number(issue) if issue is not None else "1"
+    params["number"] = search_issue_number(metadata)
     return params

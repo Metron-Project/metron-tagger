@@ -2126,24 +2126,29 @@ def hash_at_distance(bits: int) -> str:
 
 
 def test_get_search_hashes_single_cover():
-    """A single cover is searched by its full-cover hash."""
+    """A single cover is searched by its full-cover hash, at the cover-search limit."""
     with patch.object(
         CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=("full",)
     ):
-        assert CoverHashMatcher.get_search_hashes(Mock()) == ("full",)
+        assert CoverHashMatcher.get_search_hashes(Mock()) == (("full", COVER_ACCEPT_DISTANCE),)
 
 
 def test_get_search_hashes_double_spread():
     """A spread is searched by its right then left half, then as a whole.
 
-    The whole cover comes last in case it's a genuinely landscape single cover.
+    The halves are held to the half-cover limit, since one of them is the back
+    cover. The whole cover comes last in case it's a genuinely landscape single cover.
     """
     with patch.object(
         CoverHashMatcher,
         "get_comic_cover_hashes_cached",
         return_value=("full", "right", "left"),
     ):
-        assert CoverHashMatcher.get_search_hashes(Mock()) == ("right", "left", "full")
+        assert CoverHashMatcher.get_search_hashes(Mock()) == (
+            ("right", HALF_COVER_HAMMING_DISTANCE),
+            ("left", HALF_COVER_HAMMING_DISTANCE),
+            ("full", COVER_ACCEPT_DISTANCE),
+        )
 
 
 def test_get_search_hashes_no_cover():
@@ -2216,10 +2221,16 @@ def cover_issue(issue_id: int, bits: int, series_name: str = BOBA_FETT_SERIES):
 
 
 def search_by_cover(talker, results, config=None, hashes=(SEARCH_HASH,), filename=BOBA_FETT):
-    """Run _search_by_cover with the API returning `results` (a list per request)."""
+    """Run _search_by_cover with the API returning `results` (a list per request).
+
+    Each of `hashes` is a hash (searched as a whole cover) or a (hash, limit) pair.
+    """
     talker.api.issues_list.side_effect = results
     parsed = comicfn2dict(filename, verbose=0)
-    with patch.object(talker.cover_matcher, "get_search_hashes", return_value=hashes):
+    search_hashes = tuple(
+        h if isinstance(h, tuple) else (h, COVER_ACCEPT_DISTANCE) for h in hashes
+    )
+    with patch.object(talker.cover_matcher, "get_search_hashes", return_value=search_hashes):
         return talker._search_by_cover(filename, Mock(), config or ProcessingConfig(), parsed)
 
 
@@ -2660,3 +2671,17 @@ def test_search_by_cover_after_fatal_error(talker):
     talker._stop_processing = True
     assert search_by_cover(talker, [[cover_issue(1, 0)]]) == CoverMatches()
     talker.api.issues_list.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("bits", "accepted"),
+    [(HALF_COVER_HAMMING_DISTANCE, True), (HALF_COVER_HAMMING_DISTANCE + 2, False)],
+)
+def test_search_by_cover_half_cover_limit(talker, bits, accepted):
+    """A match on a spread's half is only accepted within the half-cover limit."""
+    issue = cover_issue(1, bits)
+    half = (SEARCH_HASH, HALF_COVER_HAMMING_DISTANCE)
+    result = search_by_cover(talker, [[issue]], hashes=(half,))
+
+    expected = CoverMatches(accepted=issue) if accepted else CoverMatches(candidates=[issue])
+    assert result == expected

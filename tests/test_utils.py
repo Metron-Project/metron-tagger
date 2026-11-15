@@ -4,6 +4,7 @@ from metrontagger.utils import (
     cleanup_string,
     create_query_params,
     normalize_issue_number,
+    search_issue_number,
     series_words,
 )
 
@@ -197,3 +198,12 @@ def test_series_words_agreement(filename_name, metron_name, agrees):
 def test_series_words_stop_words(text, expected):
     """Articles and stop words are dropped, even when stuck to punctuation."""
     assert series_words(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [({"issue": "007"}, "7"), ({"issue": ".5"}, "½"), ({}, "1")],
+)
+def test_search_issue_number(metadata, expected):
+    """The searched number is normalized, or "1" when the filename has none."""
+    assert search_issue_number(metadata) == expected
