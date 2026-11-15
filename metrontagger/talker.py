@@ -1048,7 +1048,7 @@ class Talker:
                 return issues[0].id
         return None
 
-    def _search_by_filename(  # noqa: PLR0911
+    def _search_by_filename(
         self,
         filename: Path,
         comic: Comic,
@@ -1074,36 +1074,27 @@ class Talker:
         if i_list is None:
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
-        result_count = len(i_list)
-
-        # No matches
-        if result_count <= 0:
+        if not i_list:
             self.match_results.add_no_match(filename)
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
-        # Multiple matches - check hamming distance
-        if result_count > 1:
+        accepted: BaseIssue | None = None
+        if len(i_list) == 1:
+            # A single match is accepted if its cover matches, or with --accept-only.
+            match = i_list[0]
+            if config.accept_only or self.cover_matcher.is_within_hamming_distance(
+                comic, match.cover_hash
+            ):
+                accepted = match
+        else:
+            # Of several matches, accept the only one whose cover matches, if any.
             LOGGER.debug("Check Hamming for '%s'", comic)
             hamming_lst = self.cover_matcher.filter_by_hamming_distance(comic, i_list)
+            if len(hamming_lst) == 1:
+                accepted = hamming_lst[0]
 
-            # Matched single cover within hamming distance from multiple results
-            if hamming_lst and len(hamming_lst) == 1:
-                self.match_results.add_good_match(filename)
-                return SearchResult(issue_id=hamming_lst[0].id, has_multiple_matches=False)
-
-            # Skip multiple matches if flag is set
-            if config.skip_multiple:
-                self.match_results.add_skipped_match(filename)
-                return SearchResult(issue_id=None, has_multiple_matches=False)
-
-            # No hamming match, let's ask the user later, in cover-date order.
-            by_date = sorted(i_list, key=lambda m: m.cover_date)
-            self.match_results.add_multiple_match(MultipleMatch(filename, by_date))
-            return SearchResult(issue_id=None, has_multiple_matches=True)
-
-        # Single match - check hamming distance or accept if auto-accept is enabled
-        single_match = i_list[0]
-        return self._handle_single_match(filename, comic, single_match, config)
+        by_date = sorted(i_list, key=lambda m: m.cover_date)
+        return self._resolve_search(filename, accepted, by_date, config)
 
     @staticmethod
     def _cover_search_params(
@@ -1195,18 +1186,11 @@ class Talker:
         # --accept-only takes a lone result however far its cover is, but the series
         # must still agree: that check is what catches a wrong cover match.
         is_accepted_alone = config.accept_only and len(ranked) == 1
-        if is_same_series and ((is_close and is_clear) or is_accepted_alone):
-            self.match_results.add_good_match(filename)
-            return SearchResult(issue_id=best.id, has_multiple_matches=False)
-
-        if config.skip_multiple:
-            self.match_results.add_skipped_match(filename)
-            return SearchResult(issue_id=None, has_multiple_matches=False)
-
-        self.match_results.add_multiple_match(
-            MultipleMatch(filename, [issue for _, issue in ranked])
+        is_accepted = is_same_series and ((is_close and is_clear) or is_accepted_alone)
+        candidates = [issue for _, issue in ranked]  # closest cover first
+        return self._resolve_search(
+            filename, best if is_accepted else None, candidates, config
         )
-        return SearchResult(issue_id=None, has_multiple_matches=True)
 
     @staticmethod
     def _series_agrees(metadata: dict[str, str | tuple[str, ...]], issue: BaseIssue) -> bool:
@@ -1222,30 +1206,28 @@ class Talker:
         )
         return bool(series_words(filename_text) & series_words(issue.series.name))
 
-    def _handle_single_match(
+    def _resolve_search(
         self,
         filename: Path,
-        comic: Comic,
-        match: BaseIssue,
+        accepted: BaseIssue | None,
+        candidates: list[BaseIssue],
         config: ProcessingConfig,
     ) -> SearchResult:
-        """Handle single match results."""
-        if self.cover_matcher.is_within_hamming_distance(comic, match.cover_hash):
-            self.match_results.add_good_match(filename)
-            return SearchResult(issue_id=match.id, has_multiple_matches=False)
+        """Record how a search for a comic ended, once its search has picked a match.
 
-        # If --accept-only flag is set, automatically accept the single match
-        if config.accept_only:
+        The accepted issue, if any, is a good match. Otherwise the comic is skipped
+        with --skip-multiple, or its candidates are kept, in the order given, for the
+        user to choose from.
+        """
+        if accepted is not None:
             self.match_results.add_good_match(filename)
-            return SearchResult(issue_id=match.id, has_multiple_matches=False)
+            return SearchResult(issue_id=accepted.id, has_multiple_matches=False)
 
-        # If --skip-multiple flag is set, skip this match
         if config.skip_multiple:
             self.match_results.add_skipped_match(filename)
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
-        # Otherwise, add to multiple matches to ask the user later
-        self.match_results.add_multiple_match(MultipleMatch(filename, [match]))
+        self.match_results.add_multiple_match(MultipleMatch(filename, candidates))
         return SearchResult(issue_id=None, has_multiple_matches=True)
 
     def _process_file(

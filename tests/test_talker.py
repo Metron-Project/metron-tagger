@@ -2443,3 +2443,26 @@ def test_search_by_filename_multiple_matches_sorted_by_cover_date(
         talker._search_by_filename(Path("test.cbz"), Mock(), ProcessingConfig())
 
     assert talker.match_results.multiple_matches[0].matches == [earlier, later]
+
+
+@pytest.mark.parametrize(
+    ("accepted_id", "skip_multiple", "expected", "outcome"),
+    [
+        (2, False, SearchResult(issue_id=2, has_multiple_matches=False), "good"),
+        (2, True, SearchResult(issue_id=2, has_multiple_matches=False), "good"),
+        (None, True, SearchResult(issue_id=None, has_multiple_matches=False), "skipped"),
+        (None, False, SearchResult(issue_id=None, has_multiple_matches=True), "multiple"),
+    ],
+)
+def test_resolve_search(talker, accepted_id, skip_multiple, expected, outcome):
+    """An accepted issue wins; otherwise the comic is skipped or its candidates kept."""
+    candidates = [create_mock_base_issue(1), create_mock_base_issue(2)]
+    accepted = candidates[1] if accepted_id else None
+    config = ProcessingConfig(skip_multiple=skip_multiple)
+
+    assert talker._resolve_search(BOBA_FETT, accepted, candidates, config) == expected
+    results = talker.match_results
+    assert results.good_matches == ([BOBA_FETT] if outcome == "good" else [])
+    assert results.skipped_matches == ([BOBA_FETT] if outcome == "skipped" else [])
+    expected_multiple = [MultipleMatch(BOBA_FETT, candidates)] if outcome == "multiple" else []
+    assert results.multiple_matches == expected_multiple
