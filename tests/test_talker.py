@@ -2249,12 +2249,15 @@ def test_search_by_cover_candidates_when_not_clear(talker, distances, reason):
     assert result == CoverMatches(candidates=issues), reason
 
 
-def test_search_by_cover_accept_only_single_result(talker):
-    """With --accept-only, a single result is accepted even if it's far."""
+def test_search_by_cover_accept_only_keeps_distance_limit(talker):
+    """--accept-only doesn't accept a lone cover result beyond COVER_ACCEPT_DISTANCE.
+
+    The filename search applies --accept-only to its own series and number match.
+    """
     issue = cover_issue(7, COVER_ACCEPT_DISTANCE + 2)
     result = search_by_cover(talker, [[issue]], ProcessingConfig(accept_only=True))
 
-    assert result == CoverMatches(accepted=issue)
+    assert result == CoverMatches(candidates=[issue])
 
 
 def test_search_by_cover_accept_only_needs_series_agreement(talker):
@@ -2509,18 +2512,6 @@ def test_search_by_cover_series_id_skips_series_check(talker):
     assert result == CoverMatches(accepted=issue)
 
 
-def test_search_by_cover_accept_only_counts_invalid_hashes(talker):
-    """--accept-only doesn't treat a result as alone when another had an invalid hash.
-
-    The issue with the invalid hash is still offered, after the ranked ones.
-    """
-    far = cover_issue(1, COVER_ACCEPT_DISTANCE + 2)
-    invalid = create_mock_base_issue(2, "abcd", BOBA_FETT_SERIES)
-    result = search_by_cover(talker, [[far, invalid]], ProcessingConfig(accept_only=True))
-
-    assert result == CoverMatches(candidates=[far, invalid])
-
-
 def test_search_by_cover_only_invalid_hashes_falls_back(talker):
     """If no result has a usable cover hash, there are no candidates to offer."""
     invalid = create_mock_base_issue(2, "abcd", BOBA_FETT_SERIES)
@@ -2614,3 +2605,26 @@ def test_search_by_filename_skips_only_after_both_searches(talker):
 
     assert result == SearchResult(issue_id=None, has_multiple_matches=False)
     assert talker.match_results.skipped_matches == [BOBA_FETT]
+
+
+@pytest.mark.parametrize(
+    ("metron_hash", "expected"),
+    [
+        (hash_at_distance(5), 5),
+        (None, None),
+        ("", None),
+        ("zzzzzzzzzzzzzzzz", None),
+        ("abcd", None),  # a different size raises TypeError
+    ],
+)
+def test_cover_hash_distance(metron_hash, expected):
+    """The distance is None when the Metron hash can't be compared."""
+    assert CoverHashMatcher.distance(SEARCH_HASH, metron_hash) == expected
+
+
+def test_is_within_hamming_distance_wrong_size_hash():
+    """A Metron hash of another size doesn't match, rather than raising TypeError."""
+    with patch.object(
+        CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=(SEARCH_HASH,)
+    ):
+        assert CoverHashMatcher.is_within_hamming_distance(Mock(), "abcd") is False

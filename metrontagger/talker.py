@@ -459,23 +459,35 @@ class CoverHashMatcher:
         The full cover must be within HAMMING_DISTANCE; the half-cover crops of a
         double-page spread must be within HALF_COVER_HAMMING_DISTANCE.
         """
-        if metron_hash is None:
-            return False
-
         comic_hashes = cls.get_comic_cover_hashes_cached(comic)
         if not comic_hashes:
             return False
         full_hash, *half_hashes = comic_hashes
-        try:
-            target = hex_to_hash(metron_hash)
-            if full_hash - target <= HAMMING_DISTANCE:
-                return True
-            return any(
-                half_hash - target <= HALF_COVER_HAMMING_DISTANCE for half_hash in half_hashes
-            )
-        except ValueError:
-            LOGGER.exception("Failed to get Hamming distance for comic %s", comic.name)
+        full_distance = cls.distance(full_hash, metron_hash)
+        if full_distance is None:
+            LOGGER.debug("Can't compare %s with cover hash %r", comic.name, metron_hash)
             return False
+        if full_distance <= HAMMING_DISTANCE:
+            return True
+        return any(
+            (half_distance := cls.distance(half_hash, metron_hash)) is not None
+            and half_distance <= HALF_COVER_HAMMING_DISTANCE
+            for half_hash in half_hashes
+        )
+
+    @staticmethod
+    def distance(comic_hash: ImageHash, metron_hash: str | None) -> int | None:
+        """Return the Hamming distance between a comic's hash and a Metron cover hash.
+
+        Returns None if the Metron hash is missing, malformed, or a different size,
+        so it can't be compared.
+        """
+        if not metron_hash:
+            return None
+        try:
+            return int(comic_hash - hex_to_hash(metron_hash))
+        except (TypeError, ValueError):
+            return None
 
     @classmethod
     def get_search_hashes(cls, comic: Comic) -> tuple[ImageHash, ...]:
@@ -499,10 +511,11 @@ class CoverHashMatcher:
         """
         ranked = []
         for issue in issues:
-            try:
-                ranked.append((int(search_hash - hex_to_hash(issue.cover_hash)), issue))
-            except (TypeError, ValueError):
+            distance = CoverHashMatcher.distance(search_hash, issue.cover_hash)
+            if distance is None:
                 LOGGER.debug("Skipping issue %s with invalid cover hash", issue.id)
+            else:
+                ranked.append((distance, issue))
         return sorted(ranked, key=lambda pair: pair[0])
 
     @classmethod
@@ -1173,10 +1186,10 @@ class Talker:
         if base_params is None:
             return CoverMatches()
 
-        # Results from every hash tried, for the prompt if none is accepted: each
-        # issue's closest distance, and issues whose cover hash couldn't be compared.
+        # Results from every hash tried, for the prompt if none is accepted, at each
+        # issue's closest distance. (Metron only returns issues with a valid cover
+        # hash for cover_hash_near, so every result can be ranked.)
         closest: dict[int, tuple[int, BaseIssue]] = {}
-        unranked: dict[int, BaseIssue] = {}
         for search_hash in self.cover_matcher.get_search_hashes(comic):
             params = base_params | {"cover_hash_near": str(search_hash)}
             i_list = self._handle_api_call(
@@ -1187,46 +1200,34 @@ class Talker:
                 break
 
             ranked = self.cover_matcher.rank_by_distance(search_hash, i_list)
-            accepted = self._choose_cover_match(
-                filename, ranked, len(i_list), config, metadata
-            )
+            accepted = self._choose_cover_match(filename, ranked, config, metadata)
             if accepted is not None:
                 return CoverMatches(accepted=accepted)
 
             for distance, issue in ranked:
                 if issue.id not in closest or distance < closest[issue.id][0]:
                     closest[issue.id] = (distance, issue)
-            ranked_ids = {issue.id for _, issue in ranked}
-            for issue in i_list:
-                if issue.id not in ranked_ids:
-                    unranked.setdefault(issue.id, issue)
 
-        if not closest:
-            return CoverMatches()
-        # Closest cover first, then any issues whose cover hash couldn't be compared.
         candidates = [issue for _, issue in sorted(closest.values(), key=lambda p: p[0])]
-        candidates += [issue for id_, issue in unranked.items() if id_ not in closest]
         return CoverMatches(candidates=candidates)
 
     def _choose_cover_match(
         self,
         filename: Path,
         ranked: list[tuple[int, BaseIssue]],
-        result_count: int,
         config: ProcessingConfig,
         metadata: dict[str, str | tuple[str, ...]],
     ) -> BaseIssue | None:
         """Return the closest cover match if it can be accepted, else None.
 
         It's accepted if it's within COVER_ACCEPT_DISTANCE, leads the next one by
-        COVER_ACCEPT_MARGIN, and its series agrees with the filename. With
-        --accept-only, a lone result is accepted however far its cover is.
+        COVER_ACCEPT_MARGIN, and its series agrees with the filename. --accept-only
+        doesn't loosen this: if the cover match isn't accepted, the filename search
+        runs and applies --accept-only to its own single series and number match.
 
         Args:
             filename: The comic's path, for logging.
-            ranked: The results with a valid cover hash, closest first.
-            result_count: How many results the API returned, including any whose
-                cover hash was invalid and isn't in `ranked`.
+            ranked: The results, closest cover first.
             config: The processing options.
             metadata: The parsed filename.
         """
@@ -1245,10 +1246,7 @@ class Talker:
         # With --id the search is already limited to the series, so the filename's
         # series name (which may not match Metron's) isn't checked.
         is_same_series = config.series_id is not None or self._series_agrees(metadata, best)
-        # --accept-only takes a lone result however far its cover is, but the series
-        # must still agree: that check is what catches a wrong cover match.
-        is_accepted_alone = config.accept_only and result_count == 1
-        if is_same_series and ((is_close and is_clear) or is_accepted_alone):
+        if is_close and is_clear and is_same_series:
             return best
         return None
 
