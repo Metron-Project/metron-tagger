@@ -2133,13 +2133,16 @@ def test_get_search_hashes_single_cover():
 
 
 def test_get_search_hashes_double_spread():
-    """A spread is searched by its right then left half, not the whole spread."""
+    """A spread is searched by its right then left half, then as a whole.
+
+    The whole cover comes last in case it's a genuinely landscape single cover.
+    """
     with patch.object(
         CoverHashMatcher,
         "get_comic_cover_hashes_cached",
         return_value=("full", "right", "left"),
     ):
-        assert CoverHashMatcher.get_search_hashes(Mock()) == ("right", "left")
+        assert CoverHashMatcher.get_search_hashes(Mock()) == ("right", "left", "full")
 
 
 def test_get_search_hashes_no_cover():
@@ -2292,9 +2295,19 @@ def test_search_by_cover_no_results(talker):
     assert not talker.match_results.has_results
 
 
-def test_search_by_cover_api_error(talker):
-    """An API error ends the search for this file without a filename fallback."""
+def test_search_by_cover_api_error_falls_back(talker):
+    """A non-fatal API error returns None so the filename search can still run."""
     with patch.object(talker, "_handle_api_call", return_value=None):
+        assert search_by_cover(talker, [[]]) is None
+
+
+def test_search_by_cover_fatal_api_error(talker):
+    """A fatal API error ends the search for this file without a filename fallback."""
+
+    def fail(_call, _context):
+        talker._stop_processing = True
+
+    with patch.object(talker, "_handle_api_call", side_effect=fail):
         result = search_by_cover(talker, [[]])
     assert result == SearchResult(issue_id=None, has_multiple_matches=False)
 
@@ -2466,3 +2479,58 @@ def test_resolve_search(talker, accepted_id, skip_multiple, expected, outcome):
     assert results.skipped_matches == ([BOBA_FETT] if outcome == "skipped" else [])
     expected_multiple = [MultipleMatch(BOBA_FETT, candidates)] if outcome == "multiple" else []
     assert results.multiple_matches == expected_multiple
+
+
+def test_search_by_cover_tries_left_half_after_unaccepted_right_half(talker):
+    """A spread's left half is still searched when the right half's results are rejected.
+
+    For a right-to-left book, the right half is the back cover and can pull in
+    unrelated covers; the left half is the front cover.
+    """
+    left = hex_to_hash(hash_at_distance(8))
+    unrelated = cover_issue(1, 4, "Some Other Series")
+    issue = cover_issue(9, 8)
+    result = search_by_cover(talker, [[unrelated], [issue]], hashes=(SEARCH_HASH, left))
+
+    assert result == SearchResult(issue_id=9, has_multiple_matches=False)
+    assert talker.api.issues_list.call_count == 2
+
+
+def test_search_by_cover_prompts_with_results_from_every_hash(talker):
+    """If no hash gives an accepted match, all results go to the prompt, closest first."""
+    left = hex_to_hash(hash_at_distance(1))
+    far = cover_issue(1, COVER_ACCEPT_DISTANCE + 2)
+    near = cover_issue(2, COVER_ACCEPT_DISTANCE + 1)
+    # The left half sees `far` again (now 1 bit closer); it's listed once.
+    result = search_by_cover(talker, [[far], [near, far]], hashes=(SEARCH_HASH, left))
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
+    assert talker.match_results.multiple_matches == [MultipleMatch(BOBA_FETT, [near, far])]
+
+
+def test_search_by_cover_series_id_skips_series_check(talker):
+    """With --id, a match isn't rejected because the filename's series name differs."""
+    issue = cover_issue(300, 0, "The Amazing Spider-Man")
+    config = ProcessingConfig(series_id=42)
+    result = search_by_cover(talker, [[issue]], config, filename=Path("ASM 300 (1988).cbz"))
+
+    assert result == SearchResult(issue_id=300, has_multiple_matches=False)
+
+
+def test_search_by_cover_accept_only_counts_invalid_hashes(talker):
+    """--accept-only doesn't treat a result as alone when another had an invalid hash.
+
+    The issue with the invalid hash is still offered, after the ranked ones.
+    """
+    far = cover_issue(1, COVER_ACCEPT_DISTANCE + 2)
+    invalid = create_mock_base_issue(2, "abcd", BOBA_FETT_SERIES)
+    result = search_by_cover(talker, [[far, invalid]], ProcessingConfig(accept_only=True))
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
+    assert talker.match_results.multiple_matches == [MultipleMatch(BOBA_FETT, [far, invalid])]
+
+
+def test_search_by_cover_only_invalid_hashes_falls_back(talker):
+    """If no result has a usable cover hash, the filename search runs instead."""
+    invalid = create_mock_base_issue(2, "abcd", BOBA_FETT_SERIES)
+    assert search_by_cover(talker, [[invalid]]) is None
