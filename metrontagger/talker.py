@@ -5,7 +5,7 @@ __all__ = ["Talker"]
 import io
 import time
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto, unique
 from functools import lru_cache
@@ -155,6 +155,14 @@ class ProcessingConfig:
     series_id: int | None = None
     ignore_existing: bool = False
     ignore_modified: bool = False
+
+
+@dataclass
+class CoverMatches:
+    """What a cover search found: an accepted issue, or candidates for the user."""
+
+    accepted: BaseIssue | None = None
+    candidates: list[BaseIssue] = field(default_factory=list)
 
 
 @dataclass
@@ -1054,28 +1062,39 @@ class Talker:
         comic: Comic,
         config: ProcessingConfig,
         parsed: dict[str, str | tuple[str, ...]] | None = None,
+        cover_candidates: list[BaseIssue] | None = None,
     ) -> SearchResult:
         """Search for comic by filename parsing.
 
-        `parsed` is the filename already parsed by comicfn2dict, if the caller has it.
+        Args:
+            filename: The comic's path.
+            comic: The comic.
+            config: The processing options.
+            parsed: The filename already parsed by comicfn2dict, if the caller has it.
+            cover_candidates: Issues a cover search found but didn't accept. If this
+                search doesn't accept a match either, they're offered first.
         """
+        cover_candidates = cover_candidates or []
         metadata = dict(parsed) if parsed is not None else comicfn2dict(filename, verbose=0)
         if config.series_id is not None:
             metadata["series_id"] = str(config.series_id)
 
         params = create_query_params(metadata)
         if params is None:
+            if cover_candidates:
+                return self._resolve_search(filename, None, cover_candidates, config)
             self.ui.print_error(f"Unable to correctly parse filename: {filename.name}")
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
         i_list = self._handle_api_call(
             lambda: self.api.issues_list(params=params), "Failed to retrieve data"
         )
-        if i_list is None:
-            return SearchResult(issue_id=None, has_multiple_matches=False)
-
         if not i_list:
-            self.match_results.add_no_match(filename)
+            # Nothing found, or an API error (already reported by _handle_api_call).
+            if cover_candidates and not self._stop_processing:
+                return self._resolve_search(filename, None, cover_candidates, config)
+            if i_list is not None:
+                self.match_results.add_no_match(filename)
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
         accepted: BaseIssue | None = None
@@ -1093,9 +1112,14 @@ class Talker:
             if len(hamming_lst) == 1:
                 accepted = hamming_lst[0]
 
-        # Results for the prompt are shown in cover-date order.
-        candidates = i_list if accepted else sorted(i_list, key=lambda m: m.cover_date)
-        return self._resolve_search(filename, accepted, candidates, config)
+        if accepted is not None:
+            return self._resolve_search(filename, accepted, [], config)
+        # For the prompt: the cover search's candidates (closest cover first), then
+        # this search's results in cover-date order.
+        listed = {issue.id for issue in cover_candidates}
+        by_date = sorted(i_list, key=lambda m: m.cover_date)
+        candidates = cover_candidates + [i for i in by_date if i.id not in listed]
+        return self._resolve_search(filename, None, candidates, config)
 
     @staticmethod
     def _cover_search_params(
@@ -1131,21 +1155,23 @@ class Talker:
         comic: Comic,
         config: ProcessingConfig,
         metadata: dict[str, str | tuple[str, ...]],
-    ) -> SearchResult | None:
+    ) -> CoverMatches:
         """Search Metron for the comic by its cover hash, issue number, and year.
 
         Each cover hash is tried in turn (see get_search_hashes) until one gives a
-        match _choose_cover_match accepts. If none does, the results from all of
-        them go to the user, closest cover first.
+        match _choose_cover_match accepts. Nothing is recorded in the match results:
+        the caller decides what to do with what was found.
 
         Returns:
-            The search result, or None if the filename lacks an issue number or year,
-            the cover can't be hashed, no cover matched, or the API failed without
-            stopping processing, so the caller can fall back to the filename search.
+            The accepted issue, if any. Otherwise the results from every hash tried,
+            closest cover first, for the filename search to fall back on: empty if
+            the filename lacks an issue number or year, the cover can't be hashed,
+            or nothing matched. An API error ends the search early, keeping what
+            was found so far.
         """
         base_params = self._cover_search_params(metadata, config.series_id)
         if base_params is None:
-            return None
+            return CoverMatches()
 
         # Results from every hash tried, for the prompt if none is accepted: each
         # issue's closest distance, and issues whose cover hash couldn't be compared.
@@ -1157,18 +1183,15 @@ class Talker:
                 lambda p=params: self.api.issues_list(params=p), "Failed to retrieve data"
             )
             if i_list is None:
-                # API error, already reported by _handle_api_call. Unless it stopped
-                # processing, the filename search can still be tried.
-                if self._stop_processing:
-                    return SearchResult(issue_id=None, has_multiple_matches=False)
-                return None
+                # API error, already reported by _handle_api_call.
+                break
 
             ranked = self.cover_matcher.rank_by_distance(search_hash, i_list)
             accepted = self._choose_cover_match(
                 filename, ranked, len(i_list), config, metadata
             )
             if accepted is not None:
-                return self._resolve_search(filename, accepted, [], config)
+                return CoverMatches(accepted=accepted)
 
             for distance, issue in ranked:
                 if issue.id not in closest or distance < closest[issue.id][0]:
@@ -1179,11 +1202,11 @@ class Talker:
                     unranked.setdefault(issue.id, issue)
 
         if not closest:
-            return None
+            return CoverMatches()
         # Closest cover first, then any issues whose cover hash couldn't be compared.
         candidates = [issue for _, issue in sorted(closest.values(), key=lambda p: p[0])]
         candidates += [issue for id_, issue in unranked.items() if id_ not in closest]
-        return self._resolve_search(filename, None, candidates, config)
+        return CoverMatches(candidates=candidates)
 
     def _choose_cover_match(
         self,
@@ -1295,11 +1318,15 @@ class Talker:
                     modified=None if config.ignore_modified else modified,
                 )
 
-        # Search by cover first, then fall back to the filename search.
+        # Search by cover first. If no cover match is accepted, the filename search
+        # runs, and its prompt also offers the cover search's candidates.
         parsed: dict[str, str | tuple[str, ...]] = comicfn2dict(fn, verbose=0)
-        if (result := self._search_by_cover(fn, comic, config, parsed)) is not None:
-            return result
-        return self._search_by_filename(fn, comic, config, parsed)
+        cover = self._search_by_cover(fn, comic, config, parsed)
+        if cover.accepted is not None:
+            return self._resolve_search(fn, cover.accepted, [], config)
+        if self._stop_processing:
+            return SearchResult(issue_id=None, has_multiple_matches=False)
+        return self._search_by_filename(fn, comic, config, parsed, cover.candidates)
 
     def _print_rate_limit_status(self) -> None:
         """Show the user's remaining daily (sustained) Metron API quota, if known."""

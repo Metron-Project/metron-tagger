@@ -27,8 +27,13 @@ from metrontagger.utils import (
         ({"series_id": "789", "issue": ".5"}, {"series_id": "789", "number": "½"}),
         # Happy path: issue number with leading zeros and special characters
         ({"series_id": "101", "issue": "0007"}, {"series_id": "101", "number": "7"}),
-        # Happy path: issue number with unicode, should be quoted
-        ({"series_id": "202", "issue": "é"}, {"series_id": "202", "number": "%C3%A9"}),
+        # Happy path: issue number with unicode, sent as-is (the HTTP client encodes it)
+        ({"series_id": "202", "issue": "é"}, {"series_id": "202", "number": "é"}),
+        # Happy path: issue number with a space or slash isn't URL-encoded twice
+        (
+            {"series_id": "203", "issue": "101 / 102"},
+            {"series_id": "203", "number": "101 / 102"},
+        ),
         # Edge case: series name only, no issue
         ({"series": "X-Men"}, {"series_q": "X-Men", "number": "1"}),
         # Edge case: issue is "0" (should become "0")
@@ -52,6 +57,7 @@ from metrontagger.utils import (
         "half_issue_number",
         "issue_leading_zeros",
         "unicode_issue_number",
+        "issue_number_with_space_and_slash",
         "series_name_only",
         "issue_zero",
         "issue_all_zeros",

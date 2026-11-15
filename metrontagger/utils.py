@@ -17,7 +17,6 @@ from logging import getLogger
 from os import environ
 from pathlib import Path, PurePath
 from typing import Any
-from urllib.parse import quote_plus
 
 from darkseid.utils import remove_articles
 from xdg.BaseDirectory import save_config_path
@@ -180,19 +179,6 @@ def series_words(text: str) -> set[str]:
     return set(words) | {first + second for first, second in pairwise(words)}
 
 
-def _clean_issue_number(number: Any) -> str:
-    """Format and encode an issue number for search queries.
-
-    Args:
-        number: The issue number, which may be a string, tuple, or other type.
-
-    Returns:
-        The normalized, URL-encoded issue number as a string.
-    """
-    issue_str = normalize_issue_number(number)
-    return issue_str if issue_str == "½" else quote_plus(issue_str.encode("utf-8"))
-
-
 def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str, str] | None:
     """Generate query parameters for searching based on provided metadata.
 
@@ -233,5 +219,6 @@ def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str,
 
     # Handle issue number
     issue = metadata.get("issue")
-    params["number"] = _clean_issue_number(issue) if issue is not None else "1"
+    # Sent as-is: the HTTP client URL-encodes query parameters itself.
+    params["number"] = normalize_issue_number(issue) if issue is not None else "1"
     return params

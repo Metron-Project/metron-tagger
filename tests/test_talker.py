@@ -28,6 +28,7 @@ from metrontagger.talker import (
     HAMMING_DISTANCE,
     REDIS_SOCKET_TIMEOUT,
     CoverHashMatcher,
+    CoverMatches,
     InfoSource,
     MetadataExtractor,
     MetadataMapper,
@@ -2219,8 +2220,9 @@ def test_search_by_cover_accepts_clear_closest_match(talker):
     other = cover_issue(171897, 16 + COVER_ACCEPT_MARGIN)
     result = search_by_cover(talker, [[other, issue]])
 
-    assert result == SearchResult(issue_id=185209, has_multiple_matches=False)
-    assert talker.match_results.good_matches == [BOBA_FETT]
+    assert result == CoverMatches(accepted=issue)
+    # The cover search only reports; _process_file records the outcome.
+    assert not talker.match_results.has_results
     talker.api.issues_list.assert_called_once_with(
         params={
             "number": "5",
@@ -2239,25 +2241,12 @@ def test_search_by_cover_accepts_clear_closest_match(talker):
         ((COVER_ACCEPT_DISTANCE + 1,), "too far"),
     ],
 )
-def test_search_by_cover_prompts_when_not_clear(talker, distances, reason):
-    """Results that are too far or too close together go to the user, closest first."""
+def test_search_by_cover_candidates_when_not_clear(talker, distances, reason):
+    """Results that are too far or too close together are candidates, closest first."""
     issues = [cover_issue(i, d) for i, d in enumerate(distances)]
     result = search_by_cover(talker, [list(reversed(issues))])
 
-    assert result == SearchResult(issue_id=None, has_multiple_matches=True), reason
-    assert talker.match_results.multiple_matches == [MultipleMatch(BOBA_FETT, issues)]
-
-
-def test_search_by_cover_skip_multiple(talker):
-    """With --skip-multiple, an unclear result is skipped."""
-    issues = [
-        cover_issue(1, 4),
-        cover_issue(2, 4),
-    ]
-    result = search_by_cover(talker, [issues], ProcessingConfig(skip_multiple=True))
-
-    assert result == SearchResult(issue_id=None, has_multiple_matches=False)
-    assert talker.match_results.skipped_matches == [BOBA_FETT]
+    assert result == CoverMatches(candidates=issues), reason
 
 
 def test_search_by_cover_accept_only_single_result(talker):
@@ -2265,7 +2254,7 @@ def test_search_by_cover_accept_only_single_result(talker):
     issue = cover_issue(7, COVER_ACCEPT_DISTANCE + 2)
     result = search_by_cover(talker, [[issue]], ProcessingConfig(accept_only=True))
 
-    assert result == SearchResult(issue_id=7, has_multiple_matches=False)
+    assert result == CoverMatches(accepted=issue)
 
 
 def test_search_by_cover_accept_only_needs_series_agreement(talker):
@@ -2275,8 +2264,7 @@ def test_search_by_cover_accept_only_needs_series_agreement(talker):
     config = ProcessingConfig(accept_only=True)
     result = search_by_cover(talker, [[wrong]], config, filename=filename)
 
-    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
-    assert not talker.match_results.good_matches
+    assert result == CoverMatches(candidates=[wrong])
 
 
 def test_search_by_cover_tries_left_half_of_spread(talker):
@@ -2285,31 +2273,22 @@ def test_search_by_cover_tries_left_half_of_spread(talker):
     issue = cover_issue(9, 8)
     result = search_by_cover(talker, [[], [issue]], hashes=(SEARCH_HASH, left))
 
-    assert result == SearchResult(issue_id=9, has_multiple_matches=False)
+    assert result == CoverMatches(accepted=issue)
     assert talker.api.issues_list.call_count == 2
 
 
 def test_search_by_cover_no_results(talker):
-    """No cover match returns None so the filename search can run."""
-    assert search_by_cover(talker, [[]]) is None
-    assert not talker.match_results.has_results
+    """No cover match gives nothing to accept and no candidates."""
+    assert search_by_cover(talker, [[]]) == CoverMatches()
 
 
-def test_search_by_cover_api_error_falls_back(talker):
-    """A non-fatal API error returns None so the filename search can still run."""
-    with patch.object(talker, "_handle_api_call", return_value=None):
-        assert search_by_cover(talker, [[]]) is None
-
-
-def test_search_by_cover_fatal_api_error(talker):
-    """A fatal API error ends the search for this file without a filename fallback."""
-
-    def fail(_call, _context):
-        talker._stop_processing = True
-
-    with patch.object(talker, "_handle_api_call", side_effect=fail):
-        result = search_by_cover(talker, [[]])
-    assert result == SearchResult(issue_id=None, has_multiple_matches=False)
+def test_search_by_cover_api_error_keeps_earlier_candidates(talker):
+    """An API error ends the search but keeps what earlier hashes found."""
+    far = cover_issue(1, COVER_ACCEPT_DISTANCE + 2)
+    left = hex_to_hash(hash_at_distance(1))
+    with patch.object(talker, "_handle_api_call", side_effect=[[far], None]):
+        result = search_by_cover(talker, [], hashes=(SEARCH_HASH, left))
+    assert result == CoverMatches(candidates=[far])
 
 
 @pytest.mark.parametrize(
@@ -2321,7 +2300,7 @@ def test_search_by_cover_fatal_api_error(talker):
 )
 def test_search_by_cover_skipped(talker, filename, hashes):
     """Without a year or a cover hash, no cover search request is made."""
-    assert search_by_cover(talker, [], hashes=hashes, filename=filename) is None
+    assert search_by_cover(talker, [], hashes=hashes, filename=filename) == CoverMatches()
     talker.api.issues_list.assert_not_called()
 
 
@@ -2332,29 +2311,44 @@ def make_writable_comic():
     return comic
 
 
-def test_process_file_uses_cover_search_first(talker):
-    """A cover match is used without running the filename search."""
-    cover_result = SearchResult(issue_id=1, has_multiple_matches=False)
+def process_file(talker, cover, config=None):
+    """Run _process_file with the cover search returning `cover`."""
     with (
         patch.object(talker, "_create_comic", return_value=make_writable_comic()),
         patch.object(talker, "_get_existing_metadata_id", return_value=None),
-        patch.object(talker, "_search_by_cover", return_value=cover_result),
+        patch.object(talker, "_search_by_cover", return_value=cover),
         patch.object(talker, "_search_by_filename") as by_filename,
     ):
-        assert talker._process_file(BOBA_FETT, ProcessingConfig()) is cover_result
+        result = talker._process_file(BOBA_FETT, config or ProcessingConfig())
+    return result, by_filename
+
+
+def test_process_file_uses_cover_search_first(talker):
+    """An accepted cover match is recorded without running the filename search."""
+    issue = cover_issue(1, 0)
+    result, by_filename = process_file(talker, CoverMatches(accepted=issue))
+
+    assert result == SearchResult(issue_id=1, has_multiple_matches=False)
+    assert talker.match_results.good_matches == [BOBA_FETT]
     by_filename.assert_not_called()
 
 
-def test_process_file_falls_back_to_filename_search(talker):
-    """When the cover search can't decide, the filename search runs."""
-    filename_result = SearchResult(issue_id=2, has_multiple_matches=False)
-    with (
-        patch.object(talker, "_create_comic", return_value=make_writable_comic()),
-        patch.object(talker, "_get_existing_metadata_id", return_value=None),
-        patch.object(talker, "_search_by_cover", return_value=None),
-        patch.object(talker, "_search_by_filename", return_value=filename_result),
-    ):
-        assert talker._process_file(BOBA_FETT, ProcessingConfig()) is filename_result
+def test_process_file_falls_back_with_cover_candidates(talker):
+    """Without an accepted cover match, the filename search runs with the candidates."""
+    candidate = cover_issue(1, COVER_ACCEPT_DISTANCE + 2)
+    result, by_filename = process_file(talker, CoverMatches(candidates=[candidate]))
+
+    assert result is by_filename.return_value
+    assert by_filename.call_args.args[4] == [candidate]
+
+
+def test_process_file_stops_after_fatal_cover_error(talker):
+    """A fatal API error in the cover search doesn't go on to the filename search."""
+    talker._stop_processing = True
+    result, by_filename = process_file(talker, CoverMatches())
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=False)
+    by_filename.assert_not_called()
 
 
 def test_search_by_cover_prompts_when_series_disagrees(talker):
@@ -2367,8 +2361,7 @@ def test_search_by_cover_prompts_when_series_disagrees(talker):
     filename = Path("Punisher - Red Band 003 (2026) (c2c).cbz")
     result = search_by_cover(talker, [[right, wrong]], filename=filename)
 
-    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
-    assert talker.match_results.multiple_matches == [MultipleMatch(filename, [wrong, right])]
+    assert result == CoverMatches(candidates=[wrong, right])
 
 
 @pytest.mark.parametrize(
@@ -2412,7 +2405,7 @@ def test_process_file_parses_filename_once(talker):
         patch.object(talker, "_create_comic", return_value=make_writable_comic()),
         patch.object(talker, "_get_existing_metadata_id", return_value=None),
         patch("metrontagger.talker.comicfn2dict", return_value=parsed) as parse,
-        patch.object(talker, "_search_by_cover", return_value=None) as by_cover,
+        patch.object(talker, "_search_by_cover", return_value=CoverMatches()) as by_cover,
         patch.object(talker, "_search_by_filename") as by_filename,
     ):
         talker._process_file(BOBA_FETT, ProcessingConfig())
@@ -2492,20 +2485,19 @@ def test_search_by_cover_tries_left_half_after_unaccepted_right_half(talker):
     issue = cover_issue(9, 8)
     result = search_by_cover(talker, [[unrelated], [issue]], hashes=(SEARCH_HASH, left))
 
-    assert result == SearchResult(issue_id=9, has_multiple_matches=False)
+    assert result == CoverMatches(accepted=issue)
     assert talker.api.issues_list.call_count == 2
 
 
-def test_search_by_cover_prompts_with_results_from_every_hash(talker):
-    """If no hash gives an accepted match, all results go to the prompt, closest first."""
+def test_search_by_cover_candidates_from_every_hash(talker):
+    """If no hash gives an accepted match, all results are candidates, closest first."""
     left = hex_to_hash(hash_at_distance(1))
     far = cover_issue(1, COVER_ACCEPT_DISTANCE + 2)
     near = cover_issue(2, COVER_ACCEPT_DISTANCE + 1)
     # The left half sees `far` again (now 1 bit closer); it's listed once.
     result = search_by_cover(talker, [[far], [near, far]], hashes=(SEARCH_HASH, left))
 
-    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
-    assert talker.match_results.multiple_matches == [MultipleMatch(BOBA_FETT, [near, far])]
+    assert result == CoverMatches(candidates=[near, far])
 
 
 def test_search_by_cover_series_id_skips_series_check(talker):
@@ -2514,7 +2506,7 @@ def test_search_by_cover_series_id_skips_series_check(talker):
     config = ProcessingConfig(series_id=42)
     result = search_by_cover(talker, [[issue]], config, filename=Path("ASM 300 (1988).cbz"))
 
-    assert result == SearchResult(issue_id=300, has_multiple_matches=False)
+    assert result == CoverMatches(accepted=issue)
 
 
 def test_search_by_cover_accept_only_counts_invalid_hashes(talker):
@@ -2526,11 +2518,99 @@ def test_search_by_cover_accept_only_counts_invalid_hashes(talker):
     invalid = create_mock_base_issue(2, "abcd", BOBA_FETT_SERIES)
     result = search_by_cover(talker, [[far, invalid]], ProcessingConfig(accept_only=True))
 
-    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
-    assert talker.match_results.multiple_matches == [MultipleMatch(BOBA_FETT, [far, invalid])]
+    assert result == CoverMatches(candidates=[far, invalid])
 
 
 def test_search_by_cover_only_invalid_hashes_falls_back(talker):
-    """If no result has a usable cover hash, the filename search runs instead."""
+    """If no result has a usable cover hash, there are no candidates to offer."""
     invalid = create_mock_base_issue(2, "abcd", BOBA_FETT_SERIES)
-    assert search_by_cover(talker, [[invalid]]) is None
+    assert search_by_cover(talker, [[invalid]]) == CoverMatches()
+
+
+def search_by_filename(talker, results, cover_candidates, config=None, params=None):
+    """Run _search_by_filename with the API returning `results` and cover candidates."""
+    if params is None:
+        params = {"series_q": "Test", "number": "1"}
+    talker.api.issues_list.return_value = results
+    with (
+        patch("metrontagger.talker.create_query_params", return_value=params),
+        patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=False),
+        patch.object(talker.cover_matcher, "filter_by_hamming_distance", return_value=[]),
+    ):
+        return talker._search_by_filename(
+            BOBA_FETT, Mock(), config or ProcessingConfig(), {}, cover_candidates
+        )
+
+
+def test_search_by_filename_accept_only_after_rejected_cover(talker):
+    """--accept-only still takes a lone filename match the cover search couldn't accept.
+
+    For example, "ASM 300" shares no words with "The Amazing Spider-Man".
+    """
+    cover_candidate = cover_issue(1, 2, "The Amazing Spider-Man")
+    match = create_mock_base_issue(1)
+    config = ProcessingConfig(accept_only=True)
+    result = search_by_filename(talker, [match], [cover_candidate], config)
+
+    assert result == SearchResult(issue_id=1, has_multiple_matches=False)
+    assert talker.match_results.good_matches == [BOBA_FETT]
+
+
+def test_search_by_filename_offers_cover_candidates_first(talker):
+    """Without a filename match, cover candidates come first, then new filename results."""
+    cover_a, cover_b = cover_issue(1, 4), cover_issue(2, 6)
+    later = create_mock_base_issue(3)
+    later.cover_date = datetime(2026, 5, 1, tzinfo=tzinfo).date()
+    earlier = create_mock_base_issue(4)
+    earlier.cover_date = datetime(2025, 1, 1, tzinfo=tzinfo).date()
+    # The filename search also finds cover_b; it's listed once.
+    result = search_by_filename(talker, [later, cover_b, earlier], [cover_a, cover_b])
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
+    expected = [cover_a, cover_b, earlier, later]
+    assert talker.match_results.multiple_matches == [MultipleMatch(BOBA_FETT, expected)]
+
+
+@pytest.mark.parametrize(
+    ("results", "params"),
+    [
+        pytest.param([], {"series_q": "Test", "number": "1"}, id="no-filename-results"),
+        pytest.param(None, None, id="unparsable-filename"),
+    ],
+)
+def test_search_by_filename_falls_back_to_cover_candidates(talker, results, params):
+    """If the filename search finds nothing, the cover candidates are still offered."""
+    candidate = cover_issue(1, COVER_ACCEPT_DISTANCE + 2)
+    with patch("metrontagger.talker.create_query_params", return_value=params):
+        talker.api.issues_list.return_value = results
+        result = talker._search_by_filename(
+            BOBA_FETT, Mock(), ProcessingConfig(), {}, [candidate]
+        )
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
+    assert talker.match_results.multiple_matches == [MultipleMatch(BOBA_FETT, [candidate])]
+    assert not talker.match_results.no_matches
+
+
+def test_search_by_filename_api_error_offers_cover_candidates(talker):
+    """A non-fatal API error in the filename search still offers the cover candidates."""
+    candidate = cover_issue(1, COVER_ACCEPT_DISTANCE + 2)
+    with (
+        patch("metrontagger.talker.create_query_params", return_value={"number": "1"}),
+        patch.object(talker, "_handle_api_call", return_value=None),
+    ):
+        result = talker._search_by_filename(
+            BOBA_FETT, Mock(), ProcessingConfig(), {}, [candidate]
+        )
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
+
+
+def test_search_by_filename_skips_only_after_both_searches(talker):
+    """With --skip-multiple, a comic is skipped only once neither search accepts a match."""
+    candidate = cover_issue(1, 4)
+    config = ProcessingConfig(skip_multiple=True)
+    result = search_by_filename(talker, [create_mock_base_issue(2)], [candidate], config)
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=False)
+    assert talker.match_results.skipped_matches == [BOBA_FETT]
