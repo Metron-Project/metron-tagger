@@ -11,6 +11,7 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import redis
 import requests
+from comicfn2dict import comicfn2dict
 from darkseid.comic import Comic
 from darkseid.metadata import Basic, Metadata, MetronInfo, Notes
 from imagehash import hex_to_hash, phash
@@ -2158,11 +2159,14 @@ def test_cover_search_params():
     }
 
 
-def test_cover_search_params_series_id():
-    """A given series id narrows the search further."""
-    params = Talker._cover_search_params({"issue": "1", "year": "2020"}, 42)
-    assert params is not None
-    assert params["series_id"] == 42
+@pytest.mark.parametrize("metadata", [{"issue": "150", "year": "2016"}, {"issue": "150"}])
+def test_cover_search_params_series_id(metadata):
+    """A given series id replaces the year range, which may be the series' start year."""
+    assert Talker._cover_search_params(metadata, 42) == {
+        "number": "150",
+        "series_id": 42,
+        "cover_hash_max_distance": COVER_SEARCH_MAX_DISTANCE,
+    }
 
 
 @pytest.mark.parametrize(
@@ -2178,12 +2182,18 @@ def test_cover_search_params_missing_fields(metadata):
     assert Talker._cover_search_params(metadata, None) is None
 
 
-def test_rank_by_cover_distance():
+def test_rank_by_distance():
     """Issues are ranked closest first; ones without a valid hash are dropped."""
     far = create_mock_base_issue(1, hash_at_distance(12))
     near = create_mock_base_issue(2, hash_at_distance(2))
-    bad = create_mock_base_issue(3, "")
-    ranked = Talker._rank_by_cover_distance(SEARCH_HASH, [far, bad, near])
+    invalid = [
+        create_mock_base_issue(3, ""),
+        create_mock_base_issue(4, "zzzzzzzzzzzzzzzz"),
+        # Valid hex of another size raises TypeError rather than ValueError.
+        create_mock_base_issue(5, "abcd"),
+        create_mock_base_issue(6, "0" * 64),
+    ]
+    ranked = CoverHashMatcher.rank_by_distance(SEARCH_HASH, [far, *invalid, near])
     assert [(d, i.id) for d, i in ranked] == [(2, 2), (12, 1)]
 
 
@@ -2195,8 +2205,9 @@ def cover_issue(issue_id: int, bits: int, series_name: str = BOBA_FETT_SERIES):
 def search_by_cover(talker, results, config=None, hashes=(SEARCH_HASH,), filename=BOBA_FETT):
     """Run _search_by_cover with the API returning `results` (a list per request)."""
     talker.api.issues_list.side_effect = results
+    parsed = comicfn2dict(filename, verbose=0)
     with patch.object(talker.cover_matcher, "get_search_hashes", return_value=hashes):
-        return talker._search_by_cover(filename, Mock(), config or ProcessingConfig())
+        return talker._search_by_cover(filename, Mock(), config or ProcessingConfig(), parsed)
 
 
 def test_search_by_cover_accepts_clear_closest_match(talker):
@@ -2252,6 +2263,17 @@ def test_search_by_cover_accept_only_single_result(talker):
     result = search_by_cover(talker, [[issue]], ProcessingConfig(accept_only=True))
 
     assert result == SearchResult(issue_id=7, has_multiple_matches=False)
+
+
+def test_search_by_cover_accept_only_needs_series_agreement(talker):
+    """--accept-only doesn't accept a lone result from an unrelated series."""
+    wrong = cover_issue(161431, 16, "Monster High: Boomuda Triangle")
+    filename = Path("Punisher - Red Band 003 (2026) (c2c).cbz")
+    config = ProcessingConfig(accept_only=True)
+    result = search_by_cover(talker, [[wrong]], config, filename=filename)
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
+    assert not talker.match_results.good_matches
 
 
 def test_search_by_cover_tries_left_half_of_spread(talker):
@@ -2358,3 +2380,66 @@ def test_series_agrees(metadata, series_name, expected):
     """The issue's series must share a distinctive word with the filename's series/title."""
     issue = create_mock_base_issue(series_name=series_name)
     assert Talker._series_agrees(metadata, issue) is expected
+
+
+@pytest.mark.parametrize(
+    ("filename_series", "series_name"),
+    [("Iron Man", "The Amazing Spider-Man"), ("X-Factor", "X-Men")],
+)
+def test_series_agrees_ignores_parts_of_hyphenated_names(filename_series, series_name):
+    """Sharing "man" or "x" from a hyphenated name doesn't make two series agree."""
+    issue = create_mock_base_issue(series_name=series_name)
+    assert Talker._series_agrees({"series": filename_series}, issue) is False
+
+
+def test_process_file_parses_filename_once(talker):
+    """The filename is parsed once and shared by the cover and filename searches."""
+    parsed = {"series": "Test", "issue": "1", "year": "2026"}
+    with (
+        patch.object(talker, "_create_comic", return_value=make_writable_comic()),
+        patch.object(talker, "_get_existing_metadata_id", return_value=None),
+        patch("metrontagger.talker.comicfn2dict", return_value=parsed) as parse,
+        patch.object(talker, "_search_by_cover", return_value=None) as by_cover,
+        patch.object(talker, "_search_by_filename") as by_filename,
+    ):
+        talker._process_file(BOBA_FETT, ProcessingConfig())
+
+    parse.assert_called_once()
+    assert by_cover.call_args.args[3] is parsed
+    assert by_filename.call_args.args[3] is parsed
+
+
+def test_select_choice_keeps_given_order(talker):
+    """The prompt shows matches in the order given (closest cover first)."""
+    later = create_mock_base_issue(1)
+    later.cover_date = datetime(2026, 5, 1, tzinfo=tzinfo).date()
+    earlier = create_mock_base_issue(2)
+    earlier.cover_date = datetime(2025, 1, 1, tzinfo=tzinfo).date()
+    with (
+        patch.object(talker.ui, "print_multiple_match_prompt"),
+        patch("metrontagger.talker.questionary.select") as select,
+    ):
+        talker._select_choice_from_matches(BOBA_FETT, [later, earlier])
+
+    values = [choice.value for choice in select.call_args.kwargs["choices"]]
+    assert values == [1, 2, ""]
+
+
+@patch("metrontagger.talker.comicfn2dict")
+@patch("metrontagger.talker.create_query_params")
+def test_search_by_filename_multiple_matches_sorted_by_cover_date(
+    mock_create_params, mock_comicfn2dict, talker
+):
+    """Filename search matches are still offered in cover-date order."""
+    mock_comicfn2dict.return_value = {"series": "Test", "issue": "1"}
+    mock_create_params.return_value = {"series_q": "Test", "number": "1"}
+    later = create_mock_base_issue(1)
+    later.cover_date = datetime(2026, 5, 1, tzinfo=tzinfo).date()
+    earlier = create_mock_base_issue(2)
+    earlier.cover_date = datetime(2025, 1, 1, tzinfo=tzinfo).date()
+    talker.api.issues_list.return_value = [later, earlier]
+
+    with patch.object(talker.cover_matcher, "filter_by_hamming_distance", return_value=[]):
+        talker._search_by_filename(Path("test.cbz"), Mock(), ProcessingConfig())
+
+    assert talker.match_results.multiple_matches[0].matches == [earlier, later]

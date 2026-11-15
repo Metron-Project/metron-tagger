@@ -12,6 +12,7 @@ __all__ = [
 import platform
 import re
 import unicodedata
+from itertools import pairwise
 from logging import getLogger
 from os import environ
 from pathlib import Path, PurePath
@@ -144,24 +145,33 @@ def normalize_issue_number(number: Any) -> str:
 
 
 # Words too common in series names to show that two names refer to the same series.
-_SERIES_STOP_WORDS = frozenset({"a", "and", "of", "s", "the", "vs"})
+_SERIES_STOP_WORDS = frozenset({"a", "and", "of", "the", "vs"})
+# A hyphen, slash, or apostrophe inside a word joins its parts, so "Spider-Man" is one
+# word ("spiderman") and doesn't match "Iron Man" on "man".
+_SERIES_WORD_JOINERS = re.compile(r"(?<=\w)[-/'\u2019](?=\w)")
 
 
 def series_words(text: str) -> set[str]:
     """Return the distinctive words of a series name or title, for comparing names.
 
-    Words are lowercased and stripped of accents, punctuation is ignored, and very
-    common words such as "the" and "of" are dropped.
+    Words are lowercased and stripped of accents. A hyphen, slash, or apostrophe
+    inside a word joins it ("Spider-Man" is "spiderman"), other punctuation separates
+    words, and very common words such as "the" and "of" are dropped. Each pair of
+    neighbouring words is also included joined together, so names written with a
+    spaced slash on Metron ("Batman / Superman") still match filenames that write it
+    as a hyphen ("Batman-Superman"): both give "batmansuperman".
 
     Args:
         text: A series name, title, or both.
 
     Returns:
-        The set of distinctive words.
+        The set of distinctive words and joined word pairs.
     """
     decomposed = unicodedata.normalize("NFKD", text)
     folded = "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
-    return set(re.findall(r"[^\W_]+", folded)) - _SERIES_STOP_WORDS
+    joined = _SERIES_WORD_JOINERS.sub("", folded)
+    words = [w for w in re.findall(r"[^\W_]+", joined) if w not in _SERIES_STOP_WORDS]
+    return set(words) | {first + second for first, second in pairwise(words)}
 
 
 def _clean_issue_number(number: Any) -> str:

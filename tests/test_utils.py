@@ -145,13 +145,30 @@ def test_normalize_issue_number(number, expected):
 @pytest.mark.parametrize(
     ("text", "expected"),
     [
-        ("Star Wars: The Book of Boba Fett", {"star", "wars", "book", "boba", "fett"}),
-        ("Batman-Superman - World's Finest", {"batman", "superman", "world", "finest"}),
+        ("The Amazing Spider-Man", {"amazing", "spiderman", "amazingspiderman"}),
+        ("Batman / Superman", {"batman", "superman", "batmansuperman"}),
+        ("World\u2019s Finest", {"worlds", "finest", "worldsfinest"}),
         ("Pokémon", {"pokemon"}),
-        ("X-Men_Annual", {"x", "men", "annual"}),
+        ("X-Men_Annual", {"xmen", "annual", "xmenannual"}),
         ("The", set()),
     ],
 )
 def test_series_words(text, expected):
-    """Words are folded, split on punctuation, and common words dropped."""
+    """Words are folded, joined within a word, paired, and common words dropped."""
     assert series_words(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("filename_name", "metron_name", "agrees"),
+    [
+        # Metron spaces the slash; filenames often turn it into a hyphen.
+        ("Batman-Superman", "Batman / Superman", True),
+        ("Batman-Superman - World's Finest", "Batman / Superman: World's Finest", True),
+        ("Spider Man", "The Amazing Spider-Man", True),
+        ("Iron Man", "The Amazing Spider-Man", False),
+        ("X-Factor", "X-Men", False),
+    ],
+)
+def test_series_words_agreement(filename_name, metron_name, agrees):
+    """Filename and Metron names agree when they share a word or joined pair."""
+    assert bool(series_words(filename_name) & series_words(metron_name)) is agrees
