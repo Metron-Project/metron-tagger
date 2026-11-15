@@ -2152,6 +2152,13 @@ def test_get_search_hashes_no_cover():
         assert CoverHashMatcher.get_search_hashes(Mock()) == ()
 
 
+def test_cover_search_params_defaults_issue_to_one():
+    """A filename without an issue number is searched as #1, like the filename search."""
+    params = Talker._cover_search_params({"year": "2026"}, None)
+    assert params is not None
+    assert params["number"] == "1"
+
+
 def test_cover_search_params():
     """The filename's number and a year either side of its year narrow the search."""
     params = Talker._cover_search_params({"issue": "005", "year": "2027"}, None)
@@ -2176,13 +2183,15 @@ def test_cover_search_params_series_id(metadata):
 @pytest.mark.parametrize(
     "metadata",
     [
-        pytest.param({"year": "2027"}, id="no-issue"),
         pytest.param({"issue": "5"}, id="no-year"),
         pytest.param({"issue": "5", "year": "20xx"}, id="bad-year"),
+        pytest.param({"issue": "5", "year": "0000"}, id="implausible-year"),
+        pytest.param({"issue": "5", "year": "3020"}, id="future-year"),
+        pytest.param({"issue": "5", "year": "20\u00b2\u00b2"}, id="non-ascii-digits"),
     ],
 )
 def test_cover_search_params_missing_fields(metadata):
-    """Without both an issue number and a year, the cover search isn't used."""
+    """Without a plausible four-digit year, the cover search isn't used."""
     assert Talker._cover_search_params(metadata, None) is None
 
 
@@ -2267,7 +2276,8 @@ def test_search_by_cover_accept_only_needs_series_agreement(talker):
     config = ProcessingConfig(accept_only=True)
     result = search_by_cover(talker, [[wrong]], config, filename=filename)
 
-    assert result == CoverMatches(candidates=[wrong])
+    # Not accepted, and not offered either: its series disagrees.
+    assert result == CoverMatches()
 
 
 def test_search_by_cover_tries_left_half_of_spread(talker):
@@ -2364,7 +2374,8 @@ def test_search_by_cover_prompts_when_series_disagrees(talker):
     filename = Path("Punisher - Red Band 003 (2026) (c2c).cbz")
     result = search_by_cover(talker, [[right, wrong]], filename=filename)
 
-    assert result == CoverMatches(candidates=[wrong, right])
+    # Only the candidate whose series agrees is offered.
+    assert result == CoverMatches(candidates=[right])
 
 
 @pytest.mark.parametrize(
@@ -2628,3 +2639,24 @@ def test_is_within_hamming_distance_wrong_size_hash():
         CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=(SEARCH_HASH,)
     ):
         assert CoverHashMatcher.is_within_hamming_distance(Mock(), "abcd") is False
+
+
+def test_search_by_cover_drops_unrelated_candidates(talker):
+    """Same-number covers from unrelated series aren't offered for a comic not on Metron."""
+    unrelated = [cover_issue(1, 19, "Hit Comics"), cover_issue(2, 20, "Conan & Dragonero")]
+    assert search_by_cover(talker, [unrelated]) == CoverMatches()
+
+
+def test_search_by_cover_series_id_keeps_all_candidates(talker):
+    """With --id every candidate is offered, since the search is limited to that series."""
+    far = cover_issue(1, COVER_ACCEPT_DISTANCE + 2, "The Amazing Spider-Man")
+    config = ProcessingConfig(series_id=42)
+    result = search_by_cover(talker, [[far]], config, filename=Path("ASM 300 (1988).cbz"))
+    assert result == CoverMatches(candidates=[far])
+
+
+def test_search_by_cover_after_fatal_error(talker):
+    """No cover search request is made after a fatal error for this comic."""
+    talker._stop_processing = True
+    assert search_by_cover(talker, [[cover_issue(1, 0)]]) == CoverMatches()
+    talker.api.issues_list.assert_not_called()

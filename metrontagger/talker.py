@@ -95,6 +95,9 @@ COVER_ACCEPT_DISTANCE = 18
 COVER_ACCEPT_MARGIN = 2
 # Filename years are often the release year, which can differ from the cover year.
 COVER_YEAR_TOLERANCE = 1
+# Filename years outside this range aren't treated as cover years: an odd parse such as
+# "0000" would otherwise make an invalid date that Metron rejects, which stops the run.
+COVER_YEAR_RANGE = range(1900, 2100)
 RATE_LIMIT_AUTO_RETRY_THRESHOLD = 60  # seconds
 RATE_LIMIT_RETRY_BUFFER = 2  # seconds added to retry_after to account for clock skew
 # Bound Redis connects/reads so an unreachable or stalled server raises a RedisError
@@ -501,9 +504,9 @@ class CoverHashMatcher:
         comic_hashes = cls.get_comic_cover_hashes_cached(comic)
         return (*comic_hashes[1:], *comic_hashes[:1])
 
-    @staticmethod
+    @classmethod
     def rank_by_distance(
-        search_hash: ImageHash, issues: list[BaseIssue]
+        cls, search_hash: ImageHash, issues: list[BaseIssue]
     ) -> list[tuple[int, BaseIssue]]:
         """Pair each issue with its cover's distance from search_hash, closest first.
 
@@ -511,7 +514,7 @@ class CoverHashMatcher:
         """
         ranked = []
         for issue in issues:
-            distance = CoverHashMatcher.distance(search_hash, issue.cover_hash)
+            distance = cls.distance(search_hash, issue.cover_hash)
             if distance is None:
                 LOGGER.debug("Skipping issue %s with invalid cover hash", issue.id)
             else:
@@ -1144,22 +1147,25 @@ class Talker:
         can't tell apart unrelated covers that are only a few bits apart. A given
         series ID narrows the search more than a year can, so the year isn't needed
         then; it's left out, since a filename year is often the series' start year.
+        A filename without an issue number is searched as #1, as the filename search
+        does, since that's usually a one-shot or first issue.
         """
         issue = metadata.get("issue")
-        if issue is None:
-            return None
         params: dict[str, str | int] = {
-            "number": normalize_issue_number(issue),
+            "number": normalize_issue_number(issue) if issue is not None else "1",
             "cover_hash_max_distance": COVER_SEARCH_MAX_DISTANCE,
         }
         if series_id is not None:
             params["series_id"] = series_id
             return params
-        year = metadata.get("year")
-        if not isinstance(year, str) or not year.isdigit():
+        year_text = metadata.get("year")
+        if not isinstance(year_text, str) or not (year_text.isascii() and year_text.isdigit()):
             return None
-        params["cover_date_range_after"] = f"{int(year) - COVER_YEAR_TOLERANCE}-01-01"
-        params["cover_date_range_before"] = f"{int(year) + COVER_YEAR_TOLERANCE}-12-31"
+        year = int(year_text)
+        if year not in COVER_YEAR_RANGE:
+            return None
+        params["cover_date_range_after"] = f"{year - COVER_YEAR_TOLERANCE}-01-01"
+        params["cover_date_range_before"] = f"{year + COVER_YEAR_TOLERANCE}-12-31"
         return params
 
     def _search_by_cover(
@@ -1176,14 +1182,17 @@ class Talker:
         the caller decides what to do with what was found.
 
         Returns:
-            The accepted issue, if any. Otherwise the results from every hash tried,
-            closest cover first, for the filename search to fall back on: empty if
-            the filename lacks an issue number or year, the cover can't be hashed,
+            The accepted issue, if any. Otherwise the results from every hash tried
+            whose series agrees with the filename, closest cover first, for the
+            filename search to fall back on: empty if
+            the filename lacks a usable year, the cover can't be hashed,
             or nothing matched. An API error ends the search early, keeping what
             was found so far.
         """
         base_params = self._cover_search_params(metadata, config.series_id)
-        if base_params is None:
+        if base_params is None or self._stop_processing:
+            # No usable year, or a fatal API error already happened for this comic
+            # (for example in the existing-ID lookup).
             return CoverMatches()
 
         # Results from every hash tried, for the prompt if none is accepted, at each
@@ -1208,7 +1217,14 @@ class Talker:
                 if issue.id not in closest or distance < closest[issue.id][0]:
                     closest[issue.id] = (distance, issue)
 
-        candidates = [issue for _, issue in sorted(closest.values(), key=lambda p: p[0])]
+        # Only candidates whose series agrees with the filename (or all, with --id) are
+        # offered: the others are mostly same-number covers from unrelated series,
+        # which would turn a comic that isn't on Metron into a prompt of wrong issues.
+        candidates = [
+            issue
+            for _, issue in sorted(closest.values(), key=lambda p: p[0])
+            if config.series_id is not None or self._series_agrees(metadata, issue)
+        ]
         return CoverMatches(candidates=candidates)
 
     def _choose_cover_match(
