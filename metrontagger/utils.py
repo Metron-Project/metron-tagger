@@ -5,9 +5,13 @@ __all__ = [
     "create_print_title",
     "create_query_params",
     "get_settings_folder",
+    "normalize_issue_number",
+    "series_words",
 ]
 
 import platform
+import re
+import unicodedata
 from logging import getLogger
 from os import environ
 from pathlib import Path, PurePath
@@ -137,6 +141,27 @@ def normalize_issue_number(number: Any) -> str:
 
     issue_str = issue_str.lstrip("0") or "0"
     return "½" if issue_str == ".5" else issue_str
+
+
+# Words too common in series names to show that two names refer to the same series.
+_SERIES_STOP_WORDS = frozenset({"a", "and", "of", "s", "the", "vs"})
+
+
+def series_words(text: str) -> set[str]:
+    """Return the distinctive words of a series name or title, for comparing names.
+
+    Words are lowercased and stripped of accents, punctuation is ignored, and very
+    common words such as "the" and "of" are dropped.
+
+    Args:
+        text: A series name, title, or both.
+
+    Returns:
+        The set of distinctive words.
+    """
+    decomposed = unicodedata.normalize("NFKD", text)
+    folded = "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
+    return set(re.findall(r"[^\W_]+", folded)) - _SERIES_STOP_WORDS
 
 
 def _clean_issue_number(number: Any) -> str:

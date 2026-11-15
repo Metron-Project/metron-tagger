@@ -1,6 +1,11 @@
 import pytest
 
-from metrontagger.utils import cleanup_string, create_query_params, normalize_issue_number
+from metrontagger.utils import (
+    cleanup_string,
+    create_query_params,
+    normalize_issue_number,
+    series_words,
+)
 
 
 @pytest.mark.parametrize(
@@ -135,3 +140,18 @@ def test_cleanup_string_edge_cases(test_input, expected):
 def test_normalize_issue_number(number, expected):
     """Leading zeros are stripped, and a lone half issue becomes "½"."""
     assert normalize_issue_number(number) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Star Wars: The Book of Boba Fett", {"star", "wars", "book", "boba", "fett"}),
+        ("Batman-Superman - World's Finest", {"batman", "superman", "world", "finest"}),
+        ("Pokémon", {"pokemon"}),
+        ("X-Men_Annual", {"x", "men", "annual"}),
+        ("The", set()),
+    ],
+)
+def test_series_words(text, expected):
+    """Words are folded, split on punctuation, and common words dropped."""
+    assert series_words(text) == expected

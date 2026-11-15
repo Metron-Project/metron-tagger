@@ -87,11 +87,12 @@ def create_http_api_error(status_code: int, message: str = "HTTP error") -> ApiE
     return api_error
 
 
-def create_mock_base_issue(issue_id=123, cover_hash="abcdef123456"):
+def create_mock_base_issue(issue_id=123, cover_hash="abcdef123456", series_name="Test Comic"):
     """Create a mock BaseIssue object."""
     issue = Mock()
     issue.id = issue_id
-    issue.issue_name = "Test Comic #1"
+    issue.issue_name = f"{series_name} #1"
+    issue.series.name = series_name
     issue.cover_date = datetime(2023, 1, 1, tzinfo=tzinfo).date()
     issue.cover_hash = cover_hash
     return issue
@@ -2113,6 +2114,7 @@ def test_retry_api_call_fatal_http_error_after_short_rate_limit_wait(mock_sleep,
 
 # Cover-first search
 BOBA_FETT = Path("Star Wars - The Book of Boba Fett 005 (2027) (Digital).cbz")
+BOBA_FETT_SERIES = "Star Wars: The Book of Boba Fett"
 SEARCH_HASH = hex_to_hash("0000000000000000")
 
 
@@ -2185,6 +2187,11 @@ def test_rank_by_cover_distance():
     assert [(d, i.id) for d, i in ranked] == [(2, 2), (12, 1)]
 
 
+def cover_issue(issue_id: int, bits: int, series_name: str = BOBA_FETT_SERIES):
+    """A search result whose cover is `bits` from SEARCH_HASH, in the filename's series."""
+    return create_mock_base_issue(issue_id, hash_at_distance(bits), series_name)
+
+
 def search_by_cover(talker, results, config=None, hashes=(SEARCH_HASH,), filename=BOBA_FETT):
     """Run _search_by_cover with the API returning `results` (a list per request)."""
     talker.api.issues_list.side_effect = results
@@ -2194,8 +2201,8 @@ def search_by_cover(talker, results, config=None, hashes=(SEARCH_HASH,), filenam
 
 def test_search_by_cover_accepts_clear_closest_match(talker):
     """The Boba Fett case: the closest issue is 16 bits off but clear of the next."""
-    issue = create_mock_base_issue(185209, hash_at_distance(16))
-    other = create_mock_base_issue(171897, hash_at_distance(16 + COVER_ACCEPT_MARGIN))
+    issue = cover_issue(185209, 16)
+    other = cover_issue(171897, 16 + COVER_ACCEPT_MARGIN)
     result = search_by_cover(talker, [[other, issue]])
 
     assert result == SearchResult(issue_id=185209, has_multiple_matches=False)
@@ -2220,7 +2227,7 @@ def test_search_by_cover_accepts_clear_closest_match(talker):
 )
 def test_search_by_cover_prompts_when_not_clear(talker, distances, reason):
     """Results that are too far or too close together go to the user, closest first."""
-    issues = [create_mock_base_issue(i, hash_at_distance(d)) for i, d in enumerate(distances)]
+    issues = [cover_issue(i, d) for i, d in enumerate(distances)]
     result = search_by_cover(talker, [list(reversed(issues))])
 
     assert result == SearchResult(issue_id=None, has_multiple_matches=True), reason
@@ -2230,8 +2237,8 @@ def test_search_by_cover_prompts_when_not_clear(talker, distances, reason):
 def test_search_by_cover_skip_multiple(talker):
     """With --skip-multiple, an unclear result is skipped."""
     issues = [
-        create_mock_base_issue(1, hash_at_distance(4)),
-        create_mock_base_issue(2, hash_at_distance(4)),
+        cover_issue(1, 4),
+        cover_issue(2, 4),
     ]
     result = search_by_cover(talker, [issues], ProcessingConfig(skip_multiple=True))
 
@@ -2241,7 +2248,7 @@ def test_search_by_cover_skip_multiple(talker):
 
 def test_search_by_cover_accept_only_single_result(talker):
     """With --accept-only, a single result is accepted even if it's far."""
-    issue = create_mock_base_issue(7, hash_at_distance(COVER_ACCEPT_DISTANCE + 2))
+    issue = cover_issue(7, COVER_ACCEPT_DISTANCE + 2)
     result = search_by_cover(talker, [[issue]], ProcessingConfig(accept_only=True))
 
     assert result == SearchResult(issue_id=7, has_multiple_matches=False)
@@ -2250,7 +2257,7 @@ def test_search_by_cover_accept_only_single_result(talker):
 def test_search_by_cover_tries_left_half_of_spread(talker):
     """For a spread, the left half is searched when the right half finds nothing."""
     left = hex_to_hash(hash_at_distance(8))
-    issue = create_mock_base_issue(9, hash_at_distance(8))
+    issue = cover_issue(9, 8)
     result = search_by_cover(talker, [[], [issue]], hashes=(SEARCH_HASH, left))
 
     assert result == SearchResult(issue_id=9, has_multiple_matches=False)
@@ -2313,3 +2320,41 @@ def test_process_file_falls_back_to_filename_search(talker):
         patch.object(talker, "_search_by_filename", return_value=filename_result),
     ):
         assert talker._process_file(BOBA_FETT, ProcessingConfig()) is filename_result
+
+
+def test_search_by_cover_prompts_when_series_disagrees(talker):
+    """A close, clear cover from an unrelated series isn't accepted.
+
+    A CGC-slab photo of Punisher: Red Band #3 was closest to Monster High #3's cover.
+    """
+    wrong = cover_issue(161431, 16, "Monster High: Boomuda Triangle")
+    right = cover_issue(156898, 20, "Punisher: Red Band")
+    filename = Path("Punisher - Red Band 003 (2026) (c2c).cbz")
+    result = search_by_cover(talker, [[right, wrong]], filename=filename)
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
+    assert talker.match_results.multiple_matches == [MultipleMatch(filename, [wrong, right])]
+
+
+@pytest.mark.parametrize(
+    ("metadata", "series_name", "expected"),
+    [
+        pytest.param(
+            {"series": "Star Wars", "title": "The Book of Boba Fett"},
+            BOBA_FETT_SERIES,
+            True,
+            id="series-split-from-title",
+        ),
+        pytest.param(
+            {"series": "Ghost Rider"}, "Ghost Rider: Kushala", True, id="shared-word"
+        ),
+        pytest.param({"series": "Pokémon"}, "Pokemon Adventures", True, id="accents"),
+        pytest.param({"series": "Punisher - Red Band"}, "Monster High", False, id="unrelated"),
+        pytest.param({"series": "The Flash"}, "The Boys", False, id="stop-words-only"),
+        pytest.param({}, BOBA_FETT_SERIES, False, id="no-series"),
+    ],
+)
+def test_series_agrees(metadata, series_name, expected):
+    """The issue's series must share a distinctive word with the filename's series/title."""
+    issue = create_mock_base_issue(series_name=series_name)
+    assert Talker._series_agrees(metadata, issue) is expected

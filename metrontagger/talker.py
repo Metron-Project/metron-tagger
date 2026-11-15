@@ -56,7 +56,12 @@ from requests.exceptions import HTTPError
 
 from metrontagger import __version__
 from metrontagger.styles import Styles
-from metrontagger.utils import create_print_title, create_query_params, normalize_issue_number
+from metrontagger.utils import (
+    create_print_title,
+    create_query_params,
+    normalize_issue_number,
+    series_words,
+)
 
 LOGGER = getLogger(__name__)
 
@@ -81,7 +86,10 @@ DOUBLE_SPREAD_ASPECT_RATIO = 1.2
 # Metron writes differently ("16" vs "16.NOW") matched the wrong issue, so results are
 # only accepted up to 18. The closest result must also lead the next one by
 # COVER_ACCEPT_MARGIN bits (the closest correct leads seen were 2), so ties are never
-# auto-picked.
+# auto-picked. Finally, its series name must share a word with the filename's series or
+# title: on 802 comics this was the only check that caught a wrong match (a CGC-slab
+# photo whose closest cover was another publisher's issue with the same number), and it
+# cost no correct ones.
 COVER_SEARCH_MAX_DISTANCE = 20  # Metron's maximum cover_hash_max_distance
 COVER_ACCEPT_DISTANCE = 18
 COVER_ACCEPT_MARGIN = 2
@@ -1119,8 +1127,9 @@ class Talker:
     ) -> SearchResult | None:
         """Search Metron for the comic by its cover hash, issue number, and year.
 
-        The closest result is accepted if it's within COVER_ACCEPT_DISTANCE and leads
-        the next one by COVER_ACCEPT_MARGIN; otherwise the results go to the user.
+        The closest result is accepted if it's within COVER_ACCEPT_DISTANCE, leads the
+        next one by COVER_ACCEPT_MARGIN, and its series name shares a word with the
+        filename's series or title; otherwise the results go to the user.
 
         Returns:
             The search result, or None if the filename lacks an issue number or year,
@@ -1144,7 +1153,7 @@ class Talker:
             ranked = self._rank_by_cover_distance(search_hash, i_list)
             if not ranked:
                 continue
-            return self._handle_cover_matches(filename, ranked, config)
+            return self._handle_cover_matches(filename, ranked, config, metadata)
 
         return None
 
@@ -1153,8 +1162,11 @@ class Talker:
         filename: Path,
         ranked: list[tuple[int, BaseIssue]],
         config: ProcessingConfig,
+        metadata: dict[str, str | tuple[str, ...]],
     ) -> SearchResult:
-        """Accept the closest cover match if it's close and clear of the rest."""
+        """Accept the closest cover match if it's close, clear of the rest, and its
+        series agrees with the filename.
+        """
         best_distance, best = ranked[0]
         runner_up = ranked[1][0] if len(ranked) > 1 else None
         LOGGER.debug(
@@ -1165,7 +1177,10 @@ class Talker:
         )
         is_close = best_distance <= COVER_ACCEPT_DISTANCE
         is_clear = runner_up is None or runner_up - best_distance >= COVER_ACCEPT_MARGIN
-        if (is_close and is_clear) or (config.accept_only and len(ranked) == 1):
+        is_same_series = self._series_agrees(metadata, best)
+        if (is_close and is_clear and is_same_series) or (
+            config.accept_only and len(ranked) == 1
+        ):
             self.match_results.add_good_match(filename)
             return SearchResult(issue_id=best.id, has_multiple_matches=False)
 
@@ -1177,6 +1192,20 @@ class Talker:
             MultipleMatch(filename, [issue for _, issue in ranked])
         )
         return SearchResult(issue_id=None, has_multiple_matches=True)
+
+    @staticmethod
+    def _series_agrees(metadata: dict[str, str | tuple[str, ...]], issue: BaseIssue) -> bool:
+        """Return True if the issue's series name shares a word with the filename's.
+
+        Both the parsed series and title are used, since the filename parser often
+        splits a name like "Star Wars - The Book of Boba Fett" into the two.
+        """
+        filename_text = " ".join(
+            str(metadata[key])
+            for key in ("series", "title")
+            if isinstance(metadata.get(key), str)
+        )
+        return bool(series_words(filename_text) & series_words(issue.series.name))
 
     def _handle_single_match(
         self,
