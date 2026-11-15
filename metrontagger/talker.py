@@ -414,19 +414,18 @@ class CoverHashMatcher:
         The split is exactly at the midpoint: phash is sensitive to where the
         cut lands, and even a 1px shift can change the hash by a few bits.
         """
-        # phash converts to grayscale itself; doing it once up front avoids repeating
-        # the full-size conversion for each half-cover crop.
-        gray = img.convert("L")
-        hashes = [phash(gray)]
-        # Judge the shape as displayed, so a portrait cover stored sideways with an
-        # EXIF rotation isn't mistaken for a spread.
+        # Hash and judge the shape as displayed, so a portrait cover stored sideways
+        # with an EXIF rotation matches Metron's upright cover and isn't mistaken for
+        # a spread. phash converts to grayscale itself; doing it once up front avoids
+        # repeating the full-size conversion for each half-cover crop.
         upright = CoverHashMatcher.upright(img)
+        gray = upright.convert("L")
+        hashes = [phash(gray)]
         if CoverHashMatcher.is_double_spread(upright):
-            upright_gray = gray if upright is img else upright.convert("L")
-            width, height = upright_gray.size
+            width, height = gray.size
             mid = width // 2
-            right = upright_gray.crop((mid, 0, width, height))
-            left = upright_gray.crop((0, 0, mid, height))
+            right = gray.crop((mid, 0, width, height))
+            left = gray.crop((0, 0, mid, height))
             hashes.extend((phash(right), phash(left)))
         return tuple(hashes)
 
@@ -504,9 +503,10 @@ class CoverHashMatcher:
         them is the back cover. The whole cover comes last, held to
         COVER_ACCEPT_DISTANCE, in case it's a genuinely landscape single cover.
         """
-        full, *halves = cls.get_comic_cover_hashes_cached(comic) or (None,)
-        if full is None:
+        comic_hashes = cls.get_comic_cover_hashes_cached(comic)
+        if not comic_hashes:
             return ()
+        full, *halves = comic_hashes
         return (
             *((half, HALF_COVER_HAMMING_DISTANCE) for half in halves),
             (full, COVER_ACCEPT_DISTANCE),

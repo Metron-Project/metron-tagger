@@ -1,9 +1,9 @@
 import pytest
 
 from metrontagger.utils import (
+    _normalize_issue_number,
     cleanup_string,
     create_query_params,
-    normalize_issue_number,
     search_issue_number,
     series_words,
 )
@@ -146,7 +146,7 @@ def test_cleanup_string_edge_cases(test_input, expected):
 )
 def test_normalize_issue_number(number, expected):
     """Leading zeros are stripped, and a lone half issue becomes "½"."""
-    assert normalize_issue_number(number) == expected
+    assert _normalize_issue_number(number) == expected
 
 
 @pytest.mark.parametrize(

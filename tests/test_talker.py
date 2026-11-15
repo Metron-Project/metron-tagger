@@ -17,7 +17,7 @@ from darkseid.metadata import Basic, Metadata, MetronInfo, Notes
 from imagehash import hex_to_hash, phash
 from mokkari.exceptions import ApiError, RateLimitError
 from mokkari.rate_limit import HeaderPacedRateLimiter
-from PIL import ExifTags, Image
+from PIL import ExifTags, Image, ImageDraw
 
 from metrontagger import __version__
 from metrontagger.talker import (
@@ -2685,3 +2685,25 @@ def test_search_by_cover_half_cover_limit(talker, bits, accepted):
 
     expected = CoverMatches(accepted=issue) if accepted else CoverMatches(candidates=[issue])
     assert result == expected
+
+
+def test_hash_cover_image_hashes_cover_as_displayed():
+    """A portrait cover stored sideways with an EXIF rotation hashes as displayed.
+
+    Metron's cover is upright, so hashing the stored (sideways) pixels wouldn't match.
+    """
+    portrait = Image.new("RGB", (100, 150), "white")
+    draw = ImageDraw.Draw(portrait)
+    draw.rectangle((10, 10, 60, 40), fill="black")
+    draw.ellipse((30, 80, 90, 140), fill="gray")
+    draw.line((0, 150, 100, 0), fill="black", width=5)
+    stored = portrait.rotate(90, expand=True)
+    exif = Image.Exif()
+    exif[ExifTags.Base.Orientation] = 6  # rotate 90 degrees clockwise to display
+    buf = io.BytesIO()
+    stored.save(buf, format="PNG", exif=exif)
+
+    with Image.open(io.BytesIO(buf.getvalue())) as img:
+        hashes = CoverHashMatcher.hash_cover_image(img)
+
+    assert hashes == (phash(portrait.convert("L")),)

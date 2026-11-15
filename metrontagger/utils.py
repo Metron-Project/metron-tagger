@@ -5,7 +5,6 @@ __all__ = [
     "create_print_title",
     "create_query_params",
     "get_settings_folder",
-    "normalize_issue_number",
     "search_issue_number",
     "series_words",
 ]
@@ -122,7 +121,7 @@ def _clean_series_name(name: str) -> str:
     return cleaned.strip()
 
 
-def normalize_issue_number(number: Any) -> str:
+def _normalize_issue_number(number: Any) -> str:
     """Normalize an issue number so differently written forms compare equal.
 
     Converts the issue number to a string, strips leading zeros (keeping "0" if that's
@@ -159,7 +158,7 @@ def search_issue_number(metadata: dict[str, str | tuple[str, ...]]) -> str:
         The normalized issue number, or "1".
     """
     issue = metadata.get("issue")
-    return normalize_issue_number(issue) if issue is not None else "1"
+    return _normalize_issue_number(issue) if issue is not None else "1"
 
 
 # Too common in series names to show that two names refer to the same series, on top
