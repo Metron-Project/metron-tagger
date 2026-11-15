@@ -1,6 +1,12 @@
 import pytest
 
-from metrontagger.utils import cleanup_string, create_query_params
+from metrontagger.utils import (
+    _normalize_issue_number,
+    cleanup_string,
+    create_query_params,
+    search_issue_number,
+    series_words,
+)
 
 
 @pytest.mark.parametrize(
@@ -22,8 +28,13 @@ from metrontagger.utils import cleanup_string, create_query_params
         ({"series_id": "789", "issue": ".5"}, {"series_id": "789", "number": "½"}),
         # Happy path: issue number with leading zeros and special characters
         ({"series_id": "101", "issue": "0007"}, {"series_id": "101", "number": "7"}),
-        # Happy path: issue number with unicode, should be quoted
-        ({"series_id": "202", "issue": "é"}, {"series_id": "202", "number": "%C3%A9"}),
+        # Happy path: issue number with unicode, sent as-is (the HTTP client encodes it)
+        ({"series_id": "202", "issue": "é"}, {"series_id": "202", "number": "é"}),
+        # Happy path: issue number with a space or slash isn't URL-encoded twice
+        (
+            {"series_id": "203", "issue": "101 / 102"},
+            {"series_id": "203", "number": "101 / 102"},
+        ),
         # Edge case: series name only, no issue
         ({"series": "X-Men"}, {"series_q": "X-Men", "number": "1"}),
         # Edge case: issue is "0" (should become "0")
@@ -47,6 +58,7 @@ from metrontagger.utils import cleanup_string, create_query_params
         "half_issue_number",
         "issue_leading_zeros",
         "unicode_issue_number",
+        "issue_number_with_space_and_slash",
         "series_name_only",
         "issue_zero",
         "issue_all_zeros",
@@ -119,3 +131,79 @@ def test_cleanup_string_edge_cases(test_input, expected):
 
     # Assert
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("number", "expected"),
+    [
+        ("007", "7"),
+        ("000", "0"),
+        (".5", "½"),
+        ("16.NOW", "16.NOW"),
+        (("1", "A"), "1 A"),
+        (12, "12"),
+    ],
+)
+def test_normalize_issue_number(number, expected):
+    """Leading zeros are stripped, and a lone half issue becomes "½"."""
+    assert _normalize_issue_number(number) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("The Amazing Spider-Man", {"amazing", "spiderman", "amazingspiderman"}),
+        ("Batman / Superman", {"batman", "superman", "batmansuperman"}),
+        ("World\u2019s Finest", {"worlds", "finest", "worldsfinest"}),
+        ("Pokémon", {"pokemon"}),
+        ("X-Men_Annual", {"xmen", "annual", "xmenannual"}),
+        ("The", set()),
+    ],
+)
+def test_series_words(text, expected):
+    """Words are folded, joined within a word, paired, and common words dropped."""
+    assert series_words(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("filename_name", "metron_name", "agrees"),
+    [
+        # Metron spaces the slash; filenames often turn it into a hyphen.
+        ("Batman-Superman", "Batman / Superman", True),
+        ("Batman-Superman - World's Finest", "Batman / Superman: World's Finest", True),
+        ("Spider Man", "The Amazing Spider-Man", True),
+        ("Iron Man", "The Amazing Spider-Man", False),
+        ("X-Factor", "X-Men", False),
+    ],
+)
+def test_series_words_agreement(filename_name, metron_name, agrees):
+    """Filename and Metron names agree when they share a word or joined pair."""
+    assert bool(series_words(filename_name) & series_words(metron_name)) is agrees
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # darkseid's remove_articles() list, including words beyond "the"/"of".
+        ("Who Is Jake Ellis?", {"who", "jake", "ellis", "whojake", "jakeellis"}),
+        (
+            "Star Wars:The Clone Wars",
+            {"star", "wars", "clone", "starwars", "warsclone", "clonewars"},
+        ),
+        ("It", set()),
+        # "vs" isn't in darkseid's list but is dropped too.
+        ("Alien vs. Predator", {"alien", "predator", "alienpredator"}),
+    ],
+)
+def test_series_words_stop_words(text, expected):
+    """Articles and stop words are dropped, even when stuck to punctuation."""
+    assert series_words(text) == expected
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [({"issue": "007"}, "7"), ({"issue": ".5"}, "½"), ({}, "1")],
+)
+def test_search_issue_number(metadata, expected):
+    """The searched number is normalized, or "1" when the filename has none."""
+    assert search_issue_number(metadata) == expected

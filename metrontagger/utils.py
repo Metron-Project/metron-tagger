@@ -5,15 +5,20 @@ __all__ = [
     "create_print_title",
     "create_query_params",
     "get_settings_folder",
+    "search_issue_number",
+    "series_words",
 ]
 
 import platform
+import re
+import unicodedata
+from itertools import pairwise
 from logging import getLogger
 from os import environ
 from pathlib import Path, PurePath
 from typing import Any
-from urllib.parse import quote_plus
 
+from darkseid.utils import remove_articles
 from xdg.BaseDirectory import save_config_path
 
 LOGGER = getLogger(__name__)
@@ -116,17 +121,17 @@ def _clean_series_name(name: str) -> str:
     return cleaned.strip()
 
 
-def _clean_issue_number(number: Any) -> str:
-    """Format and encode an issue number for search queries.
+def _normalize_issue_number(number: Any) -> str:
+    """Normalize an issue number so differently written forms compare equal.
 
-    This function converts the issue number to a string, strips leading zeros, handles special cases,
-    and URL-encodes the result.
+    Converts the issue number to a string, strips leading zeros (keeping "0" if that's
+    all there is), and writes a lone half issue as "½".
 
     Args:
         number: The issue number, which may be a string, tuple, or other type.
 
     Returns:
-        The URL-encoded issue number as a string.
+        The normalized issue number.
     """
     if isinstance(number, tuple):
         issue_str = " ".join(str(i) for i in number)
@@ -135,11 +140,60 @@ def _clean_issue_number(number: Any) -> str:
     else:
         issue_str = str(number)
 
-    # Remove leading zeros but preserve "0" if that's all there is
     issue_str = issue_str.lstrip("0") or "0"
+    return "½" if issue_str == ".5" else issue_str
 
-    # Handle special case for half issues
-    return "½" if issue_str == ".5" else quote_plus(issue_str.encode("utf-8"))
+
+def search_issue_number(metadata: dict[str, str | tuple[str, ...]]) -> str:
+    """Return the issue number to search Metron for, from a parsed filename.
+
+    A filename without an issue number is searched as #1, since that's usually a
+    one-shot or first issue. The number is sent as-is: the HTTP client URL-encodes
+    query parameters itself.
+
+    Args:
+        metadata: The filename parsed by comicfn2dict.
+
+    Returns:
+        The normalized issue number, or "1".
+    """
+    issue = metadata.get("issue")
+    return _normalize_issue_number(issue) if issue is not None else "1"
+
+
+# Too common in series names to show that two names refer to the same series, on top
+# of the articles and stop words darkseid's remove_articles() drops.
+_SERIES_EXTRA_STOP_WORDS = frozenset({"vs"})
+# A hyphen, slash, or apostrophe inside a word joins its parts, so "Spider-Man" is one
+# word ("spiderman") and doesn't match "Iron Man" on "man".
+_SERIES_WORD_JOINERS = re.compile(r"(?<=\w)[-/'\u2019](?=\w)")
+
+
+def series_words(text: str) -> set[str]:
+    """Return the distinctive words of a series name or title, for comparing names.
+
+    Words are lowercased and stripped of accents. A hyphen, slash, or apostrophe
+    inside a word joins it ("Spider-Man" is "spiderman"), other punctuation separates
+    words, and very common words are dropped: darkseid's articles and stop words
+    ("the", "of", "and", ...) plus "vs". Each pair of
+    neighbouring words is also included joined together, so names written with a
+    spaced slash on Metron ("Batman / Superman") still match filenames that write it
+    as a hyphen ("Batman-Superman"): both give "batmansuperman".
+
+    Args:
+        text: A series name, title, or both.
+
+    Returns:
+        The set of distinctive words and joined word pairs.
+    """
+    decomposed = unicodedata.normalize("NFKD", text)
+    folded = "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
+    joined = _SERIES_WORD_JOINERS.sub("", folded)
+    # remove_articles() splits on spaces, so it runs on the already separated words:
+    # that way an article stuck to punctuation ("Wars:The") is still dropped.
+    tokens = " ".join(re.findall(r"[^\W_]+", joined))
+    words = [w for w in remove_articles(tokens).split() if w not in _SERIES_EXTRA_STOP_WORDS]
+    return set(words) | {first + second for first, second in pairwise(words)}
 
 
 def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str, str] | None:
@@ -181,6 +235,5 @@ def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str,
         return None
 
     # Handle issue number
-    issue = metadata.get("issue")
-    params["number"] = _clean_issue_number(issue) if issue is not None else "1"
+    params["number"] = search_issue_number(metadata)
     return params
