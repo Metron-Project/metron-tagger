@@ -172,3 +172,22 @@ def test_series_words(text, expected):
 def test_series_words_agreement(filename_name, metron_name, agrees):
     """Filename and Metron names agree when they share a word or joined pair."""
     assert bool(series_words(filename_name) & series_words(metron_name)) is agrees
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        # darkseid's remove_articles() list, including words beyond "the"/"of".
+        ("Who Is Jake Ellis?", {"who", "jake", "ellis", "whojake", "jakeellis"}),
+        (
+            "Star Wars:The Clone Wars",
+            {"star", "wars", "clone", "starwars", "warsclone", "clonewars"},
+        ),
+        ("It", set()),
+        # "vs" isn't in darkseid's list but is dropped too.
+        ("Alien vs. Predator", {"alien", "predator", "alienpredator"}),
+    ],
+)
+def test_series_words_stop_words(text, expected):
+    """Articles and stop words are dropped, even when stuck to punctuation."""
+    assert series_words(text) == expected

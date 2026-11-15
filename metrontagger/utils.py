@@ -19,6 +19,7 @@ from pathlib import Path, PurePath
 from typing import Any
 from urllib.parse import quote_plus
 
+from darkseid.utils import remove_articles
 from xdg.BaseDirectory import save_config_path
 
 LOGGER = getLogger(__name__)
@@ -144,8 +145,9 @@ def normalize_issue_number(number: Any) -> str:
     return "½" if issue_str == ".5" else issue_str
 
 
-# Words too common in series names to show that two names refer to the same series.
-_SERIES_STOP_WORDS = frozenset({"a", "and", "of", "the", "vs"})
+# Too common in series names to show that two names refer to the same series, on top
+# of the articles and stop words darkseid's remove_articles() drops.
+_SERIES_EXTRA_STOP_WORDS = frozenset({"vs"})
 # A hyphen, slash, or apostrophe inside a word joins its parts, so "Spider-Man" is one
 # word ("spiderman") and doesn't match "Iron Man" on "man".
 _SERIES_WORD_JOINERS = re.compile(r"(?<=\w)[-/'\u2019](?=\w)")
@@ -156,7 +158,8 @@ def series_words(text: str) -> set[str]:
 
     Words are lowercased and stripped of accents. A hyphen, slash, or apostrophe
     inside a word joins it ("Spider-Man" is "spiderman"), other punctuation separates
-    words, and very common words such as "the" and "of" are dropped. Each pair of
+    words, and very common words are dropped: darkseid's articles and stop words
+    ("the", "of", "and", ...) plus "vs". Each pair of
     neighbouring words is also included joined together, so names written with a
     spaced slash on Metron ("Batman / Superman") still match filenames that write it
     as a hyphen ("Batman-Superman"): both give "batmansuperman".
@@ -170,7 +173,10 @@ def series_words(text: str) -> set[str]:
     decomposed = unicodedata.normalize("NFKD", text)
     folded = "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
     joined = _SERIES_WORD_JOINERS.sub("", folded)
-    words = [w for w in re.findall(r"[^\W_]+", joined) if w not in _SERIES_STOP_WORDS]
+    # remove_articles() splits on spaces, so it runs on the already separated words:
+    # that way an article stuck to punctuation ("Wars:The") is still dropped.
+    tokens = " ".join(re.findall(r"[^\W_]+", joined))
+    words = [w for w in remove_articles(tokens).split() if w not in _SERIES_EXTRA_STOP_WORDS]
     return set(words) | {first + second for first, second in pairwise(words)}
 
 
