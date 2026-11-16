@@ -715,7 +715,7 @@ class Talker:
             collection = bool(series_format) and series_format.lower() in COLLECTION_FORMATS
             self.ui.print_metadata_write_success(
                 formats=written_formats,
-                series_name=md.series.name if md.series else "Unknown",
+                series_name=(md.series.name if md.series else None) or "Unknown",
                 issue=md.issue or "Unknown",
                 year=md.cover_date.year if md.cover_date else 0,
                 filename=filename.name,

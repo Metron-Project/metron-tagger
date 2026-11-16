@@ -4,8 +4,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from darkseid.archivers import ArchiverReadError
-from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
+from darkseid.comic import Comic, ComicArchiveError, ComicMetadataError, MetadataFormat
 from darkseid.metadata import Metadata, Series
 
 from metrontagger.comics import (
@@ -39,30 +38,13 @@ def _metadata(series: str) -> Metadata:
     return md
 
 
-# Mock comics by path, so reopening one (see iter_metadata) returns the same mock.
-_MOCK_COMICS: dict[Path, Mock] = {}
-
-
-@pytest.fixture(autouse=True)
-def _reopen_mock_comics():
-    """Make Comic(path) return the mock comic for a mock's path, else a real Comic."""
-    real_comic = Comic
-    with patch(
-        "metrontagger.comics.Comic",
-        side_effect=lambda path: _MOCK_COMICS.get(path) or real_comic(path),
-    ):
-        yield
-    _MOCK_COMICS.clear()
-
-
-def _mock_comic(readable: dict[MetadataFormat, Metadata | Exception | None]) -> Mock:
+def _mock_comic(readable: dict[MetadataFormat, Metadata | Exception]) -> Mock:
     """A comic that has the given formats; an Exception value is raised on read."""
     comic = Mock(spec=Comic)
-    comic.path = Path(f"/mock/{len(_MOCK_COMICS)}.cbz")
-    _MOCK_COMICS[comic.path] = comic
     comic.has_metadata.side_effect = lambda fmt: fmt in readable
 
-    def read(fmt: MetadataFormat) -> Metadata | None:
+    def read(fmt: MetadataFormat, *, strict: bool = False) -> Metadata:
+        assert strict, "iter_metadata must read strictly to detect unreadable XML"
         value = readable[fmt]
         if isinstance(value, Exception):
             raise value
@@ -128,22 +110,17 @@ def test_iter_metadata_respects_given_formats() -> None:
     assert list(iter_metadata(comic, [CI])) == [(CI, ci)]
 
 
-@pytest.mark.parametrize(
-    "error", [ArchiverReadError("bad xml"), KeyError("MetronInfo.xml")], ids=type
-)
-def test_iter_metadata_skips_unreadable_format(
-    error: Exception, caplog: pytest.LogCaptureFixture
-) -> None:
+def test_iter_metadata_skips_unreadable_format(caplog: pytest.LogCaptureFixture) -> None:
     ci = _metadata("CI")
-    comic = _mock_comic({MI: error, CI: ci})
+    comic = _mock_comic({MI: ComicMetadataError("bad xml"), CI: ci})
 
     assert list(iter_metadata(comic)) == [(CI, ci)]
     assert "Unable to read MetronInfo.xml" in caplog.text
 
 
-def test_iter_metadata_skips_format_read_as_none() -> None:
+def test_iter_metadata_skips_empty_format() -> None:
     ci = _metadata("CI")
-    comic = _mock_comic({MI: None, CI: ci})
+    comic = _mock_comic({MI: Metadata(), CI: ci})
 
     assert list(iter_metadata(comic)) == [(CI, ci)]
 
@@ -189,11 +166,7 @@ def test_read_preferred_metadata_real_archive(
 
 
 def test_iter_metadata_reads_each_format_fresh(fake_comic: Path) -> None:
-    """Each format's own data is returned, despite darkseid caching the first read.
-
-    darkseid's Comic keeps one metadata cache for every format, so without reopening
-    the archive the second format read would return the first format's data.
-    """
+    """Each format's own data is returned when both are read from one Comic."""
     comic = Comic(fake_comic)
     mi = _metadata("From MetronInfo")
     ci = _metadata("From ComicInfo")
@@ -211,7 +184,7 @@ def test_iter_metadata_reads_each_format_fresh(fake_comic: Path) -> None:
 
 
 def test_read_preferred_metadata_falls_back_on_malformed_xml(fake_comic: Path) -> None:
-    """Malformed MetronInfo.xml (which darkseid reads as empty) falls back to ComicInfo."""
+    """Malformed MetronInfo.xml falls back to ComicInfo."""
     assert Comic(fake_comic).write_metadata(_metadata("From ComicInfo"), CI)
     with_malformed_xml(fake_comic, "MetronInfo.xml")
     assert Comic(fake_comic).has_metadata(MI)
@@ -228,29 +201,3 @@ def test_read_preferred_metadata_all_malformed_is_none(fake_comic: Path) -> None
     with_malformed_xml(with_malformed_xml(fake_comic, "MetronInfo.xml"), "ComicInfo.xml")
 
     assert read_preferred_metadata(Comic(fake_comic)) is None
-
-
-def test_iter_metadata_reopens_only_to_read_another_format() -> None:
-    """The archive is reopened only when a second format is actually read."""
-    comic = _mock_comic({MI: _metadata("MI"), CI: _metadata("CI")})
-
-    with patch("metrontagger.comics.open_comic", return_value=comic) as mock_open:
-        read_preferred_metadata(comic)  # stops after MetronInfo
-        assert mock_open.call_count == 0
-
-        list(iter_metadata(comic))  # reads both
-        assert mock_open.call_count == 1
-
-    single = _mock_comic({CI: _metadata("CI")})
-    with patch("metrontagger.comics.open_comic") as mock_open:
-        list(iter_metadata(single))
-    mock_open.assert_not_called()
-
-
-def test_iter_metadata_stops_if_reopen_fails() -> None:
-    """If the archive can't be reopened (e.g. it was moved), iteration ends quietly."""
-    mi = _metadata("MI")
-    comic = _mock_comic({MI: mi, CI: _metadata("CI")})
-
-    with patch("metrontagger.comics.open_comic", return_value=None):
-        assert list(iter_metadata(comic)) == [(MI, mi)]

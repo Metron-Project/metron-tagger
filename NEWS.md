@@ -13,8 +13,9 @@
 ## 🐛 Bug Fixes
 
 - Online tagging now finds a Metron ID stored only in a comic's ComicInfo.xml
-  when its MetronInfo.xml has no ID. This works around a darkseid caching bug
-  ([darkseid#267](https://github.com/Metron-Project/darkseid/issues/267)).
+  when its MetronInfo.xml has no ID. This was caused by a darkseid caching bug
+  ([darkseid#267](https://github.com/Metron-Project/darkseid/issues/267)), fixed
+  in darkseid 10.0.0.
 - Pressing Ctrl-C at the API token or sort directory prompt no longer saves
   `None` as that setting. A `None` saved by an earlier version is cleared when
   the settings load, so you're asked for the token again.
@@ -44,6 +45,7 @@
 
 ## 🧰 Maintenance
 
+- Require darkseid 10.0.0 or later.
 - Drop the pandas dependency.
 - Internal refactoring, more tests, and type checking with pyright.
 
