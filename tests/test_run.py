@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
-from darkseid.comic import Comic
+from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
 from darkseid.metadata import Metadata
 
 from metrontagger.duplicates import DuplicateIssue
@@ -65,3 +65,25 @@ def test__update_ci_xml(
         assert expected_log_message in caplog.text
     else:
         assert "Could not write metadata" not in caplog.text  # Ensure no unexpected error logs
+
+
+def test_migrate_ci_to_mi_skips_invalid_comic(
+    tmp_path: Path, fake_comic: Path, fake_metadata: Metadata, monkeypatch
+) -> None:
+    """An invalid archive shouldn't stop migration of the files after it."""
+    bad_comic = tmp_path / "not_a_comic.cbz"
+
+    def comic_factory(path: Path) -> Comic:
+        if path == bad_comic:
+            raise ComicArchiveError
+        return Comic(path)
+
+    monkeypatch.setattr("metrontagger.run.Comic", comic_factory)
+
+    comic = Comic(fake_comic)
+    assert comic.write_metadata(fake_metadata, MetadataFormat.COMIC_INFO)
+    assert not comic.has_metadata(MetadataFormat.METRON_INFO)
+
+    Runner.migrate_ci_to_mi([bad_comic, fake_comic])
+
+    assert Comic(fake_comic).has_metadata(MetadataFormat.METRON_INFO)

@@ -78,8 +78,10 @@ class Runner:
                 comic = Comic(item)
             except ComicArchiveError:
                 LOGGER.exception("Comic not valid: %s", str(item))
-                questionary.print(f"'{item.name}' is not a valid comic.'", style=Styles.ERROR)
-                return
+                questionary.print(
+                    f"'{item.name}' is not a valid comic. Skipping...", style=Styles.ERROR
+                )
+                continue
 
             if comic.has_metadata(MetadataFormat.COMIC_INFO) and not comic.has_metadata(
                 MetadataFormat.METRON_INFO
