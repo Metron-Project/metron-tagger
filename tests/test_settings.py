@@ -47,3 +47,55 @@ def test_settings_removes_obsolete_options(tmp_path) -> None:
     assert config["metron.password"] is None
     assert config["metron.token_migration_prompted"] is None
     assert "password" not in settings_file.read_text(encoding="utf-8")
+
+
+def test_settings_values_read_back_from_file_have_default_types(tmp_path) -> None:
+    """Values reloaded from settings.ini come back as their default's type."""
+    from metrontagger.settings import MetronTaggerSettings  # noqa: PLC0415
+
+    config = MetronTaggerSettings(config_dir=tmp_path)
+    config["rename.rename_issue_number_padding"] = 5
+    config["rename.rename_use_smart_string_cleanup"] = False
+    config["sort.directory"] = "/comics"
+
+    reloaded = MetronTaggerSettings(config_dir=tmp_path)
+
+    assert reloaded["rename.rename_issue_number_padding"] == 5
+    assert type(reloaded["rename.rename_issue_number_padding"]) is int
+    assert reloaded["rename.rename_use_smart_string_cleanup"] is False
+    assert reloaded["sort.directory"] == "/comics"
+
+
+def test_settings_every_default_round_trips_with_its_type(tmp_path) -> None:
+    """Each default, written to the file and read back, keeps its value and type."""
+    from metrontagger.settings import MetronTaggerSettings  # noqa: PLC0415
+
+    MetronTaggerSettings(config_dir=tmp_path)  # writes the defaults
+    reloaded = MetronTaggerSettings(config_dir=tmp_path)
+
+    for section, options in MetronTaggerSettings.DEFAULT_CONFIG.items():
+        for option, default in options.items():
+            value = reloaded[f"{section}.{option}"]
+            assert value == default
+            assert type(value) is type(default)
+
+
+def test_settings_option_without_default_is_a_string(tmp_path) -> None:
+    from metrontagger.settings import MetronTaggerSettings  # noqa: PLC0415
+
+    (tmp_path / "settings.ini").write_text("[extra]\ncount = 7\n", encoding="utf-8")
+
+    assert MetronTaggerSettings(config_dir=tmp_path)["extra.count"] == "7"
+
+
+def test_settings_invalid_typed_value_reads_as_none(tmp_path) -> None:
+    """A value that can't be converted to its option's type reads as None."""
+    from metrontagger.settings import MetronTaggerSettings  # noqa: PLC0415
+
+    (tmp_path / "settings.ini").write_text(
+        "[rename]\nrename_issue_number_padding = lots\n", encoding="utf-8"
+    )
+
+    assert (
+        MetronTaggerSettings(config_dir=tmp_path)["rename.rename_issue_number_padding"] is None
+    )

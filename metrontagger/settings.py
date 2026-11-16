@@ -22,8 +22,9 @@ class MetronTaggerSettings:
     and various application options with type safety and error handling.
     """
 
-    # Default configuration values
-    DEFAULT_CONFIG: ClassVar[dict[str, dict[str, str] | dict[str, int | bool | str]]] = {
+    # Default configuration values. Each default's type is also the option's type:
+    # values read from the file are converted to it (see `_convert_value`).
+    DEFAULT_CONFIG: ClassVar[dict[str, dict[str, str | int | bool]]] = {
         "metron": {
             "user": "",
             "auth_token": "",
@@ -35,23 +36,6 @@ class MetronTaggerSettings:
             "rename_template": "",
         },
         "sort": {"directory": ""},
-    }
-
-    # Type mapping for configuration options
-    TYPE_MAPPING: ClassVar[
-        dict[str, dict[str, type[str]] | dict[str, type[int | bool | str]]]
-    ] = {
-        "metron": {
-            "user": str,
-            "auth_token": str,
-            "redis_url": str,
-        },
-        "rename": {
-            "rename_issue_number_padding": int,
-            "rename_use_smart_string_cleanup": bool,
-            "rename_template": str,
-        },
-        "sort": {"directory": str},
     }
 
     # Options from older versions that are no longer used and are removed on load
@@ -184,7 +168,9 @@ class MetronTaggerSettings:
         return parts[0], parts[1]
 
     def _convert_value(self, section: str, option: str, value: str) -> str | int | bool:
-        """Convert string value to appropriate type based on configuration schema.
+        """Convert a value read from the file to the type of the option's default.
+
+        Options without a default (not in `DEFAULT_CONFIG`) are returned as strings.
 
         Args:
             section: Configuration section name.
@@ -194,14 +180,12 @@ class MetronTaggerSettings:
         Returns:
             Converted value with appropriate type.
         """
-        if section in self.TYPE_MAPPING and option in self.TYPE_MAPPING[section]:
-            expected_type = self.TYPE_MAPPING[section][option]
-
-            if expected_type is bool:
-                return self.config.getboolean(section, option)
-            if expected_type is int:
-                return self.config.getint(section, option)
-
+        default = self.DEFAULT_CONFIG.get(section, {}).get(option)
+        # bool is a subclass of int, so it has to be checked first.
+        if isinstance(default, bool):
+            return self.config.getboolean(section, option)
+        if isinstance(default, int):
+            return self.config.getint(section, option)
         return value
 
     def __getitem__(self, key: str) -> str | int | bool | None:
