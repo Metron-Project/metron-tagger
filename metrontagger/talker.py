@@ -55,9 +55,8 @@ from PIL import ExifTags, Image, ImageOps
 from requests.exceptions import HTTPError
 
 from metrontagger import __version__
-from metrontagger.styles import Styles
+from metrontagger.ui import UIPresenter
 from metrontagger.utils import (
-    create_print_title,
     create_query_params,
     search_issue_number,
     series_words,
@@ -134,9 +133,9 @@ class InfoSource(Enum):
 
 # Source messages for metadata printing
 SOURCE_MESSAGES = {
-    InfoSource.METRON: ("Metron ID", Styles.INFO),
-    InfoSource.COMIC_VINE: ("ComicVine", Styles.INFO),
-    InfoSource.UNKNOWN: ("Unknown Source", Styles.WARNING),
+    InfoSource.METRON: ("Metron ID", UIPresenter.print_info),
+    InfoSource.COMIC_VINE: ("ComicVine", UIPresenter.print_info),
+    InfoSource.UNKNOWN: ("Unknown Source", UIPresenter.print_warning),
 }
 
 
@@ -239,33 +238,8 @@ class OnlineMatchResults:
         self._skipped_matches.append(file_name)
 
 
-class UIPresenter:
-    """Handles user interface presentation and printing."""
-
-    @staticmethod
-    def print_error(message: str) -> None:
-        """Print an error message."""
-        questionary.print(message, style=Styles.ERROR)
-
-    @staticmethod
-    def print_warning(message: str) -> None:
-        """Print a warning message."""
-        questionary.print(message, style=Styles.WARNING)
-
-    @staticmethod
-    def print_info(message: str) -> None:
-        """Print an info message."""
-        questionary.print(message, style=Styles.INFO)
-
-    @staticmethod
-    def print_success(message: str) -> None:
-        """Print a success message."""
-        questionary.print(message, style=Styles.SUCCESS)
-
-    @staticmethod
-    def print_title(message: str) -> None:
-        """Print a title message."""
-        questionary.print(message, style=Styles.TITLE)
+class TalkerPresenter(UIPresenter):
+    """Console output for online search and tagging."""
 
     @staticmethod
     def print_metadata_source_message(source: InfoSource, comic: Comic) -> None:
@@ -273,47 +247,36 @@ class UIPresenter:
         if source not in SOURCE_MESSAGES:
             return
 
-        message_text, style = SOURCE_MESSAGES[source]
+        message_text, print_func = SOURCE_MESSAGES[source]
         if source != InfoSource.UNKNOWN:
-            questionary.print(
-                f"Found {message_text} in '{comic}' metadata and using that to get the metadata...",
-                style=style,
+            print_func(
+                f"Found {message_text} in '{comic}' metadata and using that to get the metadata..."
             )
         else:
-            questionary.print(
-                f"Found {message_text} in '{comic}' metadata. Skipping...",
-                style=style,
-            )
+            print_func(f"Found {message_text} in '{comic}' metadata. Skipping...")
 
-    @staticmethod
-    def print_match_results(results: OnlineMatchResults) -> None:
+    @classmethod
+    def print_match_results(cls, results: OnlineMatchResults) -> None:
         """Print all match results."""
-        if results.good_matches:
-            msg = create_print_title("Successful Matches:")
-            questionary.print(msg, style=Styles.TITLE)
-            for comic in results.good_matches:
-                questionary.print(f"{comic}", style=Styles.SUCCESS)
+        sections = (
+            ("Successful Matches:", results.good_matches, cls.print_success),
+            ("No Matches:", results.no_matches, cls.print_warning),
+            ("Skipped Multiple Matches:", results.skipped_matches, cls.print_warning),
+        )
+        for title, comics, print_func in sections:
+            if comics:
+                cls.print_title(title)
+                for comic in comics:
+                    print_func(f"{comic}")
 
-        if results.no_matches:
-            msg = create_print_title("No Matches:")
-            questionary.print(msg, style=Styles.TITLE)
-            for comic in results.no_matches:
-                questionary.print(f"{comic}", style=Styles.WARNING)
-
-        if results.skipped_matches:
-            msg = create_print_title("Skipped Multiple Matches:")
-            questionary.print(msg, style=Styles.TITLE)
-            for comic in results.skipped_matches:
-                questionary.print(f"{comic}", style=Styles.WARNING)
-
-    @staticmethod
-    def print_multiple_match_prompt(fn: Path) -> None:
+    @classmethod
+    def print_multiple_match_prompt(cls, fn: Path) -> None:
         """Print prompt for multiple matches."""
-        questionary.print(f"\n{fn.name} - Results found:", style=Styles.TITLE)
+        cls.print_heading(f"\n{fn.name} - Results found:")
 
-    @staticmethod
+    @classmethod
     def print_rate_limit_status(
-        remaining: int | None, limit: int | None, reset: datetime | None
+        cls, remaining: int | None, limit: int | None, reset: datetime | None
     ) -> None:
         """Print the sustained (daily) Metron API quota remaining, if known."""
         if not isinstance(remaining, int) or not isinstance(limit, int):
@@ -322,10 +285,11 @@ class UIPresenter:
         msg = f"Metron API: {remaining:,}/{limit:,} daily requests remaining"
         if isinstance(reset, datetime):
             msg += f" (resets {reset.astimezone().strftime('%H:%M %Z')})"
-        questionary.print(msg, style=Styles.INFO)
+        cls.print_info(msg)
 
-    @staticmethod
+    @classmethod
     def print_metadata_write_success(  # noqa: PLR0913, PLR0917
+        cls,
         formats: list[str],
         series_name: str,
         issue: str,
@@ -336,12 +300,11 @@ class UIPresenter:
         """Print success message for metadata writing."""
         collection_text = " (Collection)" if is_collection else ""
         fmt = " and ".join(formats)
-        msg = (
+        cls.print_success(
             f"Writing {fmt} metadata using "
             f"'{series_name} #{issue} ({year}){collection_text}' "
             f"for '{filename}'."
         )
-        questionary.print(msg, style=Styles.SUCCESS)
 
 
 class MetadataExtractor:
@@ -444,14 +407,14 @@ class CoverHashMatcher:
         """
         cover = comic.get_page(0)
         if cover is None:
-            questionary.print("Unable to get cover hash.", style=Styles.ERROR)
+            UIPresenter.print_error("Unable to get cover hash.")
             return ()
         try:
             with Image.open(io.BytesIO(cover)) as img:
                 return CoverHashMatcher.hash_cover_image(img)
         except (OSError, RuntimeError):
             # pillow-jxl-plugin raises RuntimeError on corrupt/truncated JXL data.
-            questionary.print("Unable to get cover hash.", style=Styles.ERROR)
+            UIPresenter.print_error("Unable to get cover hash.")
             return ()
 
     @classmethod
@@ -731,7 +694,7 @@ class Talker:
         can't be used, they're paced by a local limiter that spreads requests evenly
         across Metron's rate-limit window.
         """
-        self.ui = UIPresenter()
+        self.ui = TalkerPresenter()
         self._redis_client: Redis | None = None
         # Errors raised by the Redis rate limiter; empty unless one is in use, since
         # `redis` is an optional dependency.
@@ -1446,8 +1409,7 @@ class Talker:
         self._stop_processing = False
 
         title_suffix = f" (Series ID: {args.id})" if args.id is not None else ""
-        msg = create_print_title(f"Starting Online Search and Tagging{title_suffix}:")
-        self.ui.print_title(msg)
+        self.ui.print_title(f"Starting Online Search and Tagging{title_suffix}:")
 
         # Create processing configuration from args
         config = ProcessingConfig(

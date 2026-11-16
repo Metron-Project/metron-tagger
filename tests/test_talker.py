@@ -37,7 +37,7 @@ from metrontagger.talker import (
     ProcessingConfig,
     SearchResult,
     Talker,
-    UIPresenter,
+    TalkerPresenter,
 )
 
 tzinfo = timezone(timedelta(hours=-5))
@@ -843,7 +843,7 @@ def test_talker_initialization_with_username_only_used_for_redis():
         )
 
 
-@patch("metrontagger.talker.UIPresenter.print_warning")
+@patch("metrontagger.ui.UIPresenter.print_warning")
 def test_talker_with_redis_url_without_username_falls_back(mock_warning):
     """Test Redis rate limiting is skipped without a username, even with an API token."""
     with (
@@ -904,7 +904,7 @@ def test_talker_with_redis_url_and_token_keys_by_username():
         assert mock_limiter_cls.call_args.args[1] == "user"
 
 
-@patch("metrontagger.talker.UIPresenter.print_warning")
+@patch("metrontagger.ui.UIPresenter.print_warning")
 def test_talker_with_unreachable_redis_falls_back(mock_warning):
     """Test an unreachable Redis server falls back to the local rate limiter."""
     import redis  # noqa: PLC0415
@@ -926,7 +926,7 @@ def test_talker_with_unreachable_redis_falls_back(mock_warning):
     assert "Unable to connect to Redis" in mock_warning.call_args.args[0]
 
 
-@patch("metrontagger.talker.UIPresenter.print_warning")
+@patch("metrontagger.ui.UIPresenter.print_warning")
 def test_talker_with_invalid_redis_url_falls_back(mock_warning):
     """Test an invalid Redis URL falls back to the local rate limiter."""
     with patch("metrontagger.talker.mokkari.api") as mock_api_func:
@@ -937,7 +937,7 @@ def test_talker_with_invalid_redis_url_falls_back(mock_warning):
     assert "Invalid Redis URL" in mock_warning.call_args.args[0]
 
 
-@patch("metrontagger.talker.UIPresenter.print_warning")
+@patch("metrontagger.ui.UIPresenter.print_warning")
 def test_talker_without_redis_installed_falls_back(mock_warning):
     """Test a missing redis package falls back to the local rate limiter."""
     with (
@@ -1347,7 +1347,7 @@ def test_talker_should_skip_existing_metadata_false(mock_comic_class, talker):
 
 
 @patch("metrontagger.talker.questionary.print")
-@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.ui.create_print_title")
 def test_post_process_matches_displays_skipped(mock_create_title, mock_print, talker):
     """Test that _post_process_matches displays skipped matches."""
     # Add some skipped matches
@@ -1373,7 +1373,7 @@ def test_post_process_matches_displays_skipped(mock_create_title, mock_print, ta
 
 
 @patch("metrontagger.talker.questionary.print")
-@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.ui.create_print_title")
 def test_post_process_matches_no_skipped(mock_create_title, talker):
     """Test that _post_process_matches doesn't display skipped section when empty."""
     # Don't add any skipped matches
@@ -1388,7 +1388,7 @@ def test_post_process_matches_no_skipped(mock_create_title, talker):
     assert len(title_calls) == 0
 
 
-@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.ui.create_print_title")
 @patch("metrontagger.talker.questionary.print")
 @patch("metrontagger.talker.Comic")
 def test_identify_comics_with_skip_multiple_enabled(
@@ -1431,7 +1431,7 @@ def test_identify_comics_with_skip_multiple_enabled(
             assert config.skip_multiple is True
 
 
-@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.ui.create_print_title")
 @patch("metrontagger.talker.questionary.print")
 @patch("metrontagger.talker.Comic")
 def test_identify_comics_with_skip_multiple_disabled(
@@ -1474,7 +1474,7 @@ def test_identify_comics_with_skip_multiple_disabled(
         assert config.skip_multiple is False
 
 
-@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.ui.create_print_title")
 @patch("metrontagger.talker.questionary.print")
 @patch("metrontagger.talker.Comic")
 def test_identify_comics_with_ignore_modified_enabled(
@@ -1646,7 +1646,7 @@ def test_skip_multiple_with_hamming_filter_reduces_to_single(
         assert len(talker.match_results.skipped_matches) == 0
 
 
-@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.ui.create_print_title")
 @patch("metrontagger.talker.questionary.print")
 @patch("metrontagger.talker.Comic")
 def test_talker_identify_comics_success(mock_comic_class, _, mock_create_title, talker):  # noqa: PT019
@@ -1721,19 +1721,19 @@ def test_talker_print_rate_limit_status(talker):
         mock_print.assert_called_once_with(4823, 5000, reset)
 
 
-def test_ui_presenter_print_rate_limit_status():
+def test_talker_presenter_print_rate_limit_status():
     """Test that the rate limit message is printed when limit data is known."""
     reset = datetime(2026, 7, 21, tzinfo=UTC)
     with patch("metrontagger.talker.questionary.print") as mock_print:
-        UIPresenter.print_rate_limit_status(4823, 5000, reset)
+        TalkerPresenter.print_rate_limit_status(4823, 5000, reset)
         mock_print.assert_called_once()
         assert "4,823/5,000 daily requests remaining" in mock_print.call_args[0][0]
 
 
-def test_ui_presenter_print_rate_limit_status_without_reset():
+def test_talker_presenter_print_rate_limit_status_without_reset():
     """Test that the message omits the reset time when it isn't known."""
     with patch("metrontagger.talker.questionary.print") as mock_print:
-        UIPresenter.print_rate_limit_status(4823, 5000, None)
+        TalkerPresenter.print_rate_limit_status(4823, 5000, None)
         mock_print.assert_called_once()
         msg = mock_print.call_args[0][0]
         assert "4,823/5,000 daily requests remaining" in msg
@@ -1748,10 +1748,10 @@ def test_ui_presenter_print_rate_limit_status_without_reset():
         (None, None),
     ],
 )
-def test_ui_presenter_print_rate_limit_status_unknown(remaining, limit):
+def test_talker_presenter_print_rate_limit_status_unknown(remaining, limit):
     """Test that nothing is printed when the sustained limit isn't known yet."""
     with patch("metrontagger.talker.questionary.print") as mock_print:
-        UIPresenter.print_rate_limit_status(remaining, limit, None)
+        TalkerPresenter.print_rate_limit_status(remaining, limit, None)
         mock_print.assert_not_called()
 
 
@@ -1825,7 +1825,7 @@ def test_handle_api_call_rate_limit_zero_retry_after(talker):
     mock_call.assert_called_once()
 
 
-@patch("metrontagger.talker.UIPresenter.print_error")
+@patch("metrontagger.ui.UIPresenter.print_error")
 def test_handle_api_call_redis_error_stops_processing(mock_error, talker):
     """Test a Redis rate limiter error stops further processing."""
     talker._redis_errors = (redis.RedisError,)
@@ -1846,7 +1846,7 @@ def test_handle_api_call_redis_error_not_caught_without_redis(talker):
         talker._handle_api_call(mock_call)
 
 
-@patch("metrontagger.talker.UIPresenter.print_error")
+@patch("metrontagger.ui.UIPresenter.print_error")
 @patch("metrontagger.talker.time.sleep")
 def test_handle_api_call_redis_error_on_retry_stops_processing(mock_sleep, mock_error, talker):
     """Test a Redis error raised while retrying after a rate limit stops processing."""
@@ -1862,7 +1862,7 @@ def test_handle_api_call_redis_error_on_retry_stops_processing(mock_sleep, mock_
     assert "Redis rate limiter error" in mock_error.call_args.args[0]
 
 
-@patch("metrontagger.talker.UIPresenter.print_error")
+@patch("metrontagger.ui.UIPresenter.print_error")
 @patch("metrontagger.talker.time.sleep")
 def test_handle_api_call_redis_error_on_second_retry_stops_processing(
     mock_sleep, mock_error, talker

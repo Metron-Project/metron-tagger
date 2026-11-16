@@ -16,7 +16,7 @@ from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
 if TYPE_CHECKING:
     from darkseid.metadata import Metadata
 
-from metrontagger.styles import Styles
+from metrontagger.ui import UIPresenter
 from metrontagger.utils import cleanup_string
 
 logger = logging.getLogger(__name__)
@@ -126,18 +126,16 @@ class FileSorter:
 
         try:
             move(str(source), str(destination))
-            questionary.print(
-                f"Moved '{source.name}' to '{destination_dir}'", style=Styles.SUCCESS
-            )
+            UIPresenter.print_success(f"Moved '{source.name}' to '{destination_dir}'")
             logger.info(f"Successfully moved {source} to {destination}")
         except ShutilError as e:
             error_msg = f"Failed to move '{source.name}' to '{destination_dir}': {e}"
-            questionary.print(error_msg, style=Styles.ERROR)
+            UIPresenter.print_error(error_msg)
             logger.exception(error_msg)
             return False
         except Exception as e:
             error_msg = f"Unexpected error moving '{source.name}': {e}"
-            questionary.print(error_msg, style=Styles.ERROR)
+            UIPresenter.print_error(error_msg)
             logger.exception(error_msg)
             return False
         else:
@@ -186,7 +184,7 @@ class FileSorter:
                 f"Existing file: {size_info.existing_mb:.2f} MB -> "
                 f"New file: {size_info.new_mb:.2f} MB"
             )
-            questionary.print(message, style=Styles.WARNING)
+            UIPresenter.print_warning(message)
 
             if questionary.confirm(
                 "Would you like to overwrite the existing file?",
@@ -197,7 +195,7 @@ class FileSorter:
                     logger.info(f"Removed existing file: {existing_file}")
                 except OSError as e:
                     error_msg = f"Failed to remove existing file {existing_file}: {e}"
-                    questionary.print(error_msg, style=Styles.ERROR)
+                    UIPresenter.print_error(error_msg)
                     logger.exception(error_msg)
                     return False
                 else:
@@ -208,7 +206,7 @@ class FileSorter:
 
         except OSError as e:
             error_msg = f"Failed to compare file sizes: {e}"
-            questionary.print(error_msg, style=Styles.ERROR)
+            UIPresenter.print_error(error_msg)
             logger.exception(error_msg)
             return False
 
@@ -250,12 +248,12 @@ class FileSorter:
             logger.info(f"Created directory structure: {path}")
         except PermissionError:
             error_msg = f"Permission denied creating directory: {path}"
-            questionary.print(error_msg, style=Styles.ERROR)
+            UIPresenter.print_error(error_msg)
             logger.exception(f"{error_msg}")
             return False
         except OSError:
             error_msg = f"Failed to create directory: {path}"
-            questionary.print(error_msg, style=Styles.ERROR)
+            UIPresenter.print_error(error_msg)
             logger.exception(f"{error_msg}")
             return False
         else:
@@ -318,7 +316,7 @@ class FileSorter:
                 f"Missing: {', '.join(missing_fields)}\n"
                 f"Present: Publisher={cleaned.publisher}, Series={cleaned.series}, Volume={cleaned.volume}"
             )
-            questionary.print(message, style=Styles.WARNING)
+            UIPresenter.print_warning(message)
             logger.warning(f"Incomplete metadata for {comic_name}: missing {missing_fields}")
             return False
 

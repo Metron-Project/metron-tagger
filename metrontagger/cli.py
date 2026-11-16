@@ -9,7 +9,7 @@ from metrontagger import __version__, init_logging
 from metrontagger.options import check_args, make_parser
 from metrontagger.run import Runner
 from metrontagger.settings import MetronTaggerSettings
-from metrontagger.styles import Styles
+from metrontagger.ui import UIPresenter
 
 LOGGER = getLogger(__name__)
 
@@ -35,10 +35,9 @@ def _metron_credentials(settings: MetronTaggerSettings) -> None:
     if settings["metron.auth_token"]:
         return
 
-    questionary.print(
+    UIPresenter.print_info(
         "Metron-Tagger authenticates with a Metron API token. You can generate one "
-        "from your Metron profile page under 'API Tokens'.",
-        style=Styles.INFO,
+        "from your Metron profile page under 'API Tokens'."
     )
     settings["metron.auth_token"] = questionary.text("What is your Metron API token?").ask()
     LOGGER.debug("Added Metron API token")

@@ -17,11 +17,10 @@ if TYPE_CHECKING:
 
     from darkseid.metadata import Metadata
 
-import questionary
 from darkseid.issue_string import IssueString
 from darkseid.utils import unique_file
 
-from metrontagger.styles import Styles
+from metrontagger.ui import UIPresenter
 from metrontagger.utils import cleanup_string
 
 
@@ -383,10 +382,7 @@ class FileRenamer:
             The path to the renamed comic file, or None if the renaming process is skipped.
         """
         if self._metadata is None:
-            questionary.print(
-                f"Metadata hasn't been set for {comic}. Skipping...",
-                style=Styles.WARNING,
-            )
+            UIPresenter.print_warning(f"Metadata hasn't been set for {comic}. Skipping...")
             return None
 
         new_name = self.determine_name(comic)
@@ -394,20 +390,14 @@ class FileRenamer:
             return None
 
         if new_name == comic.name:
-            questionary.print(
-                f"Filename for '{comic.name}' is already good!",
-                style=Styles.SUCCESS,
-            )
+            UIPresenter.print_success(f"Filename for '{comic.name}' is already good!")
             return None
 
         try:
             unique_name = unique_file(comic.parent / new_name)
             comic.rename(unique_name)
         except OSError as e:
-            questionary.print(
-                f"Failed to rename '{comic.name}': {e}",
-                style=Styles.WARNING,
-            )
+            UIPresenter.print_warning(f"Failed to rename '{comic.name}': {e}")
             return None
         else:
             return unique_name

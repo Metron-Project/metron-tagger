@@ -11,7 +11,7 @@ from darkseid.comic import ComicArchiveError
 from imagehash import average_hash, hex_to_hash
 from PIL import Image, JpegImagePlugin
 
-from metrontagger.duplicates import DuplicateIssue, Duplicates
+from metrontagger.duplicates import DuplicateIssue, Duplicates, DuplicatesPresenter
 
 
 # Fixtures for test data
@@ -417,7 +417,7 @@ def test_delete_comic_pages_success(mock_comic_class):
 
     duplicates_list = [DuplicateIssue("comic1.cbz", [0, 2])]
 
-    with patch("metrontagger.duplicates.questionary"):
+    with patch("metrontagger.ui.questionary"):
         results = Duplicates.delete_comic_pages(duplicates_list)
 
     assert results["comic1.cbz"] is True
@@ -433,7 +433,7 @@ def test_delete_comic_pages_failure(mock_comic_class):
 
     duplicates_list = [DuplicateIssue("comic1.cbz", [0])]
 
-    with patch("metrontagger.duplicates.questionary"):
+    with patch("metrontagger.ui.questionary"):
         results = Duplicates.delete_comic_pages(duplicates_list)
 
     assert results["comic1.cbz"] is False
@@ -446,7 +446,7 @@ def test_delete_comic_pages_failure(mock_comic_class):
 #
 #     duplicates_list = [DuplicateIssue("comic1.cbz", [0])]
 #
-#     with patch("metrontagger.duplicates.questionary"):
+#     with patch("metrontagger.ui.questionary"):
 #         results = Duplicates.delete_comic_pages(duplicates_list)
 #
 #     assert results["comic1.cbz"] is False
@@ -475,7 +475,7 @@ def test_show_image_no_pages():
 #
 #     duplicate_issue = DuplicateIssue("comic1.cbz", [0])
 #
-#     with patch("metrontagger.duplicates.questionary"):
+#     with patch("metrontagger.ui.questionary"):
 #         result = Duplicates.show_image(duplicate_issue)
 #         assert result is False
 
@@ -820,3 +820,89 @@ def test_generate_page_hashes_single_worker_is_serial(mock_comic_class, sample_f
 
     mock_executor.assert_not_called()
     assert len(rows) == len(sample_files)
+
+
+# DuplicatesPresenter tests
+@pytest.fixture
+def printed(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Record every message printed through the UI layer."""
+    lines: list[str] = []
+    monkeypatch.setattr(
+        "metrontagger.ui.questionary.print", lambda msg, **_kw: lines.append(str(msg))
+    )
+    return lines
+
+
+def _sized_dup(path: str, pages: list[int], start: int, end: int | None) -> DuplicateIssue:
+    dup = DuplicateIssue(path, pages)
+    dup.starting_size_bytes = start
+    dup.ending_size_bytes = end
+    return dup
+
+
+def test_create_statistics_msg() -> None:
+    msg = DuplicatesPresenter.create_statistics_msg(
+        {
+            "total_pages": 1234,
+            "duplicate_pages": 5,
+            "unique_duplicate_hashes": 2,
+            "comics_processed": 3,
+        }
+    )
+
+    assert "Total Pages Scanned: 1,234" in msg
+    assert "Duplicate Pages Found: 5" in msg
+    assert "Unique Duplicate Images: 2" in msg
+    assert "Comics Processed: 3" in msg
+
+
+def test_print_pre_processing_summary(printed: list[str]) -> None:
+    dups = [
+        _sized_dup("a.cbz", [1, 2], 2048, None),
+        _sized_dup("b.cbz", [3], 1024, None),
+    ]
+
+    DuplicatesPresenter.print_pre_processing_summary(dups)
+
+    out = "\n".join(printed)
+    assert "Comics to process: 2" in out
+    assert "Total duplicate pages to remove: 3" in out
+    assert "Total starting size: 3.00 KB" in out
+
+
+def test_print_summaries_skip_empty_list(printed: list[str]) -> None:
+    DuplicatesPresenter.print_pre_processing_summary([])
+    DuplicatesPresenter.print_post_processing_summary([], {})
+
+    assert printed == []
+
+
+def test_print_post_processing_summary(printed: list[str]) -> None:
+    dups = [
+        _sized_dup("/x/a.cbz", [1, 2], 4096, 2048),
+        _sized_dup("/x/b.cbz", [3], 1024, 1024),
+        _sized_dup("/x/c.cbz", [4], 1024, None),
+    ]
+
+    DuplicatesPresenter.print_post_processing_summary(
+        dups, {"/x/a.cbz": True, "/x/b.cbz": True, "/x/c.cbz": False}
+    )
+
+    out = "\n".join(printed)
+    assert "a.cbz - Removed 2 pages (Saved: 2.00 KB, 50.0%)" in out
+    assert "b.cbz - Removed 1 page\n" in out + "\n"
+    assert "Total pages removed: 3" in out
+    assert "Total space saved: 2.00 KB" in out
+    assert "Average space saved per comic: 1.00 KB" in out
+    assert "FAILED TO PROCESS" in out
+    assert "c.cbz - Failed to remove 1 page" in out
+
+
+def test_print_post_processing_summary_all_failed(printed: list[str]) -> None:
+    DuplicatesPresenter.print_post_processing_summary(
+        [_sized_dup("a.cbz", [1], 1024, None)], {}
+    )
+
+    out = "\n".join(printed)
+    assert "SUCCESSFULLY PROCESSED" not in out
+    assert "a.cbz - Failed to remove 1 page" in out

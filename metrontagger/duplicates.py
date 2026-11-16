@@ -3,7 +3,7 @@
 # Copyright 2023 Brian Pepple
 from __future__ import annotations
 
-__all__ = ["DuplicateIssue", "Duplicates"]
+__all__ = ["DuplicateIssue", "Duplicates", "DuplicatesPresenter"]
 
 import io
 import os
@@ -16,13 +16,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
-import questionary
 from darkseid.comic import Comic, ComicArchiveError
 from imagehash import average_hash
 from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
 
-from metrontagger.styles import Styles
+from metrontagger.ui import UIPresenter
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
@@ -278,7 +277,7 @@ class Duplicates:
         Yields:
             dict[str, str | int]: Dictionary containing file path, page index, and page hash.
         """
-        questionary.print("Getting page hashes.", style=Styles.INFO)
+        UIPresenter.print_info("Getting page hashes.")
         if self._max_workers == 1:
             yield from self._collect_hashes(map(self._hash_comic, self._file_lst))
             return
@@ -511,9 +510,8 @@ class Duplicates:
             except (ValueError, OSError) as e:
                 LOGGER.error("Error deleting pages from %s: %s", item.path_, e)  # noqa: TRY400
                 results[item.path_] = False
-                questionary.print(
-                    f"Error removing duplicate pages from {Path(item.path_).name}: {e}",
-                    style=Styles.ERROR,
+                UIPresenter.print_error(
+                    f"Error removing duplicate pages from {Path(item.path_).name}: {e}"
                 )
                 continue
 
@@ -522,9 +520,10 @@ class Duplicates:
 
             results[item.path_] = success
 
-            status_msg = "Removed" if success else "Failed to remove"
-            style = Styles.SUCCESS if success else Styles.WARNING
-            questionary.print(f"{status_msg} duplicate pages from {comic}", style=style)
+            if success:
+                UIPresenter.print_success(f"Removed duplicate pages from {comic}")
+            else:
+                UIPresenter.print_warning(f"Failed to remove duplicate pages from {comic}")
 
         return results
 
@@ -563,9 +562,8 @@ class Duplicates:
                 return True
         except (UnidentifiedImageError, ValueError, TypeError) as e:
             LOGGER.warning("Unable to show image from %s: %s", duplicate_issue.path_, e)
-            questionary.print(
-                f"Unable to show image from {Path(duplicate_issue.path_).name}.",
-                style=Styles.WARNING,
+            UIPresenter.print_warning(
+                f"Unable to show image from {Path(duplicate_issue.path_).name}."
             )
             return False
         except Exception as e:  # noqa: BLE001
@@ -589,3 +587,120 @@ class Duplicates:
             "unique_duplicate_hashes": len(self.get_distinct_hashes()),
             "comics_processed": len(self._file_lst),
         }
+
+
+def _pages(count: int) -> str:
+    return f"{count} page{'s' if count != 1 else ''}"
+
+
+class DuplicatesPresenter(UIPresenter):
+    """Console output for duplicate page removal."""
+
+    RULE = "=" * 60
+    SUB_RULE = "-" * 40
+
+    @classmethod
+    def print_pre_processing_summary(cls, duplicates_lst: list[DuplicateIssue]) -> None:
+        """Print a summary of the pages about to be removed."""
+        if not duplicates_lst:
+            return
+
+        total_pages_to_remove = sum(len(dup.pages_index) for dup in duplicates_lst)
+        total_starting_size = sum(
+            dup.starting_size_bytes
+            for dup in duplicates_lst
+            if dup.starting_size_bytes is not None
+        )
+
+        cls.print_info("\n" + cls.RULE)
+        cls.print_heading("DUPLICATE REMOVAL SUMMARY")
+        cls.print_info(cls.RULE)
+        cls.print_info(f"Comics to process: {len(duplicates_lst)}")
+        cls.print_info(f"Total duplicate pages to remove: {total_pages_to_remove}")
+        cls.print_info(
+            f"Total starting size: {DuplicateIssue.format_file_size(total_starting_size)}"
+        )
+        cls.print_info(cls.RULE + "\n")
+
+    @classmethod
+    def _print_successful(cls, successful: list[DuplicateIssue]) -> None:
+        cls.print_success("✅ SUCCESSFULLY PROCESSED:")
+        cls.print_info(cls.SUB_RULE)
+
+        total_pages_removed = 0
+        total_size_saved = 0
+        for dup in successful:
+            pages_removed = len(dup.pages_index)
+            total_pages_removed += pages_removed
+
+            size_info = ""
+            if dup.starting_size_bytes is not None and dup.ending_size_bytes is not None:
+                size_reduction = dup.get_size_reduction()
+                if size_reduction and size_reduction > 0:
+                    total_size_saved += size_reduction
+                    percentage = dup.get_size_reduction_percentage()
+                    size_info = f" (Saved: {dup.size_reduction_formatted}"
+                    size_info += f", {percentage:.1f}%)" if percentage else ")"
+            cls.print_success(
+                f"  📁 {Path(dup.path_).name} - Removed {_pages(pages_removed)}{size_info}"
+            )
+
+        cls.print_info(cls.SUB_RULE)
+        cls.print_success(f"📊 Total pages removed: {total_pages_removed}")
+        cls.print_success(
+            f"💾 Total space saved: {DuplicateIssue.format_file_size(total_size_saved)}"
+        )
+        if total_size_saved > 0:
+            avg_saved = total_size_saved / len(successful)
+            cls.print_success(
+                f"📈 Average space saved per comic: {DuplicateIssue.format_file_size(int(avg_saved))}"
+            )
+
+    @classmethod
+    def _print_failed(cls, failed: list[DuplicateIssue]) -> None:
+        cls.print_error("\n❌ FAILED TO PROCESS:")
+        cls.print_info(cls.SUB_RULE)
+        for dup in failed:
+            cls.print_error(
+                f"  📁 {Path(dup.path_).name} - Failed to remove {_pages(len(dup.pages_index))}"
+            )
+
+    @classmethod
+    def print_post_processing_summary(
+        cls, duplicates_lst: list[DuplicateIssue], results: dict[str, bool]
+    ) -> None:
+        """Print which comics had pages removed, with size savings, and which failed."""
+        if not duplicates_lst:
+            return
+
+        successful = [dup for dup in duplicates_lst if results.get(dup.path_, False)]
+        failed = [dup for dup in duplicates_lst if not results.get(dup.path_, False)]
+
+        cls.print_info("\n" + cls.RULE)
+        cls.print_heading("DUPLICATE REMOVAL RESULTS")
+        cls.print_info(cls.RULE)
+        if successful:
+            cls._print_successful(successful)
+        if failed:
+            cls._print_failed(failed)
+        cls.print_info(cls.RULE + "\n")
+
+    @staticmethod
+    def create_statistics_msg(stats: dict[str, int]) -> str:
+        """Create a formatted statistics message for duplicate processing.
+
+        Args:
+            stats: Statistics dictionary from `Duplicates.get_statistics`.
+        """
+        return (
+            f"📈 PROCESSING STATISTICS:\n"
+            f"  • Total Pages Scanned: {stats['total_pages']:,}\n"
+            f"  • Duplicate Pages Found: {stats['duplicate_pages']:,}\n"
+            f"  • Unique Duplicate Images: {stats['unique_duplicate_hashes']:,}\n"
+            f"  • Comics Processed: {stats['comics_processed']:,}"
+        )
+
+    @classmethod
+    def print_statistics(cls, stats: dict[str, int]) -> None:
+        """Print the statistics from `Duplicates.get_statistics`."""
+        cls.print_info(cls.create_statistics_msg(stats))

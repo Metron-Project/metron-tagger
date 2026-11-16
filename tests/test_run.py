@@ -103,7 +103,7 @@ def output(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """Record every message printed with questionary.print."""
     lines: list[str] = []
     monkeypatch.setattr(
-        "metrontagger.run.questionary.print", lambda msg, **_kw: lines.append(str(msg))
+        "metrontagger.ui.questionary.print", lambda msg, **_kw: lines.append(str(msg))
     )
     return lines
 
@@ -579,22 +579,6 @@ def test_remove_duplicates_declined_review(
 
     dup_objs.get_comic_list_from_hash.assert_not_called()
     dup_objs.delete_comic_pages.assert_not_called()
-
-
-def test_create_duplicate_statistics_msg() -> None:
-    msg = Runner._create_duplicate_statistics_msg(
-        {
-            "total_pages": 1234,
-            "duplicate_pages": 5,
-            "unique_duplicate_hashes": 2,
-            "comics_processed": 3,
-        }
-    )
-
-    assert "Total Pages Scanned: 1,234" in msg
-    assert "Duplicate Pages Found: 5" in msg
-    assert "Unique Duplicate Images: 2" in msg
-    assert "Comics Processed: 3" in msg
 
 
 # --- run() dispatch ----------------------------------------------------------

@@ -160,7 +160,7 @@ def test_cleanup_metadata_no_publisher(file_sorter, mock_metadata_incomplete):
 
 # Test _move_file_safely method
 @patch("metrontagger.filesorter.move")
-@patch("metrontagger.filesorter.questionary")
+@patch("metrontagger.ui.questionary")
 def test_move_file_safely_success(mock_questionary, mock_move, file_sorter, tmp_path):
     """Test successful file move."""
     source = tmp_path / "source.cbz"
@@ -176,7 +176,7 @@ def test_move_file_safely_success(mock_questionary, mock_move, file_sorter, tmp_
 
 
 @patch("metrontagger.filesorter.move")
-@patch("metrontagger.filesorter.questionary")
+@patch("metrontagger.ui.questionary")
 def test_move_file_safely_shutil_error(mock_questionary, mock_move, file_sorter, tmp_path):
     """Test file move with shutil error."""
     mock_move.side_effect = ShutilError("Permission denied")
@@ -191,7 +191,7 @@ def test_move_file_safely_shutil_error(mock_questionary, mock_move, file_sorter,
 
 
 @patch("metrontagger.filesorter.move")
-@patch("metrontagger.filesorter.questionary")
+@patch("metrontagger.ui.questionary")
 def test_move_file_safely_unexpected_error(mock_questionary, mock_move, file_sorter, tmp_path):
     """Test file move with unexpected error."""
     mock_move.side_effect = Exception("Unexpected error")
@@ -403,7 +403,7 @@ def test_load_comic_metadata_no_metadata(mock_comic_class, file_sorter, mock_com
 
 
 # Test _validate_metadata_completeness method
-@patch("metrontagger.filesorter.questionary")
+@patch("metrontagger.ui.questionary")
 def test_validate_metadata_completeness_complete(mock_questionary, file_sorter):
     """Test validation with complete metadata."""
     cleaned = CleanedMetadata("Marvel", "Spider-Man", "1")
@@ -414,7 +414,7 @@ def test_validate_metadata_completeness_complete(mock_questionary, file_sorter):
     mock_questionary.print.assert_not_called()
 
 
-@patch("metrontagger.filesorter.questionary")
+@patch("metrontagger.ui.questionary")
 def test_validate_metadata_completeness_incomplete(mock_questionary, file_sorter):
     """Test validation with incomplete metadata."""
     cleaned = CleanedMetadata(None, "Spider-Man", None)
