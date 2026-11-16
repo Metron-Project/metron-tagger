@@ -341,7 +341,7 @@ def test_determine_name_with_custom_template(
 
 
 # Test File Renaming
-@patch("metrontagger.filerenamer.questionary")
+@patch("metrontagger.ui.questionary")
 def test_rename_file_no_metadata(mock_questionary, file_renamer, mock_path):
     """Test file renaming without metadata."""
     result = file_renamer.rename_file(mock_path)
@@ -350,7 +350,7 @@ def test_rename_file_no_metadata(mock_questionary, file_renamer, mock_path):
     mock_questionary.print.assert_called_once()
 
 
-@patch("metrontagger.filerenamer.questionary")
+@patch("metrontagger.ui.questionary")
 @patch("metrontagger.filerenamer.unique_file")
 def test_rename_file_same_name(
     mock_unique_file, mock_questionary, file_renamer_with_metadata, mock_path
@@ -383,7 +383,7 @@ def test_rename_file_success(mock_unique_file, file_renamer_with_metadata, mock_
     mock_path.rename.assert_called_once_with(new_path)
 
 
-@patch("metrontagger.filerenamer.questionary")
+@patch("metrontagger.ui.questionary")
 @patch("metrontagger.filerenamer.unique_file")
 def test_rename_file_os_error(
     mock_unique_file, mock_questionary, file_renamer_with_metadata, mock_path

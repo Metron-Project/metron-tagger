@@ -1,6 +1,6 @@
 """Utility to create an argument parser"""
 
-__all__ = ["make_parser"]
+__all__ = ["check_args", "make_parser"]
 
 import argparse
 
@@ -147,3 +147,25 @@ def make_parser() -> argparse.ArgumentParser:
     )
 
     return parser
+
+
+# Options that act on metadata and so need --comicinfo and/or --metroninfo.
+FORMAT_REQUIRED_OPTIONS = {
+    "missing": "--missing",
+    "delete": "--delete",
+    "online": "--online",
+    "id": "--id",
+    "validate": "--validate",
+}
+
+
+def check_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    """Check option combinations argparse can't express on its own.
+
+    Exits with a usage error, through `parser.error`, if an option that acts on
+    metadata is given without --comicinfo or --metroninfo.
+    """
+    if args.comicinfo or args.metroninfo:
+        return
+    if used := [flag for dest, flag in FORMAT_REQUIRED_OPTIONS.items() if getattr(args, dest)]:
+        parser.error(f"{', '.join(used)} requires --comicinfo and/or --metroninfo")

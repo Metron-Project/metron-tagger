@@ -4,22 +4,30 @@ from __future__ import annotations
 
 __all__ = ["FileSorter"]
 
-import logging
+from logging import getLogger
 from pathlib import Path
 from shutil import Error as ShutilError, move
 from typing import TYPE_CHECKING, NamedTuple
 
 import questionary
-from darkseid.archivers import ArchiverReadError
-from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
 
 if TYPE_CHECKING:
     from darkseid.metadata import Metadata
 
-from metrontagger.styles import Styles
+from metrontagger.comics import open_comic, read_preferred_metadata
+from metrontagger.ui import UIPresenter
 from metrontagger.utils import cleanup_string
 
-logger = logging.getLogger(__name__)
+LOGGER = getLogger(__name__)
+
+
+def _report_error(message: str) -> None:
+    """Show an error to the user and log it with the current exception's traceback.
+
+    Call only from an `except` block.
+    """
+    UIPresenter.print_error(message)
+    LOGGER.exception("%s", message)
 
 
 class CleanedMetadata(NamedTuple):
@@ -54,7 +62,7 @@ def get_file_size_mb(file_path: Path) -> float:
         megabyte = 1_048_576  # Use underscore for better readability
         return file_path.stat().st_size / megabyte
     except OSError:
-        logger.exception(f"Failed to get file size for {file_path}")
+        LOGGER.exception("Failed to get file size for %s", file_path)
         raise
 
 
@@ -81,7 +89,7 @@ class FileSorter:
             raise ValueError(msg)
 
         self.sort_directory = Path(directory)
-        logger.info(f"FileSorter initialized with directory: {self.sort_directory}")
+        LOGGER.info("FileSorter initialized with directory: %s", self.sort_directory)
 
     @staticmethod
     def _cleanup_metadata(meta_data: Metadata) -> CleanedMetadata:
@@ -126,19 +134,13 @@ class FileSorter:
 
         try:
             move(str(source), str(destination))
-            questionary.print(
-                f"Moved '{source.name}' to '{destination_dir}'", style=Styles.SUCCESS
-            )
-            logger.info(f"Successfully moved {source} to {destination}")
+            UIPresenter.print_success(f"Moved '{source.name}' to '{destination_dir}'")
+            LOGGER.info("Successfully moved %s to %s", source, destination)
         except ShutilError as e:
-            error_msg = f"Failed to move '{source.name}' to '{destination_dir}': {e}"
-            questionary.print(error_msg, style=Styles.ERROR)
-            logger.exception(error_msg)
+            _report_error(f"Failed to move '{source.name}' to '{destination_dir}': {e}")
             return False
-        except Exception as e:
-            error_msg = f"Unexpected error moving '{source.name}': {e}"
-            questionary.print(error_msg, style=Styles.ERROR)
-            logger.exception(error_msg)
+        except Exception as e:  # noqa: BLE001 - reported and logged by _report_error
+            _report_error(f"Unexpected error moving '{source.name}': {e}")
             return False
         else:
             return True
@@ -186,7 +188,7 @@ class FileSorter:
                 f"Existing file: {size_info.existing_mb:.2f} MB -> "
                 f"New file: {size_info.new_mb:.2f} MB"
             )
-            questionary.print(message, style=Styles.WARNING)
+            UIPresenter.print_warning(message)
 
             if questionary.confirm(
                 "Would you like to overwrite the existing file?",
@@ -194,22 +196,18 @@ class FileSorter:
             ).ask():
                 try:
                     existing_file.unlink()
-                    logger.info(f"Removed existing file: {existing_file}")
+                    LOGGER.info("Removed existing file: %s", existing_file)
                 except OSError as e:
-                    error_msg = f"Failed to remove existing file {existing_file}: {e}"
-                    questionary.print(error_msg, style=Styles.ERROR)
-                    logger.exception(error_msg)
+                    _report_error(f"Failed to remove existing file {existing_file}: {e}")
                     return False
                 else:
                     return True
             else:
-                logger.info(f"User chose not to overwrite {existing_file}")
+                LOGGER.info("User chose not to overwrite %s", existing_file)
                 return False
 
         except OSError as e:
-            error_msg = f"Failed to compare file sizes: {e}"
-            questionary.print(error_msg, style=Styles.ERROR)
-            logger.exception(error_msg)
+            _report_error(f"Failed to compare file sizes: {e}")
             return False
 
     def _build_destination_path(self, metadata: Metadata, cleaned: CleanedMetadata) -> Path:
@@ -223,6 +221,11 @@ class FileSorter:
         Returns:
             The constructed destination path.
         """
+        if not (cleaned.publisher and cleaned.series and cleaned.volume):
+            # sort_comics validates the metadata before building the path.
+            msg = "Can't build a destination path from incomplete metadata"
+            raise ValueError(msg)
+
         is_trade_paperback = (
             metadata.series is not None and metadata.series.format == "Trade Paperback"
         )
@@ -247,16 +250,12 @@ class FileSorter:
 
         try:
             path.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Created directory structure: {path}")
+            LOGGER.info("Created directory structure: %s", path)
         except PermissionError:
-            error_msg = f"Permission denied creating directory: {path}"
-            questionary.print(error_msg, style=Styles.ERROR)
-            logger.exception(f"{error_msg}")
+            _report_error(f"Permission denied creating directory: {path}")
             return False
         except OSError:
-            error_msg = f"Failed to create directory: {path}"
-            questionary.print(error_msg, style=Styles.ERROR)
-            logger.exception(f"{error_msg}")
+            _report_error(f"Failed to create directory: {path}")
             return False
         else:
             return True
@@ -272,24 +271,14 @@ class FileSorter:
         Returns:
             The loaded metadata, or None if no suitable metadata is found.
         """
-        try:
-            comic_archive = Comic(comic_path)
-        except ComicArchiveError:
-            logger.exception("Failed to open comic: %s", str(comic_path))
+        # The caller reports comics it can't sort, so don't print here too.
+        if (comic := open_comic(comic_path, report=False)) is None:
             return None
 
-        # Try MetronInfo first, then ComicRack
-        for format_type in [MetadataFormat.METRON_INFO, MetadataFormat.COMIC_INFO]:
-            if comic_archive.has_metadata(format_type):
-                try:
-                    return comic_archive.read_metadata(format_type)
-                except ArchiverReadError as e:
-                    logger.warning(
-                        f"Failed to read {format_type} metadata from {comic_path}: {e}"
-                    )
-                    continue
+        if (md := read_preferred_metadata(comic)) is not None:
+            return md
 
-        logger.warning(f"No readable metadata found in {comic_path}")
+        LOGGER.warning("No readable metadata found in %s", comic_path)
         return None
 
     @staticmethod
@@ -318,8 +307,10 @@ class FileSorter:
                 f"Missing: {', '.join(missing_fields)}\n"
                 f"Present: Publisher={cleaned.publisher}, Series={cleaned.series}, Volume={cleaned.volume}"
             )
-            questionary.print(message, style=Styles.WARNING)
-            logger.warning(f"Incomplete metadata for {comic_name}: missing {missing_fields}")
+            UIPresenter.print_warning(message)
+            LOGGER.warning(
+                "Incomplete metadata for %s: missing %s", comic_name, missing_fields
+            )
             return False
 
         return True
@@ -338,7 +329,7 @@ class FileSorter:
             True if the comic file was successfully sorted, False otherwise.
         """
         if not comic_path.exists():
-            logger.error(f"Comic file does not exist: {comic_path}")
+            LOGGER.error("Comic file does not exist: %s", comic_path)
             return False
 
         # Load metadata
@@ -360,7 +351,7 @@ class FileSorter:
 
         # Handle existing files
         if not self._handle_existing_file(destination_path, comic_path):
-            logger.info(f"Skipping sort for {comic_path.name} due to existing file conflict")
+            LOGGER.info("Skipping sort for %s due to existing file conflict", comic_path.name)
             return False
 
         # Move the file

@@ -1,6 +1,6 @@
 import pytest
 
-from metrontagger.options import make_parser
+from metrontagger.options import check_args, make_parser
 
 
 @pytest.mark.parametrize(
@@ -96,3 +96,47 @@ def test_make_parser(cli_args, expected_values):
         args = parser.parse_args(cli_args)
         for key, value in expected_values.items():
             assert getattr(args, key) == value
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [["--missing"], ["--delete"], ["--online"], ["--id", "42"], ["--validate"]],
+    ids=["missing", "delete", "online", "id", "validate"],
+)
+def test_check_args_requires_metadata_format(
+    flags: list[str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    parser = make_parser()
+    args = parser.parse_args(["comic.cbz", *flags])
+
+    with pytest.raises(SystemExit) as exc:
+        check_args(parser, args)
+
+    assert exc.value.code == 2
+    assert f"{flags[0]} requires --comicinfo and/or --metroninfo" in capsys.readouterr().err
+
+
+def test_check_args_lists_every_offending_option(capsys: pytest.CaptureFixture[str]) -> None:
+    parser = make_parser()
+    args = parser.parse_args(["comic.cbz", "--delete", "--validate"])
+
+    with pytest.raises(SystemExit):
+        check_args(parser, args)
+
+    assert "--delete, --validate requires" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["comic.cbz", "--delete", "-c"],
+        ["comic.cbz", "--online", "-m"],
+        ["comic.cbz", "--validate", "-c", "-m"],
+        ["comic.cbz", "-r", "-s", "-z", "--migrate", "--duplicates"],
+    ],
+    ids=["delete_ci", "online_mi", "validate_both", "no_format_needed"],
+)
+def test_check_args_accepts_valid_combinations(argv: list[str]) -> None:
+    parser = make_parser()
+
+    check_args(parser, parser.parse_args(argv))

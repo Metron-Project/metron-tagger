@@ -3,7 +3,7 @@
 # Copyright 2023 Brian Pepple
 from __future__ import annotations
 
-__all__ = ["DuplicateIssue", "Duplicates"]
+__all__ = ["DuplicateIssue", "Duplicates", "DuplicatesPresenter"]
 
 import io
 import os
@@ -13,19 +13,19 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self, TypedDict
 
-import pandas as pd
-import questionary
-from darkseid.comic import Comic, ComicArchiveError
 from imagehash import average_hash
 from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
 
-from metrontagger.styles import Styles
+from metrontagger.comics import open_comic
+from metrontagger.ui import UIPresenter
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
+
+    from darkseid.comic import Comic
 
 
 LOGGER = getLogger(__name__)
@@ -42,7 +42,18 @@ DEFAULT_MAX_WORKERS = 8
 # average_hash shrinks pages to 8x8, so JPEGs can be decoded at a much smaller scale.
 HASH_DRAFT_SIZE = (64, 64)
 
-"""Enhanced DuplicateIssue class with file size tracking."""
+
+class PageLocation(TypedDict):
+    """Where a hashed page is: the comic's path and the page's index in it."""
+
+    path: str
+    index: int
+
+
+class PageHash(PageLocation):
+    """A hashed page: where it is, and its image hash."""
+
+    hash: str
 
 
 @dataclass
@@ -164,48 +175,10 @@ class DuplicateIssue:
         return f"{size:.2f} {units[unit_index]}"
 
     @property
-    def starting_size_formatted(self) -> str:
-        """Get formatted starting file size."""
-        if self.starting_size_bytes is not None:
-            return self.format_file_size(self.starting_size_bytes)
-        return "Unknown"
-
-    @property
-    def ending_size_formatted(self) -> str:
-        """Get formatted ending file size."""
-        if self.ending_size_bytes is not None:
-            return self.format_file_size(self.ending_size_bytes)
-        return "Unknown"
-
-    @property
     def size_reduction_formatted(self) -> str:
         """Get formatted size reduction."""
         reduction = self.get_size_reduction()
         return self.format_file_size(reduction) if reduction is not None else "Unknown"
-
-    def get_summary(self) -> dict[str, str | int | float | None]:
-        """Get a summary dictionary of the duplicate issue.
-
-        Returns:
-            dict: Summary information including file details and size metrics.
-        """
-        return {
-            "file_name": Path(self.path_).name,
-            "file_path": self.path_,
-            "duplicate_pages_count": len(self.pages_index),
-            "duplicate_page_indices": self.pages_index.copy(),
-            "starting_size_bytes": self.starting_size_bytes,
-            "ending_size_bytes": self.ending_size_bytes,
-            "starting_size_formatted": self.starting_size_formatted,
-            "ending_size_formatted": self.ending_size_formatted,
-            "size_reduction_bytes": self.get_size_reduction(),
-            "size_reduction_formatted": self.size_reduction_formatted,
-            "size_reduction_percentage": self.get_size_reduction_percentage(),
-        }
-
-
-class DuplicateProcessingError(Exception):
-    """Exception raised when duplicate processing fails."""
 
 
 class Duplicates:
@@ -213,12 +186,6 @@ class Duplicates:
 
     This class provides methods for identifying duplicate pages in a list of comic book files and performing actions
     on them.
-
-    Args:
-        file_lst: list[Path]: A list of file paths to the comic book files.
-
-    Returns:
-        None
     """
 
     def __init__(
@@ -230,7 +197,7 @@ class Duplicates:
     ) -> None:
         """Initialize the Duplicates class with a list of file paths.
 
-        This method sets the list of file paths and initializes the data frame to None.
+        The pages aren't hashed until a duplicate lookup first needs them.
 
         Args:
             file_lst: list[Path]: A list of file paths to be processed.
@@ -239,8 +206,8 @@ class Duplicates:
             max_workers: int | None: Maximum number of comics to scan concurrently. Defaults
                 to the CPU count (capped at 8). A value of 1 scans serially.
 
-        Returns:
-            None
+        Raises:
+            ValueError: If `file_lst` is empty or `max_workers` is less than 1.
         """
         if not file_lst:
             msg = "File list cannot be empty"
@@ -255,30 +222,33 @@ class Duplicates:
         self._file_lst = file_lst
         self._quick = quick
         self._max_workers = min(max_workers, len(file_lst))
-        self._data_frame: pd.DataFrame | None = None
-        self._hash_cache: dict[str, list[dict[str, str | int]]] = defaultdict(list)
+        # Page locations grouped by image hash, filled in by the first scan.
+        self._hash_cache: dict[str, list[PageLocation]] | None = None
+        self._total_pages = 0
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
+        """Enter the context manager, returning this Duplicates."""
         return self
 
-    def __exit__(self, *_) -> None:
+    def __exit__(self, *_exc_info: object) -> None:
+        """Exit the context manager, freeing the cached page hashes."""
         self._clear_cache()
 
     def _clear_cache(self) -> None:
         """Clear internal caches to free memory."""
-        self._data_frame = None
-        self._hash_cache.clear()
+        self._hash_cache = None
+        self._total_pages = 0
 
-    def _generate_page_hashes(self) -> Generator[dict[str, str | int], None, None]:
+    def _generate_page_hashes(self) -> Generator[PageHash, None, None]:
         """Generator to yield page hash information for each comic page.
 
         Comics are scanned concurrently, one comic per worker thread, with results yielded in
         the same order as the file list.
 
         Yields:
-            dict[str, str | int]: Dictionary containing file path, page index, and page hash.
+            PageHash: The page's comic path, index and hash.
         """
-        questionary.print("Getting page hashes.", style=Styles.INFO)
+        UIPresenter.print_info("Getting page hashes.")
         if self._max_workers == 1:
             yield from self._collect_hashes(map(self._hash_comic, self._file_lst))
             return
@@ -291,13 +261,13 @@ class Duplicates:
             executor.shutdown(wait=False, cancel_futures=True)
 
     def _collect_hashes(
-        self, results: Iterable[list[dict[str, str | int]]]
-    ) -> Generator[dict[str, str | int], None, None]:
+        self, results: Iterable[list[PageHash]]
+    ) -> Generator[PageHash, None, None]:
         """Yield page hashes from per-comic results, showing scan progress."""
         for page_hashes in tqdm(results, total=len(self._file_lst), desc="Processing comics"):
             yield from page_hashes
 
-    def _hash_comic(self, item: Path) -> list[dict[str, str | int]]:
+    def _hash_comic(self, item: Path) -> list[PageHash]:
         """Hash the pages of a single comic.
 
         Each call opens its own Comic, so it is safe to run from multiple threads.
@@ -306,12 +276,10 @@ class Duplicates:
             item: Path: The comic archive to scan.
 
         Returns:
-            list[dict[str, str | int]]: Page hash information, empty if the comic was skipped.
+            list[PageHash]: The comic's page hashes, empty if the comic was skipped.
         """
-        try:
-            comic = Comic(item)
-        except ComicArchiveError:
-            LOGGER.exception("Comic not valid: '%s'", str(item))
+        # Runs in worker threads under a progress bar, so only log invalid comics.
+        if (comic := open_comic(item, report=False)) is None:
             return []
 
         if not comic.can_remove_pages():
@@ -345,9 +313,7 @@ class Duplicates:
             indices.add(i)
         return sorted(indices)
 
-    def _process_comic_pages(
-        self, comic: Comic
-    ) -> Generator[dict[str, str | int], None, None]:
+    def _process_comic_pages(self, comic: Comic) -> Generator[PageHash, None, None]:
         """Process pages in a comic and yield hash information.
 
         In quick mode, only the first 3 interior pages and last 3 pages are
@@ -357,7 +323,7 @@ class Duplicates:
             comic: Comic object to process
 
         Yields:
-            dict[str, str | int]: Dictionary containing file path, page index, and page hash.
+            PageHash: The page's comic path, index and hash.
         """
         num_pages = comic.get_number_of_pages()
         for page_idx in self._get_page_indices(num_pages):
@@ -396,73 +362,41 @@ class Duplicates:
             LOGGER.debug("Unable to calculate hash for image: %s", e)
             return None
 
-    def _build_dataframe(self) -> pd.DataFrame:
-        """Build a DataFrame from page hashes and cache duplicates.
+    def _scan(self) -> dict[str, list[PageLocation]]:
+        """Hash every page once, grouping page locations by image hash.
 
-        Returns:
-            pd.DataFrame: DataFrame containing comics with duplicate pages.
+        The result is cached, so later calls don't rescan the comics.
         """
-        if self._data_frame is not None:
-            return self._data_frame
+        if self._hash_cache is not None:
+            return self._hash_cache
 
-        # Convert generator to list for DataFrame creation
-        hash_data = list(self._generate_page_hashes())
+        hash_cache: dict[str, list[PageLocation]] = defaultdict(list)
+        total_pages = 0
+        for page in self._generate_page_hashes():
+            hash_cache[page["hash"]].append({"path": page["path"], "index": page["index"]})
+            total_pages += 1
 
-        if not hash_data:
+        if not total_pages:
             LOGGER.warning("No valid page hashes found")
-            return pd.DataFrame()
+        self._hash_cache = dict(hash_cache)
+        self._total_pages = total_pages
+        return self._hash_cache
 
-        self._data_frame = pd.DataFrame(hash_data)
-
-        # Build hash cache for faster lookups
-        self._build_hash_cache()
-
-        return self._data_frame
-
-    def _build_hash_cache(self) -> None:
-        """Build a cache of hash values for faster duplicate lookups."""
-        if self._data_frame is None or self._data_frame.empty:
-            return
-
-        for _, row in self._data_frame.iterrows():
-            hash_value = row["hash"]
-            self._hash_cache[hash_value].append({"path": row["path"], "index": row["index"]})
-
-    def get_duplicate_pages_dataframe(self) -> pd.DataFrame:
-        """Get a DataFrame containing only duplicate pages.
-
-        Returns:
-            pd.DataFrame: DataFrame containing comics with duplicate pages.
-        """
-        df = self._build_dataframe()
-        if df.empty:
-            return df
-
-        return df[df["hash"].duplicated(keep=False)].sort_values("hash")
+    def _duplicate_groups(self) -> dict[str, list[PageLocation]]:
+        """Return the hashes found on more than one page, in hash order."""
+        return {
+            img_hash: locations
+            for img_hash, locations in sorted(self._scan().items())
+            if len(locations) > 1
+        }
 
     def get_distinct_hashes(self) -> list[str]:
-        """Get distinct hash values for duplicate pages.
+        """Get the distinct hashes of images that appear on more than one page.
 
         Returns:
-            list[str]: A list of distinct hash values that appear in multiple pages.
+            list[str]: The hashes, in sorted order.
         """
-        duplicate_df = self.get_duplicate_pages_dataframe()
-        return [] if duplicate_df.empty else list(duplicate_df["hash"].unique())
-
-    def get_comic_info_for_hash(self, img_hash: str) -> DuplicateIssue | None:
-        """Retrieve comic information for a specific hash value.
-
-        Args:
-            img_hash: str: The hash value to search for.
-
-        Returns:
-            DuplicateIssue | None: A DuplicateIssue object or None if hash not found.
-        """
-        if img_hash not in self._hash_cache:
-            return None
-
-        first_entry = self._hash_cache[img_hash][0]
-        return DuplicateIssue(first_entry["path"], [first_entry["index"]])
+        return list(self._duplicate_groups())
 
     def get_comic_list_from_hash(self, img_hash: str) -> list[DuplicateIssue]:
         """Get a list of DuplicateIssue objects from a hash value.
@@ -473,12 +407,9 @@ class Duplicates:
         Returns:
             list[DuplicateIssue]: A list of DuplicateIssue objects representing comics with the specified hash value.
         """
-        if img_hash not in self._hash_cache:
-            return []
-
         return [
             DuplicateIssue(entry["path"], [entry["index"]])
-            for entry in self._hash_cache[img_hash]
+            for entry in self._scan().get(img_hash, [])
         ]
 
     @staticmethod
@@ -497,10 +428,7 @@ class Duplicates:
 
         results = {}
         for item in duplicates_list:
-            try:
-                comic = Comic(item.path_)
-            except ComicArchiveError:
-                LOGGER.exception("Comic not valid: %s", str(item))
+            if (comic := open_comic(item.path_, report=False)) is None:
                 continue
 
             # Sort pages in descending order to avoid index shifting issues
@@ -511,9 +439,8 @@ class Duplicates:
             except (ValueError, OSError) as e:
                 LOGGER.error("Error deleting pages from %s: %s", item.path_, e)  # noqa: TRY400
                 results[item.path_] = False
-                questionary.print(
-                    f"Error removing duplicate pages from {Path(item.path_).name}: {e}",
-                    style=Styles.ERROR,
+                UIPresenter.print_error(
+                    f"Error removing duplicate pages from {Path(item.path_).name}: {e}"
                 )
                 continue
 
@@ -522,9 +449,10 @@ class Duplicates:
 
             results[item.path_] = success
 
-            status_msg = "Removed" if success else "Failed to remove"
-            style = Styles.SUCCESS if success else Styles.WARNING
-            questionary.print(f"{status_msg} duplicate pages from {comic}", style=style)
+            if success:
+                UIPresenter.print_success(f"Removed duplicate pages from {comic}")
+            else:
+                UIPresenter.print_warning(f"Failed to remove duplicate pages from {comic}")
 
         return results
 
@@ -542,10 +470,7 @@ class Duplicates:
             LOGGER.warning("No page indices available for %s", duplicate_issue.path_)
             return False
 
-        try:
-            comic = Comic(duplicate_issue.path_)
-        except ComicArchiveError:
-            LOGGER.exception("Comic not valid: %s", duplicate_issue.path_)
+        if (comic := open_comic(duplicate_issue.path_, report=False)) is None:
             return False
 
         # Use first page index if multiple are available
@@ -554,6 +479,11 @@ class Duplicates:
             img_data = comic.get_page(page_index)
         except (ValueError, OSError):
             LOGGER.exception("Unable to retrieve page")
+            img_data = None
+        if img_data is None:
+            LOGGER.warning(
+                "No image data for page %d of %s", page_index, duplicate_issue.path_
+            )
             return False
 
         try:
@@ -563,9 +493,8 @@ class Duplicates:
                 return True
         except (UnidentifiedImageError, ValueError, TypeError) as e:
             LOGGER.warning("Unable to show image from %s: %s", duplicate_issue.path_, e)
-            questionary.print(
-                f"Unable to show image from {Path(duplicate_issue.path_).name}.",
-                style=Styles.WARNING,
+            UIPresenter.print_warning(
+                f"Unable to show image from {Path(duplicate_issue.path_).name}."
             )
             return False
         except Exception as e:  # noqa: BLE001
@@ -580,12 +509,127 @@ class Duplicates:
         Returns:
             dict[str, int]: Dictionary containing various statistics.
         """
-        df = self._build_dataframe()
-        duplicate_df = self.get_duplicate_pages_dataframe()
-
+        duplicate_groups = self._duplicate_groups()
         return {
-            "total_pages": len(df),
-            "duplicate_pages": len(duplicate_df),
-            "unique_duplicate_hashes": len(self.get_distinct_hashes()),
+            "total_pages": self._total_pages,
+            "duplicate_pages": sum(len(locations) for locations in duplicate_groups.values()),
+            "unique_duplicate_hashes": len(duplicate_groups),
             "comics_processed": len(self._file_lst),
         }
+
+
+def _pages(count: int) -> str:
+    return f"{count} page{'s' if count != 1 else ''}"
+
+
+class DuplicatesPresenter(UIPresenter):
+    """Console output for duplicate page removal."""
+
+    RULE = "=" * 60
+    SUB_RULE = "-" * 40
+
+    @classmethod
+    def print_pre_processing_summary(cls, duplicates_lst: list[DuplicateIssue]) -> None:
+        """Print a summary of the pages about to be removed."""
+        if not duplicates_lst:
+            return
+
+        total_pages_to_remove = sum(len(dup.pages_index) for dup in duplicates_lst)
+        total_starting_size = sum(
+            dup.starting_size_bytes
+            for dup in duplicates_lst
+            if dup.starting_size_bytes is not None
+        )
+
+        cls.print_info("\n" + cls.RULE)
+        cls.print_heading("DUPLICATE REMOVAL SUMMARY")
+        cls.print_info(cls.RULE)
+        cls.print_info(f"Comics to process: {len(duplicates_lst)}")
+        cls.print_info(f"Total duplicate pages to remove: {total_pages_to_remove}")
+        cls.print_info(
+            f"Total starting size: {DuplicateIssue.format_file_size(total_starting_size)}"
+        )
+        cls.print_info(cls.RULE + "\n")
+
+    @classmethod
+    def _print_successful(cls, successful: list[DuplicateIssue]) -> None:
+        cls.print_success("✅ SUCCESSFULLY PROCESSED:")
+        cls.print_info(cls.SUB_RULE)
+
+        total_pages_removed = 0
+        total_size_saved = 0
+        for dup in successful:
+            pages_removed = len(dup.pages_index)
+            total_pages_removed += pages_removed
+
+            size_info = ""
+            if dup.starting_size_bytes is not None and dup.ending_size_bytes is not None:
+                size_reduction = dup.get_size_reduction()
+                if size_reduction and size_reduction > 0:
+                    total_size_saved += size_reduction
+                    percentage = dup.get_size_reduction_percentage()
+                    size_info = f" (Saved: {dup.size_reduction_formatted}"
+                    size_info += f", {percentage:.1f}%)" if percentage else ")"
+            cls.print_success(
+                f"  📁 {Path(dup.path_).name} - Removed {_pages(pages_removed)}{size_info}"
+            )
+
+        cls.print_info(cls.SUB_RULE)
+        cls.print_success(f"📊 Total pages removed: {total_pages_removed}")
+        cls.print_success(
+            f"💾 Total space saved: {DuplicateIssue.format_file_size(total_size_saved)}"
+        )
+        if total_size_saved > 0:
+            avg_saved = total_size_saved / len(successful)
+            cls.print_success(
+                f"📈 Average space saved per comic: {DuplicateIssue.format_file_size(int(avg_saved))}"
+            )
+
+    @classmethod
+    def _print_failed(cls, failed: list[DuplicateIssue]) -> None:
+        cls.print_error("\n❌ FAILED TO PROCESS:")
+        cls.print_info(cls.SUB_RULE)
+        for dup in failed:
+            cls.print_error(
+                f"  📁 {Path(dup.path_).name} - Failed to remove {_pages(len(dup.pages_index))}"
+            )
+
+    @classmethod
+    def print_post_processing_summary(
+        cls, duplicates_lst: list[DuplicateIssue], results: dict[str, bool]
+    ) -> None:
+        """Print which comics had pages removed, with size savings, and which failed."""
+        if not duplicates_lst:
+            return
+
+        successful = [dup for dup in duplicates_lst if results.get(dup.path_, False)]
+        failed = [dup for dup in duplicates_lst if not results.get(dup.path_, False)]
+
+        cls.print_info("\n" + cls.RULE)
+        cls.print_heading("DUPLICATE REMOVAL RESULTS")
+        cls.print_info(cls.RULE)
+        if successful:
+            cls._print_successful(successful)
+        if failed:
+            cls._print_failed(failed)
+        cls.print_info(cls.RULE + "\n")
+
+    @staticmethod
+    def create_statistics_msg(stats: dict[str, int]) -> str:
+        """Create a formatted statistics message for duplicate processing.
+
+        Args:
+            stats: Statistics dictionary from `Duplicates.get_statistics`.
+        """
+        return (
+            f"📈 PROCESSING STATISTICS:\n"
+            f"  • Total Pages Scanned: {stats['total_pages']:,}\n"
+            f"  • Duplicate Pages Found: {stats['duplicate_pages']:,}\n"
+            f"  • Unique Duplicate Images: {stats['unique_duplicate_hashes']:,}\n"
+            f"  • Comics Processed: {stats['comics_processed']:,}"
+        )
+
+    @classmethod
+    def print_statistics(cls, stats: dict[str, int]) -> None:
+        """Print the statistics from `Duplicates.get_statistics`."""
+        cls.print_info(cls.create_statistics_msg(stats))

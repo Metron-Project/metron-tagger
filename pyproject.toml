@@ -44,7 +44,6 @@ dependencies = [
   "questionary>=2.1.1",
   "pyxdg>=0.28",
   "imagehash>=4.3.2",
-  "pandas>=2.3.3",
   "comicfn2dict>=0.3.1",
   "tqdm>=4.67.3",
   "darkseid>=9.1.0",
@@ -111,7 +110,6 @@ known_third_party = [
   "imagehash",
   "lxml",
   "mokkari",
-  "pandas",
   "pydantic",
   "pytest",
   "questionary",
@@ -170,6 +168,7 @@ extend-select = [
   "EM",
   "EXE",
   "F",
+  "G",
   "I",
   "ICN",
   "INP",
@@ -236,7 +235,7 @@ exclude = [
   "test_results/",
   "typings/",
 ]
-min_confidence = 61
+min_confidence = 60
 sort_by_size = true
 
 [tool.coverage.report]
@@ -275,6 +274,8 @@ exclude = [
   "test-results",
   "typings",
   "uv.lock",
+  # Vulture whitelists use an undefined `_` by design; the file is never imported.
+  "vulture_whitelist.py",
 ]
 useLibraryCodeForTypes = true
 reportMissingImports = true

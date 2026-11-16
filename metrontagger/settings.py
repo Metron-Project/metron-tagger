@@ -5,7 +5,7 @@ __all__ = ["MetronTaggerSettings"]
 import configparser
 from logging import getLogger
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import ClassVar, TypeVar, cast
 
 from metrontagger.utils import get_settings_folder
 
@@ -13,6 +13,9 @@ LOGGER = getLogger(__name__)
 
 # Constant
 KEY_PARTS = 2
+
+# The types a setting can have; see MetronTaggerSettings.DEFAULT_CONFIG.
+_SettingT = TypeVar("_SettingT", str, int, bool)
 
 
 class MetronTaggerSettings:
@@ -22,8 +25,9 @@ class MetronTaggerSettings:
     and various application options with type safety and error handling.
     """
 
-    # Default configuration values
-    DEFAULT_CONFIG: ClassVar[dict[str, dict[str, str] | dict[str, int | bool | str]]] = {
+    # Default configuration values. Each default's type is also the option's type:
+    # values read from the file are converted to it (see `_convert_value`).
+    DEFAULT_CONFIG: ClassVar[dict[str, dict[str, str | int | bool]]] = {
         "metron": {
             "user": "",
             "auth_token": "",
@@ -37,27 +41,18 @@ class MetronTaggerSettings:
         "sort": {"directory": ""},
     }
 
-    # Type mapping for configuration options
-    TYPE_MAPPING: ClassVar[
-        dict[str, dict[str, type[str]] | dict[str, type[int | bool | str]]]
-    ] = {
-        "metron": {
-            "user": str,
-            "auth_token": str,
-            "redis_url": str,
-        },
-        "rename": {
-            "rename_issue_number_padding": int,
-            "rename_use_smart_string_cleanup": bool,
-            "rename_template": str,
-        },
-        "sort": {"directory": str},
-    }
-
     # Options from older versions that are no longer used and are removed on load
     OBSOLETE_OPTIONS: ClassVar[dict[str, tuple[str, ...]]] = {
         "metron": ("password", "token_migration_prompted"),
     }
+
+    # Options older versions could save as the literal string "None" when the user
+    # cancelled the setup prompt for them. That value is cleared on load, so the
+    # user is asked again instead of every run failing with it.
+    PROMPTED_OPTIONS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("metron", "auth_token"),
+        ("sort", "directory"),
+    )
 
     def __init__(self, config_dir: str | Path | None = None) -> None:
         """Initialize MetronTaggerSettings.
@@ -104,6 +99,9 @@ class MetronTaggerSettings:
         # Drop options no longer used, e.g. the Basic Auth password
         self._remove_obsolete_options()
 
+        # Clear "None" saved by older versions' cancelled setup prompts
+        self._clear_cancelled_prompt_values()
+
     def _ensure_sections(self) -> None:
         """Ensure all required configuration sections exist."""
         required_sections = list(self.DEFAULT_CONFIG.keys())
@@ -128,6 +126,19 @@ class MetronTaggerSettings:
                     LOGGER.debug(
                         "Set default value for %s.%s: %s", section_name, option, default_value
                     )
+
+    def _clear_cancelled_prompt_values(self) -> None:
+        """Clear prompted options saved as "None", and save if any were found."""
+        cleared = False
+        for section_name, option in self.PROMPTED_OPTIONS:
+            if self.config.get(section_name, option, fallback="") == "None":
+                self.config.set(section_name, option, "")
+                LOGGER.info(
+                    "Cleared %s.%s saved as 'None' by a cancelled prompt", section_name, option
+                )
+                cleared = True
+        if cleared:
+            self._save_config()
 
     def _remove_obsolete_options(self) -> None:
         """Remove options no longer used by Metron-Tagger and save if any were found."""
@@ -184,7 +195,9 @@ class MetronTaggerSettings:
         return parts[0], parts[1]
 
     def _convert_value(self, section: str, option: str, value: str) -> str | int | bool:
-        """Convert string value to appropriate type based on configuration schema.
+        """Convert a value read from the file to the type of the option's default.
+
+        Options without a default (not in `DEFAULT_CONFIG`) are returned as strings.
 
         Args:
             section: Configuration section name.
@@ -194,14 +207,12 @@ class MetronTaggerSettings:
         Returns:
             Converted value with appropriate type.
         """
-        if section in self.TYPE_MAPPING and option in self.TYPE_MAPPING[section]:
-            expected_type = self.TYPE_MAPPING[section][option]
-
-            if expected_type is bool:
-                return self.config.getboolean(section, option)
-            if expected_type is int:
-                return self.config.getint(section, option)
-
+        default = self.DEFAULT_CONFIG.get(section, {}).get(option)
+        # bool is a subclass of int, so it has to be checked first.
+        if isinstance(default, bool):
+            return self.config.getboolean(section, option)
+        if isinstance(default, int):
+            return self.config.getint(section, option)
         return value
 
     def __getitem__(self, key: str) -> str | int | bool | None:
@@ -265,142 +276,33 @@ class MetronTaggerSettings:
             LOGGER.exception("Failed to set configuration")
             raise
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Get a configuration value with a default fallback.
-
-        Args:
-            key: The setting key in "section.option" format.
-            default: Default value to return if key is not found.
-
-        Returns:
-            The configuration value or default if not found.
-        """
-        try:
-            value = self[key]
-        except ValueError:
-            return default
-        else:
-            return value if value is not None else default
-
-    def has_option(self, key: str) -> bool:
-        """Check if a configuration option exists.
-
-        Args:
-            key: The setting key in "section.option" format.
-
-        Returns:
-            True if the option exists, False otherwise.
-        """
-        try:
-            section, option = self._parse_key(key)
-            return self.config.has_option(section, option)
-        except ValueError:
-            return False
-
-    def get_section(self, section_name: str) -> dict[str, Any]:
-        """Get all options from a configuration section.
-
-        Args:
-            section_name: Name of the configuration section.
-
-        Returns:
-            Dictionary of option names to values.
-        """
-        if not self.config.has_section(section_name):
-            return {}
-
-        result = {}
-        for option in self.config.options(section_name):
-            key = f"{section_name}.{option}"
-            result[option] = self[key]
-
-        return result
-
-    def reset_to_defaults(self) -> None:
-        """Reset all configuration to default values.
+    def _get_typed(self, key: str, kind: type[_SettingT]) -> _SettingT:
+        """Get a setting as `kind`, using its default if unset or not a valid `kind`.
 
         Raises:
-            OSError: If unable to save configuration file.
+            KeyError: If the option has no default of type `kind`.
+            ValueError: If the key format is invalid.
         """
-        # Clear existing configuration
-        for section in self.config.sections():
-            self.config.remove_section(section)
+        value = self[key]
+        # `type() is`, not isinstance: bool is a subclass of int.
+        if type(value) is kind:
+            return cast("_SettingT", value)
 
-        # Reinitialize with defaults
-        self._ensure_sections()
-        self._apply_defaults()
-        self._save_config()
+        section, option = self._parse_key(key)
+        default = self.DEFAULT_CONFIG.get(section, {}).get(option)
+        if type(default) is kind:
+            return cast("_SettingT", default)
+        msg = f"Setting '{key}' has no {kind.__name__} default"
+        raise KeyError(msg)
 
-        LOGGER.info("Configuration reset to defaults")
+    def get_str(self, key: str) -> str:
+        """Get a string setting, e.g. ``settings.get_str("metron.auth_token")``."""
+        return self._get_typed(key, str)
 
-    @property
-    def config_file_path(self) -> Path:
-        """Get the path to the configuration file.
+    def get_int(self, key: str) -> int:
+        """Get an integer setting."""
+        return self._get_typed(key, int)
 
-        Returns:
-            Path to the configuration file.
-        """
-        return self.settings_file
-
-    def is_default_value(self, key: str) -> bool:
-        """Check if a configuration option is using its default value.
-
-        Args:
-            key: The setting key in "section.option" format.
-
-        Returns:
-            True if the option is using the default value, False otherwise.
-        """
-        try:
-            section, option = self._parse_key(key)
-        except ValueError:
-            return False
-
-        # Check if we have a default value for this key
-        if section not in self.DEFAULT_CONFIG or option not in self.DEFAULT_CONFIG[section]:
-            return False
-
-        # Get current value and default value
-        current_value = self[key]
-        default_value = self.DEFAULT_CONFIG[section][option]
-
-        return current_value == default_value
-
-    def reset_option_to_default(self, key: str) -> bool:
-        """Reset a configuration option to its default value.
-
-        Args:
-            key: The setting key in "section.option" format.
-
-        Returns:
-            True if the option was reset, False if no default exists.
-
-        Raises:
-            ValueError: If key format is invalid.
-            OSError: If unable to save configuration file.
-        """
-        try:
-            section, option = self._parse_key(key)
-        except ValueError:
-            LOGGER.exception("Invalid configuration key")
-            raise
-
-        # Check if there's a default value for this option
-        if section in self.DEFAULT_CONFIG and option in self.DEFAULT_CONFIG[section]:
-            default_value = self.DEFAULT_CONFIG[section][option]
-            self[key] = default_value
-            LOGGER.debug("Reset %s to default value: %s", key, default_value)
-            return True
-
-        return False
-
-    def list_all_options(self) -> dict[str, dict[str, Any]]:
-        """List all configuration options grouped by section.
-
-        Returns:
-            Dictionary of section names to their options and values.
-        """
-        return {
-            section_name: self.get_section(section_name)
-            for section_name in self.config.sections()
-        }
+    def get_bool(self, key: str) -> bool:
+        """Get a boolean setting."""
+        return self._get_typed(key, bool)

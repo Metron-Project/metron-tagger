@@ -2,122 +2,49 @@ from __future__ import annotations
 
 __all__ = ["Talker"]
 
-import io
-import time
-import warnings
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto, unique
-from functools import lru_cache
-from http import HTTPStatus
 from logging import getLogger
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Self
 
-if TYPE_CHECKING:
-    from argparse import Namespace
-    from collections.abc import Callable
-    from pathlib import Path
-
-    from mokkari.rate_limit import RateLimiter
-    from mokkari.schemas.generic import GenericItem
-    from mokkari.schemas.issue import BaseIssue, Credit as MokkariCredit, Issue
-    from redis import Redis
-
-from contextlib import suppress
-
-import mokkari
 import questionary
 from comicfn2dict import comicfn2dict
-from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
-from darkseid.issue_string import IssueString
-from darkseid.metadata import (
-    GTIN,
-    AgeRatings,
-    AlternativeNames,
-    Arc,
-    Basic,
-    Credit,
-    InfoSources,
-    Links,
-    Metadata,
-    Notes,
-    Price,
-    Publisher,
-    Role,
-    Series,
-    Universe,
-)
+from darkseid.comic import MetadataFormat
+from darkseid.metadata import Metadata
 from darkseid.utils import get_issue_id_from_note
-from imagehash import ImageHash, hex_to_hash, phash
-from mokkari.exceptions import ApiError, RateLimitError
-from mokkari.rate_limit import HeaderPacedRateLimiter
-from PIL import ExifTags, Image, ImageOps
-from requests.exceptions import HTTPError
 
-from metrontagger import __version__
-from metrontagger.styles import Styles
+from metrontagger.comics import format_list, iter_metadata, open_comic
+from metrontagger.cover_match import (
+    COVER_ACCEPT_MARGIN,
+    COVER_SEARCH_MAX_DISTANCE,
+    COVER_YEAR_RANGE,
+    COVER_YEAR_TOLERANCE,
+    CoverHashMatcher,
+)
+from metrontagger.mapper import MetadataMapper
+from metrontagger.metron_client import MetronClient
+from metrontagger.ui import UIPresenter
 from metrontagger.utils import (
-    create_print_title,
+    ParsedFilename,
     create_query_params,
     search_issue_number,
     series_words,
 )
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from pathlib import Path
+
+    from darkseid.comic import Comic
+    from mokkari.schemas.issue import BaseIssue
+    from mokkari.session import Session
+
 LOGGER = getLogger(__name__)
 
-warnings.filterwarnings(
-    "ignore", category=UserWarning
-)  # Ignore 'UserWarning: Corrupt EXIF data' warnings
-
-HAMMING_DISTANCE = 10
-# Limit for the half-cover crops of a double-page spread, kept separate from
-# HAMMING_DISTANCE so it can be tuned on its own. Real spread covers put the
-# front-cover half at 6-10 from Metron's cover and the back-cover half at 28-38,
-# so the normal limit separates them cleanly.
-HALF_COVER_HAMMING_DISTANCE = 10
-# Width/height ratio above which a cover is treated as a double-page spread.
-# Single covers are ~0.65; two-page spreads are ~1.3. The margin above 1.0 keeps
-# square-ish single covers from being split.
-DOUBLE_SPREAD_ASPECT_RATIO = 1.2
-# Cover search: Metron's cover_hash_near filter, narrowed by the filename's issue number
-# and a cover-date range around its year. Tuned on 633 tagged comics: the correct issue
-# was always the closest result; most were within 2 bits, while digital editions without
-# the print cover's price/UPC box were 10-18 bits off. At 20 bits one comic whose number
-# Metron writes differently ("16" vs "16.NOW") matched the wrong issue, so results are
-# only accepted up to 18. The closest result must also lead the next one by
-# COVER_ACCEPT_MARGIN bits (the closest correct leads seen were 2), so ties are never
-# auto-picked. Finally, its series name must share a word with the filename's series or
-# title: on 802 comics this was the only check that caught a wrong match (a CGC-slab
-# photo whose closest cover was another publisher's issue with the same number), and it
-# cost no correct ones.
-COVER_SEARCH_MAX_DISTANCE = 20  # Metron's maximum cover_hash_max_distance
-COVER_ACCEPT_DISTANCE = 18
-COVER_ACCEPT_MARGIN = 2
-# Filename years are often the release year, which can differ from the cover year.
-COVER_YEAR_TOLERANCE = 1
-# Filename years outside this range aren't treated as cover years: an odd parse such as
-# "0000" would otherwise make an invalid date that Metron rejects, which stops the run.
-COVER_YEAR_RANGE = range(1900, 2100)
-RATE_LIMIT_AUTO_RETRY_THRESHOLD = 60  # seconds
-RATE_LIMIT_RETRY_BUFFER = 2  # seconds added to retry_after to account for clock skew
-# Bound Redis connects/reads so an unreachable or stalled server raises a RedisError
-# instead of hanging; redis-py waits indefinitely by default.
-REDIS_SOCKET_TIMEOUT = 5  # seconds
-
-# HTTP statuses where retrying (or continuing with other files) is pointless: bad
-# credentials or a malformed request will fail identically on every subsequent call.
-FATAL_API_STATUS_CODES = {HTTPStatus.BAD_REQUEST, HTTPStatus.UNAUTHORIZED}
-
-# Type variable for generic API call return types
-T = TypeVar("T")
-
-# Rating mappings for age ratings
-RATING_MAPPINGS = {
-    ("everyone", "cca"): ("Everyone", "Everyone"),
-    ("teen",): ("Teen", "Teen"),
-    ("teen plus",): ("Teen Plus", "Teen"),
-    ("mature",): ("Mature", "Mature 17+"),
-}
+# Series formats shown as a "(Collection)" when tagged, lowercased. "hard cover" is
+# Metron's old name for "Hardcover" (see FormatMapping in filerenamer.py).
+COLLECTION_FORMATS = frozenset({"trade paperback", "hardcover", "hard cover"})
 
 
 @unique
@@ -134,9 +61,9 @@ class InfoSource(Enum):
 
 # Source messages for metadata printing
 SOURCE_MESSAGES = {
-    InfoSource.METRON: ("Metron ID", Styles.INFO),
-    InfoSource.COMIC_VINE: ("ComicVine", Styles.INFO),
-    InfoSource.UNKNOWN: ("Unknown Source", Styles.WARNING),
+    InfoSource.METRON: ("Metron ID", UIPresenter.print_info),
+    InfoSource.COMIC_VINE: ("ComicVine", UIPresenter.print_info),
+    InfoSource.UNKNOWN: ("Unknown Source", UIPresenter.print_warning),
 }
 
 
@@ -212,16 +139,6 @@ class OnlineMatchResults:
         """Get the list of skipped matches."""
         return self._skipped_matches
 
-    @property
-    def has_results(self) -> bool:
-        """Check if there are any results."""
-        return bool(
-            self._good_matches
-            or self._no_matches
-            or self._multiple_matches
-            or self._skipped_matches
-        )
-
     def add_good_match(self, file_name: Path) -> None:
         """Add a good match to the list."""
         self._good_matches.append(file_name)
@@ -239,33 +156,8 @@ class OnlineMatchResults:
         self._skipped_matches.append(file_name)
 
 
-class UIPresenter:
-    """Handles user interface presentation and printing."""
-
-    @staticmethod
-    def print_error(message: str) -> None:
-        """Print an error message."""
-        questionary.print(message, style=Styles.ERROR)
-
-    @staticmethod
-    def print_warning(message: str) -> None:
-        """Print a warning message."""
-        questionary.print(message, style=Styles.WARNING)
-
-    @staticmethod
-    def print_info(message: str) -> None:
-        """Print an info message."""
-        questionary.print(message, style=Styles.INFO)
-
-    @staticmethod
-    def print_success(message: str) -> None:
-        """Print a success message."""
-        questionary.print(message, style=Styles.SUCCESS)
-
-    @staticmethod
-    def print_title(message: str) -> None:
-        """Print a title message."""
-        questionary.print(message, style=Styles.TITLE)
+class TalkerPresenter(UIPresenter):
+    """Console output for online search and tagging."""
 
     @staticmethod
     def print_metadata_source_message(source: InfoSource, comic: Comic) -> None:
@@ -273,47 +165,36 @@ class UIPresenter:
         if source not in SOURCE_MESSAGES:
             return
 
-        message_text, style = SOURCE_MESSAGES[source]
+        message_text, print_func = SOURCE_MESSAGES[source]
         if source != InfoSource.UNKNOWN:
-            questionary.print(
-                f"Found {message_text} in '{comic}' metadata and using that to get the metadata...",
-                style=style,
+            print_func(
+                f"Found {message_text} in '{comic}' metadata and using that to get the metadata..."
             )
         else:
-            questionary.print(
-                f"Found {message_text} in '{comic}' metadata. Skipping...",
-                style=style,
-            )
+            print_func(f"Found {message_text} in '{comic}' metadata. Skipping...")
 
-    @staticmethod
-    def print_match_results(results: OnlineMatchResults) -> None:
+    @classmethod
+    def print_match_results(cls, results: OnlineMatchResults) -> None:
         """Print all match results."""
-        if results.good_matches:
-            msg = create_print_title("Successful Matches:")
-            questionary.print(msg, style=Styles.TITLE)
-            for comic in results.good_matches:
-                questionary.print(f"{comic}", style=Styles.SUCCESS)
+        sections = (
+            ("Successful Matches:", results.good_matches, cls.print_success),
+            ("No Matches:", results.no_matches, cls.print_warning),
+            ("Skipped Multiple Matches:", results.skipped_matches, cls.print_warning),
+        )
+        for title, comics, print_func in sections:
+            if comics:
+                cls.print_title(title)
+                for comic in comics:
+                    print_func(f"{comic}")
 
-        if results.no_matches:
-            msg = create_print_title("No Matches:")
-            questionary.print(msg, style=Styles.TITLE)
-            for comic in results.no_matches:
-                questionary.print(f"{comic}", style=Styles.WARNING)
-
-        if results.skipped_matches:
-            msg = create_print_title("Skipped Multiple Matches:")
-            questionary.print(msg, style=Styles.TITLE)
-            for comic in results.skipped_matches:
-                questionary.print(f"{comic}", style=Styles.WARNING)
-
-    @staticmethod
-    def print_multiple_match_prompt(fn: Path) -> None:
+    @classmethod
+    def print_multiple_match_prompt(cls, fn: Path) -> None:
         """Print prompt for multiple matches."""
-        questionary.print(f"\n{fn.name} - Results found:", style=Styles.TITLE)
+        cls.print_heading(f"\n{fn.name} - Results found:")
 
-    @staticmethod
+    @classmethod
     def print_rate_limit_status(
-        remaining: int | None, limit: int | None, reset: datetime | None
+        cls, remaining: int | None, limit: int | None, reset: datetime | None
     ) -> None:
         """Print the sustained (daily) Metron API quota remaining, if known."""
         if not isinstance(remaining, int) or not isinstance(limit, int):
@@ -322,10 +203,11 @@ class UIPresenter:
         msg = f"Metron API: {remaining:,}/{limit:,} daily requests remaining"
         if isinstance(reset, datetime):
             msg += f" (resets {reset.astimezone().strftime('%H:%M %Z')})"
-        questionary.print(msg, style=Styles.INFO)
+        cls.print_info(msg)
 
-    @staticmethod
+    @classmethod
     def print_metadata_write_success(  # noqa: PLR0913, PLR0917
+        cls,
         formats: list[str],
         series_name: str,
         issue: str,
@@ -336,12 +218,11 @@ class UIPresenter:
         """Print success message for metadata writing."""
         collection_text = " (Collection)" if is_collection else ""
         fmt = " and ".join(formats)
-        msg = (
+        cls.print_success(
             f"Writing {fmt} metadata using "
             f"'{series_name} #{issue} ({year}){collection_text}' "
             f"for '{filename}'."
         )
-        questionary.print(msg, style=Styles.SUCCESS)
 
 
 class MetadataExtractor:
@@ -382,331 +263,11 @@ class MetadataExtractor:
         try:
             id_ = int(res["id"])
         except ValueError:
-            LOGGER.exception("Comic has invalid id: %s #%s", md.series.name, md.issue)
+            series_name = md.series.name if md.series else "Unknown series"
+            LOGGER.exception("Comic has invalid id: %s #%s", series_name, md.issue)
             return None
 
         return src, id_
-
-
-class CoverHashMatcher:
-    """Handles cover hash matching for comics."""
-
-    @staticmethod
-    def upright(img: Image.Image) -> Image.Image:
-        """Return the image as displayed, applying any EXIF orientation rotation."""
-        if img.getexif().get(ExifTags.Base.Orientation, 1) == 1:
-            return img
-        return ImageOps.exif_transpose(img)
-
-    @staticmethod
-    def is_double_spread(img: Image.Image) -> bool:
-        """Return True if the image is clearly landscape, i.e. likely a two-page spread."""
-        width, height = img.size
-        return width / height > DOUBLE_SPREAD_ASPECT_RATIO
-
-    @staticmethod
-    def hash_cover_image(img: Image.Image) -> tuple[ImageHash, ...]:
-        """Hash a cover image, including each half if it's a double-page spread.
-
-        A double-spread cover usually has the front cover on the right half
-        (left half for right-to-left books like manga), while Metron typically
-        stores only the single front cover, so each half is hashed as well.
-        The split is exactly at the midpoint: phash is sensitive to where the
-        cut lands, and even a 1px shift can change the hash by a few bits.
-        """
-        # Hash and judge the shape as displayed, so a portrait cover stored sideways
-        # with an EXIF rotation matches Metron's upright cover and isn't mistaken for
-        # a spread. phash converts to grayscale itself; doing it once up front avoids
-        # repeating the full-size conversion for each half-cover crop.
-        upright = CoverHashMatcher.upright(img)
-        gray = upright.convert("L")
-        hashes = [phash(gray)]
-        if CoverHashMatcher.is_double_spread(upright):
-            width, height = gray.size
-            mid = width // 2
-            right = gray.crop((mid, 0, width, height))
-            left = gray.crop((0, 0, mid, height))
-            hashes.extend((phash(right), phash(left)))
-        return tuple(hashes)
-
-    @staticmethod
-    @lru_cache(maxsize=128)
-    def get_comic_cover_hashes_cached(comic: Comic) -> tuple[ImageHash, ...]:
-        """Get the image hash(es) of a comic cover.
-
-        Args:
-            comic: The Comic object representing the comic.
-
-        Returns:
-            A tuple of cover hashes: the full cover, plus the right and left
-            halves if the cover is a double-page spread. Empty if unable to
-            calculate.
-        """
-        cover = comic.get_page(0)
-        if cover is None:
-            questionary.print("Unable to get cover hash.", style=Styles.ERROR)
-            return ()
-        try:
-            with Image.open(io.BytesIO(cover)) as img:
-                return CoverHashMatcher.hash_cover_image(img)
-        except (OSError, RuntimeError):
-            # pillow-jxl-plugin raises RuntimeError on corrupt/truncated JXL data.
-            questionary.print("Unable to get cover hash.", style=Styles.ERROR)
-            return ()
-
-    @classmethod
-    def is_within_hamming_distance(cls, comic: Comic, metron_hash: str | None = None) -> bool:
-        """Check if the comic cover matches the Metron cover hash.
-
-        The full cover must be within HAMMING_DISTANCE; the half-cover crops of a
-        double-page spread must be within HALF_COVER_HAMMING_DISTANCE.
-        """
-        comic_hashes = cls.get_comic_cover_hashes_cached(comic)
-        if not comic_hashes:
-            return False
-        full_hash, *half_hashes = comic_hashes
-        full_distance = cls.distance(full_hash, metron_hash)
-        if full_distance is None:
-            LOGGER.debug("Can't compare %s with cover hash %r", comic.name, metron_hash)
-            return False
-        if full_distance <= HAMMING_DISTANCE:
-            return True
-        return any(
-            (half_distance := cls.distance(half_hash, metron_hash)) is not None
-            and half_distance <= HALF_COVER_HAMMING_DISTANCE
-            for half_hash in half_hashes
-        )
-
-    @staticmethod
-    def distance(comic_hash: ImageHash, metron_hash: str | None) -> int | None:
-        """Return the Hamming distance between a comic's hash and a Metron cover hash.
-
-        Returns None if the Metron hash is missing, malformed, or a different size,
-        so it can't be compared.
-        """
-        if not metron_hash:
-            return None
-        try:
-            return int(comic_hash - hex_to_hash(metron_hash))
-        except (TypeError, ValueError):
-            return None
-
-    @classmethod
-    def get_search_hashes(cls, comic: Comic) -> tuple[tuple[ImageHash, int], ...]:
-        """Get the cover hash(es) to search Metron with, in the order to try them.
-
-        Each comes with the distance up to which a match on it may be accepted.
-        Metron stores only the single front cover, so for a double-page spread its
-        halves come first: the right half (the usual front cover), then the left half
-        (the front cover of right-to-left books like manga). They're held to
-        HALF_COVER_HAMMING_DISTANCE, as in is_within_hamming_distance, since one of
-        them is the back cover. The whole cover comes last, held to
-        COVER_ACCEPT_DISTANCE, in case it's a genuinely landscape single cover.
-        """
-        comic_hashes = cls.get_comic_cover_hashes_cached(comic)
-        if not comic_hashes:
-            return ()
-        full, *halves = comic_hashes
-        return (
-            *((half, HALF_COVER_HAMMING_DISTANCE) for half in halves),
-            (full, COVER_ACCEPT_DISTANCE),
-        )
-
-    @classmethod
-    def rank_by_distance(
-        cls, search_hash: ImageHash, issues: list[BaseIssue]
-    ) -> list[tuple[int, BaseIssue]]:
-        """Pair each issue with its cover's distance from search_hash, closest first.
-
-        Issues whose cover hash is missing, malformed, or a different size are dropped.
-        """
-        ranked = []
-        for issue in issues:
-            distance = cls.distance(search_hash, issue.cover_hash)
-            if distance is None:
-                LOGGER.debug("Skipping issue %s with invalid cover hash", issue.id)
-            else:
-                ranked.append((distance, issue))
-        return sorted(ranked, key=lambda pair: pair[0])
-
-    @classmethod
-    def filter_by_hamming_distance(
-        cls, comic: Comic, issue_list: list[BaseIssue]
-    ) -> list[BaseIssue]:
-        """Get the list of BaseIssue objects within the specified Hamming distance."""
-        return [
-            item
-            for item in issue_list
-            if cls.is_within_hamming_distance(comic, item.cover_hash)
-        ]
-
-
-class MetadataMapper:
-    """Handles mapping of API responses to metadata objects."""
-
-    @staticmethod
-    def create_resource_list(resource) -> list[Basic]:
-        """Create a list of Basic objects from a given resource."""
-        return [Basic(r.name, r.id) for r in resource]
-
-    @staticmethod
-    def create_arc_list(resource) -> list[Arc]:
-        """Create a list of Arc objects from a given resource."""
-        return [Arc(item.name, item.id) for item in resource]
-
-    @staticmethod
-    def create_notes(issue_id: int) -> Notes:
-        """Create a note for an issue."""
-        now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # noqa: DTZ005
-        metron_info_note = (
-            f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}."
-        )
-        comic_rack_note = f"{metron_info_note} [issue_id:{issue_id}]"
-        return Notes(metron_info=metron_info_note, comic_rack=comic_rack_note)
-
-    @staticmethod
-    def create_role_list(roles: list[GenericItem]) -> list[Role]:
-        """Create a list of Role objects from a list of GenericItem objects."""
-        return [Role(r.name, r.id) for r in roles]
-
-    @classmethod
-    def add_credits_to_metadata(
-        cls, meta_data: Metadata, credits_resp: list[MokkariCredit]
-    ) -> Metadata:
-        """Add credits to metadata."""
-        for c in credits_resp:
-            roles = cls.create_role_list(c.role) if c.role else []
-            meta_data.add_credit(Credit(c.creator, roles, c.id))
-        return meta_data
-
-    @staticmethod
-    def map_ratings(rating: str) -> AgeRatings:
-        """Map a rating string to a standardized format."""
-        age_rating = rating.lower()
-
-        for rating_keys, (metron_rating, comic_rack_rating) in RATING_MAPPINGS.items():
-            if age_rating in rating_keys:
-                return AgeRatings(metron_info=metron_rating, comic_rack=comic_rack_rating)
-
-        return AgeRatings(metron_info="Unknown", comic_rack="Unknown")
-
-    @staticmethod
-    def _set_info_sources(md: Metadata, resp: Issue) -> None:
-        """Set information sources for metadata."""
-        alt_info_sources = []
-        if resp.cv_id:
-            alt_info_sources.append(InfoSources("Comic Vine", resp.cv_id))
-        if resp.gcd_id:
-            alt_info_sources.append(InfoSources("Grand Comics Database", resp.gcd_id))
-
-        # Should always have Metron as a primary source
-        md.info_source = [InfoSources("Metron", resp.id, True), *alt_info_sources]
-
-    @staticmethod
-    def _set_series_info(md: Metadata, resp: Issue) -> None:
-        """Set series information for metadata."""
-        md.series = Series(
-            id_=resp.series.id,
-            name=resp.series.name,
-            alternative_names=[AlternativeNames(name=n) for n in resp.series.alt_names],
-            sort_name=resp.series.sort_name,
-            volume=resp.series.volume,
-            format=resp.series.series_type.name,
-            start_year=resp.series.year_began,
-            language=resp.series.language,
-        )
-
-    @classmethod
-    def _set_basic_issue_info(cls, md: Metadata, resp: Issue) -> None:
-        """Set basic issue information for metadata."""
-        md.issue = IssueString(resp.number).as_string() if resp.number else None
-        md.alternate_number = resp.alt_number
-        md.cover_date = resp.cover_date
-        md.store_date = resp.store_date
-        md.comments = resp.desc
-        md.notes = cls.create_notes(resp.id)
-        md.modified = resp.modified
-
-    @staticmethod
-    def _set_publisher_info(md: Metadata, resp: Issue) -> None:
-        """Set publisher information for metadata."""
-        if resp.publisher:
-            md.publisher = Publisher(resp.publisher.name, resp.publisher.id)
-            if resp.imprint:
-                md.publisher.imprint = Basic(resp.imprint.name, resp.imprint.id)
-
-    @staticmethod
-    def _convert_gtin_to_int(value: str) -> int | None:
-        """Convert a GTIN string to an integer, returning None if invalid.
-
-        Args:
-            value: The GTIN string to convert.
-
-        Returns:
-            The GTIN as an integer, or None if conversion fails.
-        """
-        with suppress(ValueError, TypeError):
-            return int(value)
-        return None
-
-    @classmethod
-    def _set_gtin_info(cls, md: Metadata, resp: Issue) -> None:
-        """Set GTIN information for metadata."""
-        isbn = cls._convert_gtin_to_int(resp.isbn) if resp.isbn else None
-        upc = cls._convert_gtin_to_int(resp.upc) if resp.upc else None
-
-        if isbn or upc:
-            md.gtin = GTIN(upc=upc, isbn=isbn)
-
-    @staticmethod
-    def _set_community_rating(md: Metadata, resp: Issue) -> None:
-        """Set community rating information for metadata."""
-        if resp.average_rating:
-            md.community_rating = resp.average_rating
-            md.rating_count = resp.rating_count
-
-    @classmethod
-    def _set_optional_metadata(cls, md: Metadata, resp: Issue) -> None:
-        """Set optional collections and lists for metadata."""
-        if resp.story_titles:
-            md.stories = [Basic(story) for story in resp.story_titles]
-        if resp.collection_title:
-            md.collection_title = resp.collection_title
-        if resp.characters:
-            md.characters = cls.create_resource_list(resp.characters)
-        if resp.teams:
-            md.teams = cls.create_resource_list(resp.teams)
-        if resp.arcs:
-            md.story_arcs = cls.create_arc_list(resp.arcs)
-        if resp.series.genres:
-            md.genres = cls.create_resource_list(resp.series.genres)
-        if resp.reprints:
-            md.reprints = [Basic(r.issue, r.id) for r in resp.reprints]
-        if resp.universes:
-            md.universes = [Universe(uni.name, uni.id) for uni in resp.universes]
-        if resp.credits:
-            md = cls.add_credits_to_metadata(md, resp.credits)
-        if resp.rating:
-            md.age_rating = cls.map_ratings(resp.rating.name)
-        if resp.resource_url:
-            md.web_link = [Links(str(resp.resource_url), True)]
-        if resp.price:
-            md.prices = [Price(resp.price, resp.price_currency)]
-        cls._set_community_rating(md, resp)
-
-    @classmethod
-    def map_response_to_metadata(cls, resp: Issue) -> Metadata:
-        """Map response data to metadata."""
-        md = Metadata()
-
-        cls._set_info_sources(md, resp)
-        cls._set_series_info(md, resp)
-        cls._set_basic_issue_info(md, resp)
-        cls._set_publisher_info(md, resp)
-        cls._set_optional_metadata(md, resp)
-        cls._set_gtin_info(md, resp)
-
-        return md
 
 
 class Talker:
@@ -718,296 +279,46 @@ class Talker:
     def __init__(
         self,
         api_token: str,
-        metron_info: bool,
-        comic_info: bool,
+        formats: Iterable[MetadataFormat],
         *,
         username: str | None = None,
         redis_url: str | None = None,
     ) -> None:
-        """Initialize the Talker class with a Metron API token.
+        """Initialize the Talker with a Metron API token.
 
-        When `redis_url` is given, API requests are paced by a Redis-backed rate limiter
-        shared by every process using the same Metron account. Otherwise, or if Redis
-        can't be used, they're paced by a local limiter that spreads requests evenly
-        across Metron's rate-limit window.
+        Args:
+            api_token: The Metron API token.
+            formats: The metadata formats to write, in the order to write them.
+            username: The Metron username; with `redis_url`, configures the shared
+                rate limiter (see `MetronClient`).
+            redis_url: The Redis server for the shared rate limiter, if any.
         """
-        self.ui = UIPresenter()
-        self._redis_client: Redis | None = None
-        # Errors raised by the Redis rate limiter; empty unless one is in use, since
-        # `redis` is an optional dependency.
-        self._redis_errors: tuple[type[Exception], ...] = ()
-        rate_limiter = (
-            self._create_redis_rate_limiter(redis_url, username) if redis_url else None
+        self.ui = TalkerPresenter()
+        self.client = MetronClient(
+            api_token, username=username, redis_url=redis_url, ui=self.ui
         )
-        if rate_limiter is None:
-            rate_limiter = HeaderPacedRateLimiter()
-        self.api = mokkari.api(
-            user_agent=f"Metron-Tagger/{__version__}",
-            api_token=api_token,
-            rate_limiter=rate_limiter,
-        )
-        self.metron_info = metron_info
-        self.comic_info = comic_info
+        self.formats = tuple(formats)
         self.match_results = OnlineMatchResults()
         self.metadata_extractor = MetadataExtractor()
         self.cover_matcher = CoverHashMatcher()
         self.metadata_mapper = MetadataMapper()
-        self._stop_processing = False
 
-    def _create_redis_rate_limiter(
-        self, redis_url: str, username: str | None
-    ) -> RateLimiter | None:
-        """Create a Redis-backed rate limiter, or None to fall back to a local limiter.
-
-        The shared rate-limit state is keyed by the Metron username, even when
-        authenticating with an API token, since each application typically has its own
-        token while the account's rate limit is shared across all of them.
-        """
-        if not username:
-            self.ui.print_warning(
-                "Redis rate limiting requires your Metron username to be set as 'user' in "
-                "the [metron] section of your settings.ini, even when using an API token. "
-                "Using the local rate limiter."
-            )
-            return None
-
-        try:
-            import redis  # noqa: PLC0415 - optional dependency
-            from mokkari.redis_rate_limit import RedisRateLimiter  # noqa: PLC0415
-        except ImportError:
-            self.ui.print_warning(
-                "Redis rate limiting requires the 'redis' extra (metron-tagger[redis]). "
-                "Using the local rate limiter."
-            )
-            return None
-
-        try:
-            client = redis.Redis.from_url(
-                redis_url,
-                socket_connect_timeout=REDIS_SOCKET_TIMEOUT,
-                socket_timeout=REDIS_SOCKET_TIMEOUT,
-            )
-        except ValueError as e:
-            self.ui.print_warning(
-                f"Invalid Redis URL '{redis_url}': {e}. Using the local rate limiter."
-            )
-            return None
-
-        try:
-            client.ping()
-        except redis.RedisError as e:
-            client.close()
-            self.ui.print_warning(
-                f"Unable to connect to Redis at '{redis_url}': {e}. "
-                "Using the local rate limiter."
-            )
-            return None
-
-        self._redis_client = client
-        self._redis_errors = (redis.RedisError,)
-        return RedisRateLimiter(client, username)
+    @property
+    def api(self) -> Session:
+        """The underlying mokkari API session."""
+        return self.client.api
 
     def close(self) -> None:
         """Close the Metron API session's pooled connections and any Redis client."""
-        self.api.close()
-        if self._redis_client is not None:
-            self._redis_client.close()
-            self._redis_client = None
+        self.client.close()
 
-    def __enter__(self) -> Talker:  # noqa: PYI034 - py310 has no typing.Self
+    def __enter__(self) -> Self:
         """Enter the context manager, returning this Talker."""
         return self
 
     def __exit__(self, *_exc_info: object) -> None:
         """Exit the context manager, closing pooled connections."""
         self.close()
-
-    @staticmethod
-    def _get_http_status_code(error: ApiError) -> HTTPStatus | None:
-        """Extract the underlying HTTP status code from an ApiError, if any.
-
-        Mokkari's ApiError is a blanket exception for network errors, JSON
-        decoding failures, and HTTP error responses alike, and doesn't expose
-        the status code as an attribute. When it *was* raised from an HTTP
-        error response though, it's chained with `raise ... from err`, so the
-        status code can still be recovered from `__cause__`.
-        """
-        cause = error.__cause__
-        if isinstance(cause, HTTPError) and cause.response is not None:
-            return HTTPStatus(cause.response.status_code)
-        return None
-
-    def _handle_fatal_api_error(self, error: ApiError, error_context: str) -> bool:
-        """Stop further processing if an ApiError is unrecoverable.
-
-        A 400 or 401 response means every subsequent request will fail the
-        same way (bad credentials or a malformed request), so continuing to
-        process the remaining files is pointless.
-
-        Returns:
-            True if the error was fatal and has been handled, False otherwise.
-        """
-        status_code = self._get_http_status_code(error)
-        if status_code not in FATAL_API_STATUS_CODES:
-            return False
-
-        LOGGER.error("%s: unrecoverable HTTP %s error: %s", error_context, status_code, error)
-        if status_code == HTTPStatus.UNAUTHORIZED:
-            msg = (
-                "Metron authentication failed (HTTP 401). Check your username and "
-                "password, or your API token. Stopping further processing."
-            )
-        else:
-            msg = f"Metron rejected the request (HTTP 400): {error}. Stopping further processing."
-        self.ui.print_error(msg)
-        self._stop_processing = True
-        return True
-
-    def _handle_redis_error(self, error: Exception, error_context: str) -> None:
-        """Stop further processing after the Redis rate limiter fails.
-
-        Every request goes through the rate limiter, so once Redis is unavailable
-        every subsequent request will fail the same way.
-        """
-        LOGGER.error("%s: Redis rate limiter error: %s", error_context, error)
-        self.ui.print_error(
-            f"Redis rate limiter error: {error}. Check your Redis server or remove "
-            "'redis_url' from your settings. Stopping further processing."
-        )
-        self._stop_processing = True
-
-    def _retry_after_short_rate_limit(
-        self, api_call: Callable[[], T], retry_error: RateLimitError
-    ) -> T | None:
-        """Wait out a short rate-limit window hit during a retry, then try once more."""
-        LOGGER.debug("Rate limit hit on retry, waiting %s seconds", retry_error.retry_after)
-        time.sleep(retry_error.retry_after + RATE_LIMIT_RETRY_BUFFER)
-        try:
-            return api_call()
-        except (RateLimitError, ApiError) as final_error:
-            if isinstance(final_error, ApiError) and self._handle_fatal_api_error(
-                final_error, "Retry failed"
-            ):
-                return None
-            LOGGER.exception("Retry failed after second wait")
-            self.ui.print_error(f"Retry failed: {final_error!s}")
-            return None
-        except self._redis_errors as final_error:
-            self._handle_redis_error(final_error, "Retry failed")
-            return None
-
-    def _retry_api_call(self, api_call: Callable[[], T]) -> T | None:
-        """Retry an API call after a rate limit delay.
-
-        Args:
-            api_call: A callable that makes the API call
-
-        Returns:
-            The result of the API call, or None if an error occurred
-        """
-        try:
-            return api_call()
-        except RateLimitError as retry_error:
-            # If we hit another short rate limit, wait and try once more silently
-            if (
-                hasattr(retry_error, "retry_after")
-                and 0 < retry_error.retry_after < RATE_LIMIT_AUTO_RETRY_THRESHOLD
-            ):
-                return self._retry_after_short_rate_limit(api_call, retry_error)
-            LOGGER.debug("Rate limit hit on retry: %s", retry_error)
-            self.ui.print_error(f"Retry failed: {retry_error!s}")
-            return None
-        except ApiError as retry_error:
-            if self._handle_fatal_api_error(retry_error, "Retry failed"):
-                return None
-            LOGGER.exception("Retry failed")
-            self.ui.print_error(f"Retry failed: {retry_error!s}")
-            return None
-        except self._redis_errors as retry_error:
-            self._handle_redis_error(retry_error, "Retry failed")
-            return None
-
-    def _handle_rate_limit_error(
-        self, api_call: Callable[[], T], error: RateLimitError
-    ) -> T | None:
-        """Handle a RateLimitError raised by an API call, retrying when appropriate."""
-        LOGGER.debug("Rate limit exceeded: %s", error)
-
-        # Check if retry_after is available
-        if not hasattr(error, "retry_after") or error.retry_after <= 0:
-            self.ui.print_warning(f"{error!s}")
-            return None
-
-        retry_after = error.retry_after
-
-        # For short delays (< RATE_LIMIT_AUTO_RETRY_THRESHOLD), automatically retry
-        if retry_after < RATE_LIMIT_AUTO_RETRY_THRESHOLD:
-            time.sleep(retry_after + RATE_LIMIT_RETRY_BUFFER)
-            return self._retry_api_call(api_call)
-
-        # For long delays (>= RATE_LIMIT_AUTO_RETRY_THRESHOLD), ask user
-        self.ui.print_warning(f"{error!s}")
-        wait_start = time.monotonic()
-
-        should_wait = questionary.confirm(
-            "Do you want to wait and retry?",
-            default=False,
-        ).ask()
-
-        if should_wait:
-            # Deduct time already spent waiting on the user's answer so the
-            # total delay matches retry_after instead of stacking on top of it.
-            elapsed = time.monotonic() - wait_start
-            remaining = max(0.0, retry_after - elapsed) + RATE_LIMIT_RETRY_BUFFER
-            self.ui.print_info("Waiting to retry...")
-            time.sleep(remaining)
-            return self._retry_api_call(api_call)
-
-        # User declined to wait - stop processing remaining files
-        self._stop_processing = True
-        return None
-
-    def _handle_api_call(
-        self, api_call: Callable[[], T], error_context: str = "API call"
-    ) -> T | None:
-        """Centralized API error handling with automatic retry for rate limits.
-
-        Args:
-            api_call: A callable that makes the API call
-            error_context: Context description for error messages
-
-        Returns:
-            The result of the API call, or None if an error occurred
-        """
-        try:
-            return api_call()
-        except RateLimitError as e:
-            return self._handle_rate_limit_error(api_call, e)
-        except ApiError as e:
-            if self._handle_fatal_api_error(e, error_context):
-                return None
-            LOGGER.exception(error_context)
-            self.ui.print_error(f"{error_context}: {e!r}")
-            return None
-        except self._redis_errors as e:
-            self._handle_redis_error(e, error_context)
-            return None
-
-    def _create_comic(self, filename: Path) -> Comic | None:
-        """Safely create a Comic object with error handling.
-
-        Args:
-            filename: Path to the comic file
-
-        Returns:
-            Comic object if successful, None if there was an error
-        """
-        try:
-            return Comic(filename)
-        except ComicArchiveError:
-            LOGGER.exception("Comic not valid: %s", str(filename))
-            self.ui.print_error(f"{filename.name} appears not to be a comic. Skipping...")
-            return None
 
     @staticmethod
     def _create_choice_list(match_set: list[BaseIssue]) -> list[questionary.Choice]:
@@ -1034,33 +345,20 @@ class Talker:
         self, comic: Comic
     ) -> tuple[InfoSource, int, datetime | None] | None:
         """Get existing metadata ID from comic if available."""
-        metadata_formats = [
-            (MetadataFormat.METRON_INFO, self.metadata_extractor.get_id_from_metron_info),
-            (MetadataFormat.COMIC_INFO, self.metadata_extractor.get_id_from_comic_info),
-        ]
-
-        for format_type, extractor_func in metadata_formats:
-            if not comic.has_metadata(format_type):
-                continue
-
-            try:
-                md = comic.read_metadata(format_type)
-                if md is not None and (result := extractor_func(md)):
-                    source, id_ = result
-                    modified = (
-                        md.modified
-                        if source == InfoSource.METRON
-                        and format_type == MetadataFormat.METRON_INFO
-                        else None
-                    )
-                    return source, id_, modified
-            except KeyError:
-                format_name = (
-                    "MetronInfo.xml"
-                    if format_type == MetadataFormat.METRON_INFO
-                    else "ComicInfo.xml"
+        extractors = {
+            MetadataFormat.METRON_INFO: self.metadata_extractor.get_id_from_metron_info,
+            MetadataFormat.COMIC_INFO: self.metadata_extractor.get_id_from_comic_info,
+        }
+        # A format without an ID falls through to the next one.
+        for fmt, md in iter_metadata(comic):
+            if result := extractors[fmt](md):
+                source, id_ = result
+                modified = (
+                    md.modified
+                    if source == InfoSource.METRON and fmt == MetadataFormat.METRON_INFO
+                    else None
                 )
-                LOGGER.warning("Unable to find %s. File: %s", format_name, comic)
+                return source, id_, modified
 
         return None
 
@@ -1069,7 +367,7 @@ class Talker:
         if source == InfoSource.METRON:
             return id_
         if source == InfoSource.COMIC_VINE:
-            issues = self._handle_api_call(
+            issues = self.client.call(
                 lambda: self.api.issues_list(params={"cv_id": id_}), "Failed to retrieve data"
             )
             if issues is None:
@@ -1085,7 +383,7 @@ class Talker:
         filename: Path,
         comic: Comic,
         config: ProcessingConfig,
-        parsed: dict[str, str | tuple[str, ...]] | None = None,
+        parsed: ParsedFilename | None = None,
         cover_candidates: list[BaseIssue] | None = None,
     ) -> SearchResult:
         """Search for comic by filename parsing.
@@ -1110,12 +408,12 @@ class Talker:
             self.ui.print_error(f"Unable to correctly parse filename: {filename.name}")
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
-        i_list = self._handle_api_call(
+        i_list = self.client.call(
             lambda: self.api.issues_list(params=params), "Failed to retrieve data"
         )
         if not i_list:
-            # Nothing found, or an API error (already reported by _handle_api_call).
-            if cover_candidates and not self._stop_processing:
+            # Nothing found, or an API error (already reported by MetronClient.call).
+            if cover_candidates and not self.client.stop_processing:
                 return self._resolve_search(filename, None, cover_candidates, config)
             if i_list is not None:
                 self.match_results.add_no_match(filename)
@@ -1147,7 +445,7 @@ class Talker:
 
     @staticmethod
     def _cover_search_params(
-        metadata: dict[str, str | tuple[str, ...]], series_id: int | None
+        metadata: ParsedFilename, series_id: int | None
     ) -> dict[str, str | int] | None:
         """Build the cover search filters from the filename, or None if it lacks them.
 
@@ -1180,7 +478,7 @@ class Talker:
         filename: Path,
         comic: Comic,
         config: ProcessingConfig,
-        metadata: dict[str, str | tuple[str, ...]],
+        metadata: ParsedFilename,
     ) -> CoverMatches:
         """Search Metron for the comic by its cover hash, issue number, and year.
 
@@ -1197,7 +495,7 @@ class Talker:
             was found so far.
         """
         base_params = self._cover_search_params(metadata, config.series_id)
-        if base_params is None or self._stop_processing:
+        if base_params is None or self.client.stop_processing:
             # No usable year, or a fatal API error already happened for this comic
             # (for example in the existing-ID lookup).
             return CoverMatches()
@@ -1208,11 +506,11 @@ class Talker:
         closest: dict[int, tuple[int, BaseIssue]] = {}
         for search_hash, accept_distance in self.cover_matcher.get_search_hashes(comic):
             params = base_params | {"cover_hash_near": str(search_hash)}
-            i_list = self._handle_api_call(
+            i_list = self.client.call(
                 lambda p=params: self.api.issues_list(params=p), "Failed to retrieve data"
             )
             if i_list is None:
-                # API error, already reported by _handle_api_call.
+                # API error, already reported by MetronClient.call.
                 break
 
             ranked = self.cover_matcher.rank_by_distance(search_hash, i_list)
@@ -1244,7 +542,7 @@ class Talker:
         ranked: list[tuple[int, BaseIssue]],
         accept_distance: int,
         config: ProcessingConfig,
-        metadata: dict[str, str | tuple[str, ...]],
+        metadata: ParsedFilename,
     ) -> BaseIssue | None:
         """Return the closest cover match if it can be accepted, else None.
 
@@ -1274,7 +572,7 @@ class Talker:
         return None
 
     @staticmethod
-    def _series_agrees(metadata: dict[str, str | tuple[str, ...]], issue: BaseIssue) -> bool:
+    def _series_agrees(metadata: ParsedFilename, issue: BaseIssue) -> bool:
         """Return True if the issue's series name shares a word with the filename's.
 
         Both the parsed series and title are used, since the filename parser often
@@ -1317,12 +615,12 @@ class Talker:
         config: ProcessingConfig,
     ) -> SearchResult:
         """Process a comic file for metadata."""
-        comic = self._create_comic(fn)
+        comic = open_comic(fn)
         if comic is None:
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
         if not comic.is_writable() or not comic.seems_to_be_a_comic_archive():
-            LOGGER.exception("Comic appears not to be a comic or writable: %s", str(fn))
+            LOGGER.warning("Comic appears not to be a comic or writable: %s", fn)
             self.ui.print_error(f"{fn.name} appears not to be a comic or writable.")
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
@@ -1341,11 +639,11 @@ class Talker:
 
         # Search by cover first. If no cover match is accepted, the filename search
         # runs, and its prompt also offers the cover search's candidates.
-        parsed: dict[str, str | tuple[str, ...]] = comicfn2dict(fn, verbose=0)
+        parsed: ParsedFilename = comicfn2dict(fn, verbose=0)
         cover = self._search_by_cover(fn, comic, config, parsed)
         if cover.accepted is not None:
             return self._resolve_search(fn, cover.accepted, [], config)
-        if self._stop_processing:
+        if self.client.stop_processing:
             return SearchResult(issue_id=None, has_multiple_matches=False)
         return self._search_by_filename(fn, comic, config, parsed, cover.candidates)
 
@@ -1359,30 +657,29 @@ class Talker:
         # Print match results summary
         self.ui.print_match_results(self.match_results)
 
-        # Handle files with multiple matches
-        if self.match_results.multiple_matches:
-            for match_set in self.match_results.multiple_matches:
-                if issue_id := self._select_choice_from_matches(
-                    match_set.filename, match_set.matches
-                ):
-                    self._write_issue_md(match_set.filename, issue_id)
+        # Ask about files with multiple matches, unless processing was stopped (a
+        # fatal API error, or the user declining to wait out a rate limit): every
+        # choice would need another API call.
+        for match_set in self.match_results.multiple_matches:
+            if self.client.stop_processing:
+                self.ui.print_info("Skipping the remaining multiple matches.")
+                break
+            if issue_id := self._select_choice_from_matches(
+                match_set.filename, match_set.matches
+            ):
+                self._write_issue_md(match_set.filename, issue_id)
 
     def _write_metadata_formats(self, comic: Comic, metadata: Metadata) -> list[str]:
         """Write metadata in the requested formats."""
         written_formats = []
 
-        format_configs = [
-            (MetadataFormat.COMIC_INFO, "'ComicInfo.xml'", self.comic_info),
-            (MetadataFormat.METRON_INFO, "'MetronInfo.xml'", self.metron_info),
-        ]
-
-        for meta_format, file_name, should_write in format_configs:
-            if should_write:
-                try:
-                    if comic.write_metadata(metadata, meta_format):
-                        written_formats.append(file_name)
-                except KeyError:
-                    LOGGER.warning("Failed to write metadata %s for '%s'.", file_name, comic)
+        for meta_format in self.formats:
+            file_name = format_list([meta_format])
+            try:
+                if comic.write_metadata(metadata, meta_format):
+                    written_formats.append(file_name)
+            except KeyError:
+                LOGGER.warning("Failed to write metadata %s for '%s'.", file_name, comic)
 
         return written_formats
 
@@ -1390,18 +687,20 @@ class Talker:
         self, filename: Path, issue_id: int, modified: datetime | None = None
     ) -> None:
         """Write metadata for a comic issue."""
-        resp = self._handle_api_call(
+        resp = self.client.call(
             lambda: self.api.issue(issue_id, if_modified_since=modified),
             "Failed to retrieve data",
         )
         if resp is None:
-            if modified is not None:
+            # None is a 304 Not Modified only if the call didn't fail; a failure
+            # has already been reported by MetronClient.call.
+            if modified is not None and not self.client.last_call_failed:
                 self.ui.print_info(
                     f"{filename.name} has not been modified since last tagging."
                 )
             return
 
-        comic = self._create_comic(filename)
+        comic = open_comic(filename)
         if comic is None:
             return
 
@@ -1412,11 +711,8 @@ class Talker:
         md.overlay(meta_data)
 
         if written_formats := self._write_metadata_formats(comic, md):
-            collection = (
-                md.series.format.lower() in ["trade paperback", "hard cover"]
-                if md.series
-                else False
-            )
+            series_format = md.series.format if md.series else None
+            collection = bool(series_format) and series_format.lower() in COLLECTION_FORMATS
             self.ui.print_metadata_write_success(
                 formats=written_formats,
                 series_name=md.series.name if md.series else "Unknown",
@@ -1430,45 +726,41 @@ class Talker:
                 f"There was a problem writing metadata for '{filename.name}'. Check logs for details."
             )
 
-    def _should_skip_existing_metadata(self, args: Namespace, comic: Comic) -> bool:
-        """Check if file should be skipped due to existing metadata."""
-        if not args.ignore_existing:
+    def _should_skip_existing_metadata(self, comic: Comic, config: ProcessingConfig) -> bool:
+        """Check if file should be skipped because it already has a format to be written."""
+        if not config.ignore_existing:
             return False
+        return any(comic.has_metadata(fmt) for fmt in self.formats)
 
-        has_comic_rack = comic.has_metadata(MetadataFormat.COMIC_INFO)
-        has_metron_info = comic.has_metadata(MetadataFormat.METRON_INFO)
+    def identify_comics(
+        self, file_list: list[Path], config: ProcessingConfig | None = None
+    ) -> None:
+        """Identify and tag comics from a list of files.
 
-        return (has_comic_rack and self.comic_info) or (has_metron_info and self.metron_info)
-
-    def identify_comics(self, args: Namespace, file_list: list[Path]) -> None:
-        """Identify and tag comics from a list of files."""
+        Args:
+            file_list: The comics to tag.
+            config: How to search and when to skip a comic; the defaults if not given.
+        """
+        config = config or ProcessingConfig()
         # Reset stop flag at start of processing
-        self._stop_processing = False
+        self.client.stop_processing = False
 
-        title_suffix = f" (Series ID: {args.id})" if args.id is not None else ""
-        msg = create_print_title(f"Starting Online Search and Tagging{title_suffix}:")
-        self.ui.print_title(msg)
-
-        # Create processing configuration from args
-        config = ProcessingConfig(
-            accept_only=args.accept_only,
-            skip_multiple=args.skip_multiple,
-            series_id=args.id,
-            ignore_existing=args.ignore_existing,
-            ignore_modified=args.ignore_modified,
+        title_suffix = (
+            f" (Series ID: {config.series_id})" if config.series_id is not None else ""
         )
+        self.ui.print_title(f"Starting Online Search and Tagging{title_suffix}:")
 
         for fn in file_list:
             # Check if processing should stop (e.g., rate limit declined)
-            if self._stop_processing:
+            if self.client.stop_processing:
                 self.ui.print_info("Stopping processing of remaining files.")
                 break
 
-            comic = self._create_comic(fn)
+            comic = open_comic(fn)
             if comic is None:
                 continue
 
-            if self._should_skip_existing_metadata(args, comic):
+            if self._should_skip_existing_metadata(comic, config):
                 self.ui.print_warning(f"{fn.name} has metadata. Skipping...")
                 continue
 

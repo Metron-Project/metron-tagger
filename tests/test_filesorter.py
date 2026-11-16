@@ -160,7 +160,7 @@ def test_cleanup_metadata_no_publisher(file_sorter, mock_metadata_incomplete):
 
 # Test _move_file_safely method
 @patch("metrontagger.filesorter.move")
-@patch("metrontagger.filesorter.questionary")
+@patch("metrontagger.ui.questionary")
 def test_move_file_safely_success(mock_questionary, mock_move, file_sorter, tmp_path):
     """Test successful file move."""
     source = tmp_path / "source.cbz"
@@ -176,7 +176,7 @@ def test_move_file_safely_success(mock_questionary, mock_move, file_sorter, tmp_
 
 
 @patch("metrontagger.filesorter.move")
-@patch("metrontagger.filesorter.questionary")
+@patch("metrontagger.ui.questionary")
 def test_move_file_safely_shutil_error(mock_questionary, mock_move, file_sorter, tmp_path):
     """Test file move with shutil error."""
     mock_move.side_effect = ShutilError("Permission denied")
@@ -191,7 +191,7 @@ def test_move_file_safely_shutil_error(mock_questionary, mock_move, file_sorter,
 
 
 @patch("metrontagger.filesorter.move")
-@patch("metrontagger.filesorter.questionary")
+@patch("metrontagger.ui.questionary")
 def test_move_file_safely_unexpected_error(mock_questionary, mock_move, file_sorter, tmp_path):
     """Test file move with unexpected error."""
     mock_move.side_effect = Exception("Unexpected error")
@@ -346,12 +346,12 @@ def test_create_directory_structure_already_exists(file_sorter, tmp_path):
 
 
 # Test _load_comic_metadata method
-@patch("metrontagger.filesorter.Comic")
+@patch("metrontagger.comics.Comic")
 def test_load_comic_metadata_success_metron(mock_comic_class, file_sorter, mock_comic_file):
     """Test successful metadata loading with MetronInfo format."""
     mock_comic = Mock()
     mock_comic.has_metadata.side_effect = lambda fmt: fmt == MetadataFormat.METRON_INFO
-    mock_comic.read_metadata.return_value = Mock(spec=Metadata)
+    mock_comic.read_metadata.return_value = Mock(spec=Metadata, is_empty=False)
     mock_comic_class.return_value = mock_comic
 
     result = file_sorter._load_comic_metadata(mock_comic_file)
@@ -361,14 +361,14 @@ def test_load_comic_metadata_success_metron(mock_comic_class, file_sorter, mock_
     mock_comic.read_metadata.assert_called_with(MetadataFormat.METRON_INFO)
 
 
-@patch("metrontagger.filesorter.Comic")
+@patch("metrontagger.comics.Comic")
 def test_load_comic_metadata_success_comic_rack(
     mock_comic_class, file_sorter, mock_comic_file
 ):
     """Test successful metadata loading with ComicRack format."""
     mock_comic = Mock()
     mock_comic.has_metadata.side_effect = lambda fmt: fmt == MetadataFormat.COMIC_INFO
-    mock_comic.read_metadata.return_value = Mock(spec=Metadata)
+    mock_comic.read_metadata.return_value = Mock(spec=Metadata, is_empty=False)
     mock_comic_class.return_value = mock_comic
 
     result = file_sorter._load_comic_metadata(mock_comic_file)
@@ -380,7 +380,7 @@ def test_load_comic_metadata_success_comic_rack(
     mock_comic.read_metadata.assert_called_with(MetadataFormat.COMIC_INFO)
 
 
-@patch("metrontagger.filesorter.Comic")
+@patch("metrontagger.comics.Comic")
 def test_load_comic_metadata_no_metadata(mock_comic_class, file_sorter, mock_comic_file):
     """Test metadata loading when no metadata is available."""
     mock_comic = Mock()
@@ -392,7 +392,7 @@ def test_load_comic_metadata_no_metadata(mock_comic_class, file_sorter, mock_com
     assert result is None
 
 
-# @patch("metrontagger.filesorter.Comic")
+# @patch("metrontagger.comics.Comic")
 # def test_load_comic_metadata_comic_open_error(mock_comic_class, file_sorter, mock_comic_file):
 #     """Test metadata loading when comic file cannot be opened."""
 #     mock_comic_class.side_effect = Exception("Cannot open comic")
@@ -403,7 +403,7 @@ def test_load_comic_metadata_no_metadata(mock_comic_class, file_sorter, mock_com
 
 
 # Test _validate_metadata_completeness method
-@patch("metrontagger.filesorter.questionary")
+@patch("metrontagger.ui.questionary")
 def test_validate_metadata_completeness_complete(mock_questionary, file_sorter):
     """Test validation with complete metadata."""
     cleaned = CleanedMetadata("Marvel", "Spider-Man", "1")
@@ -414,7 +414,7 @@ def test_validate_metadata_completeness_complete(mock_questionary, file_sorter):
     mock_questionary.print.assert_not_called()
 
 
-@patch("metrontagger.filesorter.questionary")
+@patch("metrontagger.ui.questionary")
 def test_validate_metadata_completeness_incomplete(mock_questionary, file_sorter):
     """Test validation with incomplete metadata."""
     cleaned = CleanedMetadata(None, "Spider-Man", None)
@@ -565,3 +565,20 @@ def test_file_size_info_creation():
 
     assert size_info.existing_mb == 1.5
     assert size_info.new_mb == 2.0
+
+
+def test_report_error_prints_and_logs_with_traceback(caplog, tmp_path):
+    """An error is shown to the user and logged with the exception that caused it."""
+    from metrontagger.filesorter import _report_error  # noqa: PLC0415
+
+    with patch("metrontagger.ui.UIPresenter.print_error") as mock_print_error:
+        try:
+            (tmp_path / "missing.cbz").stat()
+        except OSError:
+            _report_error("Failed to move 'missing.cbz'")
+
+    mock_print_error.assert_called_once_with("Failed to move 'missing.cbz'")
+    record = caplog.records[-1]
+    assert record.getMessage() == "Failed to move 'missing.cbz'"
+    assert record.exc_info is not None
+    assert record.exc_info[0] is FileNotFoundError

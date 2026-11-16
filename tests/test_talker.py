@@ -1,46 +1,42 @@
 """Tests for the Talker class and its helper classes."""
 
-import io
-import random
-import xml.etree.ElementTree as ET
-from datetime import UTC, datetime, timedelta, timezone
-from decimal import Decimal
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import ANY, Mock, patch
 
 import pytest
-import redis
-import requests
 from comicfn2dict import comicfn2dict
-from darkseid.comic import Comic
-from darkseid.metadata import Basic, Metadata, MetronInfo, Notes
-from imagehash import hex_to_hash, phash
-from mokkari.exceptions import ApiError, RateLimitError
+from darkseid.comic import MetadataFormat
+from darkseid.metadata import Metadata, Series
+from imagehash import hex_to_hash
+from mokkari.exceptions import ApiError
 from mokkari.rate_limit import HeaderPacedRateLimiter
-from PIL import ExifTags, Image, ImageDraw
 
 from metrontagger import __version__
-from metrontagger.talker import (
+from metrontagger.cover_match import (
     COVER_ACCEPT_DISTANCE,
     COVER_ACCEPT_MARGIN,
     COVER_SEARCH_MAX_DISTANCE,
     HALF_COVER_HAMMING_DISTANCE,
-    HAMMING_DISTANCE,
-    REDIS_SOCKET_TIMEOUT,
-    CoverHashMatcher,
+)
+from metrontagger.talker import (
     CoverMatches,
     InfoSource,
     MetadataExtractor,
-    MetadataMapper,
     MultipleMatch,
     OnlineMatchResults,
     ProcessingConfig,
     SearchResult,
     Talker,
-    UIPresenter,
+    TalkerPresenter,
 )
-
-tzinfo = timezone(timedelta(hours=-5))
+from tests.fakes import (
+    SEARCH_HASH,
+    create_mock_base_issue,
+    create_mock_issue_response,
+    hash_at_distance,
+    tzinfo,
+)
 
 
 # Fixtures
@@ -54,23 +50,10 @@ def mock_api():
 
 
 @pytest.fixture
-def mock_comic():
-    """Create a mock Comic object."""
-    comic = Mock(spec=Comic)
-    comic.is_writable.return_value = True
-    comic.seems_to_be_a_comic_archive.return_value = True
-    comic.has_metadata.return_value = False
-    comic.get_number_of_pages.return_value = 20
-    comic.get_page.return_value = b"fake_image_data"
-    comic.write_metadata.return_value = True
-    return comic
-
-
-@pytest.fixture
 def talker(mock_api):
     """Create a Talker instance with mocked API."""
-    with patch("metrontagger.talker.mokkari.api", return_value=mock_api):
-        return Talker("my-token", metron_info=True, comic_info=True)
+    with patch("metrontagger.metron_client.mokkari.api", return_value=mock_api):
+        return Talker("my-token", [MetadataFormat.COMIC_INFO, MetadataFormat.METRON_INFO])
 
 
 @pytest.fixture
@@ -79,93 +62,9 @@ def sample_path():
     return Path("test_comic.cbz")
 
 
-def create_http_api_error(status_code: int, message: str = "HTTP error") -> ApiError:
-    """Create an ApiError chained to an HTTPError, mirroring what mokkari raises."""
-    response = Mock(spec=requests.Response)
-    response.status_code = status_code
-    http_error = requests.exceptions.HTTPError(response=response)
-    api_error = ApiError(message)
-    api_error.__cause__ = http_error
-    return api_error
-
-
-def create_mock_base_issue(issue_id=123, cover_hash="abcdef123456", series_name="Test Comic"):
-    """Create a mock BaseIssue object."""
-    issue = Mock()
-    issue.id = issue_id
-    issue.issue_name = f"{series_name} #1"
-    issue.series.name = series_name
-    issue.cover_date = datetime(2023, 1, 1, tzinfo=tzinfo).date()
-    issue.cover_hash = cover_hash
-    return issue
-
-
-def create_mock_issue_response(
-    isbn=None,
-    upc=None,
-    average_rating=Decimal("4.25"),
-    rating_count=8,
-    alt_number=None,
-    alt_names=None,
-    language="en",
-):
-    """Create a mock Issue response object."""
-
-    issue = Mock()
-    issue.id = 123
-    issue.number = "1"
-    issue.alt_number = alt_number
-    issue.cover_date = datetime(2023, 1, 1, tzinfo=tzinfo).date()
-    issue.store_date = datetime(2023, 1, 15, tzinfo=tzinfo).date()
-    issue.desc = "Test description"
-    issue.modified = datetime(2023, 1, 1, tzinfo=tzinfo)
-    issue.cv_id = 456
-    issue.gcd_id = None
-    issue.collection_title = None
-    issue.story_titles = ["Main Story"]
-    issue.rating = Mock()
-    issue.rating.name = "Teen"
-    issue.resource_url = "https://example.com/issue/123"
-    issue.price = Decimal("3.99")
-    issue.price_currency = "USD"
-    issue.isbn = isbn
-    issue.upc = upc
-    issue.average_rating = average_rating
-    issue.rating_count = rating_count
-
-    # Series mock
-    issue.series = Mock()
-    issue.series.name = "Test Series"
-    issue.series.id = 1
-    issue.series.sort_name = "Test Series"
-    issue.series.alt_names = alt_names if alt_names is not None else []
-    issue.series.volume = 1
-    issue.series.series_type = Mock()
-    issue.series.series_type.name = "Regular"
-    issue.series.year_began = 2023
-    issue.series.language = language
-    issue.series.genres = [Mock(name="Action", id=1)]
-
-    # Publisher mock
-    issue.publisher = Mock()
-    issue.publisher.name = "Test Publisher"
-    issue.publisher.id = 1
-    issue.imprint = None
-
-    # Other collections
-    issue.characters = [Mock(name="Hero", id=1)]
-    issue.teams = [Mock(name="Team", id=1)]
-    issue.arcs = [Mock(name="Arc", id=1)]
-    issue.reprints = []
-    issue.universes = [Mock(name="Universe", id=1)]
-    issue.credits = [Mock(creator="Writer", role=[Mock(name="Writer", id=1)], id=1)]
-
-    return issue
-
-
 def create_mock_metadata():
     """Create a mock Metadata object."""
-    md = Mock(spec=Metadata)
+    md = Mock(spec=Metadata, is_empty=False)
     md.info_source = [Mock(name="metron", id_=123)]
     md.notes = Mock()
     md.notes.comic_rack = "Tagged with MetronTagger [issue_id:123]"
@@ -293,530 +192,12 @@ def test_metadata_extractor_get_id_from_comic_info_invalid_id():
         assert result is None
 
 
-# CoverHashMatcher tests
-
-
-def _make_image_bytes(size: tuple[int, int], seed: int = 0) -> bytes:
-    """Create a PNG with a random noise pattern so phash values are distinctive."""
-    rng = random.Random(seed)  # noqa: S311 - deterministic test data
-    img = Image.new("L", size)
-    img.putdata([rng.randint(0, 255) for _ in range(size[0] * size[1])])
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return buf.getvalue()
-
-
-def _make_spread_bytes(left: bytes, right: bytes) -> bytes:
-    """Join two page images side-by-side into a double-page spread."""
-    with Image.open(io.BytesIO(left)) as left_img, Image.open(io.BytesIO(right)) as right_img:
-        spread = Image.new("L", (left_img.width + right_img.width, left_img.height))
-        spread.paste(left_img, (0, 0))
-        spread.paste(right_img, (left_img.width, 0))
-    buf = io.BytesIO()
-    spread.save(buf, format="PNG")
-    return buf.getvalue()
-
-
-def _hash_hex(data: bytes) -> str:
-    with Image.open(io.BytesIO(data)) as img:
-        return str(phash(img))
-
-
-@pytest.fixture
-def _clear_cover_hash_cache():
-    """Clear the cover-hash cache around tests that compute real cover hashes."""
-    CoverHashMatcher.get_comic_cover_hashes_cached.cache_clear()
-    yield
-    CoverHashMatcher.get_comic_cover_hashes_cached.cache_clear()
-
-
-@pytest.mark.parametrize(
-    ("size", "expected"),
-    [((650, 1000), False), ((1000, 1000), False), ((1150, 1000), False), ((1300, 1000), True)],
-)
-def test_cover_hash_matcher_is_double_spread(size, expected):
-    """Only landscape images are treated as double-page spreads."""
-    assert CoverHashMatcher.is_double_spread(Image.new("L", size)) is expected
-
-
-@pytest.mark.usefixtures("_clear_cover_hash_cache")
-def test_cover_hash_matcher_get_comic_cover_hashes_single_cover():
-    """A portrait cover yields a single hash."""
-    mock_comic = Mock()
-    mock_comic.get_page.return_value = _make_image_bytes((65, 100))
-
-    result = CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic)
-    assert len(result) == 1
-
-
-@pytest.mark.usefixtures("_clear_cover_hash_cache")
-def test_cover_hash_matcher_get_comic_cover_hashes_double_spread():
-    """A landscape cover yields full, right-half, and left-half hashes."""
-    left = _make_image_bytes((65, 100), seed=1)
-    right = _make_image_bytes((65, 100), seed=2)
-    mock_comic = Mock()
-    mock_comic.get_page.return_value = _make_spread_bytes(left, right)
-
-    result = CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic)
-    assert len(result) == 3
-    assert str(result[1]) == _hash_hex(right)
-    assert str(result[2]) == _hash_hex(left)
-
-
-@pytest.mark.usefixtures("_clear_cover_hash_cache")
-@pytest.mark.parametrize(("orientation", "expected_len"), [(1, 3), (6, 1), (8, 1)])
-def test_cover_hash_matcher_get_comic_cover_hashes_exif_orientation(orientation, expected_len):
-    """A landscape-stored cover that EXIF rotates to portrait isn't treated as a spread."""
-    with Image.open(io.BytesIO(_make_image_bytes((130, 100)))) as img:
-        exif = Image.Exif()
-        exif[ExifTags.Base.Orientation] = orientation
-        buf = io.BytesIO()
-        img.convert("RGB").save(buf, format="JPEG", exif=exif)
-    mock_comic = Mock()
-    mock_comic.get_page.return_value = buf.getvalue()
-
-    result = CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic)
-    assert len(result) == expected_len
-
-
-@pytest.mark.usefixtures("_clear_cover_hash_cache")
-def test_cover_hash_matcher_get_comic_cover_hashes_jxl():
-    """A JPEG XL cover is hashed when the optional `jxl` extra is installed."""
-    pytest.importorskip("pillow_jxl")
-    with Image.open(io.BytesIO(_make_image_bytes((65, 100)))) as img:
-        buf = io.BytesIO()
-        img.save(buf, format="JXL", lossless=True)
-    mock_comic = Mock()
-    mock_comic.get_page.return_value = buf.getvalue()
-
-    result = CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic)
-    assert len(result) == 1
-
-
-@pytest.mark.usefixtures("_clear_cover_hash_cache")
-def test_cover_hash_matcher_get_comic_cover_hashes_corrupt_jxl():
-    """A truncated JPEG XL cover yields no hashes instead of raising."""
-    pytest.importorskip("pillow_jxl")
-    with Image.open(io.BytesIO(_make_image_bytes((65, 100)))) as img:
-        buf = io.BytesIO()
-        img.save(buf, format="JXL", lossless=True)
-    mock_comic = Mock()
-    mock_comic.get_page.return_value = buf.getvalue()[: len(buf.getvalue()) // 2]
-
-    with patch("metrontagger.talker.questionary.print"):
-        assert CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic) == ()
-
-
-@pytest.mark.usefixtures("_clear_cover_hash_cache")
-@patch("metrontagger.talker.Image.open", side_effect=RuntimeError("decode failed"))
-def test_cover_hash_matcher_get_comic_cover_hash_runtime_error(_):  # noqa: PT019
-    """A decoder RuntimeError (e.g. from pillow-jxl-plugin) yields no hashes."""
-    mock_comic = Mock()
-    mock_comic.get_page.return_value = b"fake_image_data"
-
-    with patch("metrontagger.talker.questionary.print"):
-        assert CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic) == ()
-
-
-@pytest.mark.usefixtures("_clear_cover_hash_cache")
-def test_cover_hash_matcher_get_comic_cover_hashes_no_page():
-    """Missing cover page yields no hashes."""
-    mock_comic = Mock()
-    mock_comic.get_page.return_value = None
-
-    with patch("metrontagger.talker.questionary.print"):
-        assert CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic) == ()
-
-
-@pytest.mark.usefixtures("_clear_cover_hash_cache")
-@patch("metrontagger.talker.Image.open", side_effect=OSError("Invalid image"))
-def test_cover_hash_matcher_get_comic_cover_hash_failure(_):  # noqa: PT019
-    """Test cover hash calculation failure."""
-    mock_comic = Mock()
-    mock_comic.get_page.return_value = b"fake_image_data"
-
-    with patch("metrontagger.talker.questionary.print"):
-        result = CoverHashMatcher.get_comic_cover_hashes_cached(mock_comic)
-        assert result == ()
-
-
-def test_cover_hash_matcher_is_within_hamming_distance_success():
-    """Test successful hamming distance check."""
-    mock_comic = Mock()
-    mock_hash = Mock()
-    mock_hash.__sub__ = Mock(return_value=5)  # Within distance
-
-    with (
-        patch.object(
-            CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=(mock_hash,)
-        ),
-        patch("metrontagger.talker.hex_to_hash", return_value=mock_hash),
-    ):
-        result = CoverHashMatcher.is_within_hamming_distance(mock_comic, "abcdef")
-        assert result is True
-
-
-def test_cover_hash_matcher_is_within_hamming_distance_failure():
-    """Test failed hamming distance check."""
-    mock_comic = Mock()
-    mock_hash = Mock()
-    mock_hash.__sub__ = Mock(return_value=15)  # Outside distance
-
-    with (
-        patch.object(
-            CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=(mock_hash,)
-        ),
-        patch("metrontagger.talker.hex_to_hash", return_value=mock_hash),
-    ):
-        result = CoverHashMatcher.is_within_hamming_distance(mock_comic, "abcdef")
-        assert result is False
-
-
-def test_cover_hash_matcher_is_within_hamming_distance_no_hashes():
-    """No cover hashes means no match."""
-    with patch.object(CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=()):
-        assert CoverHashMatcher.is_within_hamming_distance(Mock(), "abcdef") is False
-
-
-@pytest.mark.parametrize(
-    ("full_distance", "half_distance", "expected"),
-    [
-        (HAMMING_DISTANCE, 99, True),  # Full cover within its limit
-        (HAMMING_DISTANCE + 1, 99, False),  # Full cover just over its limit
-        (99, HALF_COVER_HAMMING_DISTANCE, True),  # Half within its limit
-        (99, HALF_COVER_HAMMING_DISTANCE + 1, False),  # Half just over its limit
-    ],
-)
-def test_cover_hash_matcher_half_cover_uses_own_distance(
-    full_distance, half_distance, expected
-):
-    """The full cover and the half-cover crops are each checked against their own limit."""
-    full_hash, half_hash = Mock(), Mock()
-    full_hash.__sub__ = Mock(return_value=full_distance)
-    half_hash.__sub__ = Mock(return_value=half_distance)
-
-    with (
-        patch.object(
-            CoverHashMatcher,
-            "get_comic_cover_hashes_cached",
-            return_value=(full_hash, half_hash, half_hash),
-        ),
-        patch("metrontagger.talker.hex_to_hash"),
-    ):
-        assert CoverHashMatcher.is_within_hamming_distance(Mock(), "abcdef") is expected
-
-
-@pytest.mark.usefixtures("_clear_cover_hash_cache")
-@pytest.mark.parametrize("front", ["right", "left"])
-def test_cover_hash_matcher_double_spread_matches_single_cover(front):
-    """A double-spread cover matches Metron's single front cover on either half."""
-    back = _make_image_bytes((65, 100), seed=1)
-    cover = _make_image_bytes((65, 100), seed=2)
-    spread = (
-        _make_spread_bytes(back, cover)
-        if front == "right"
-        else _make_spread_bytes(cover, back)
-    )
-    mock_comic = Mock()
-    mock_comic.get_page.return_value = spread
-
-    assert CoverHashMatcher.is_within_hamming_distance(mock_comic, _hash_hex(cover)) is True
-
-
-@pytest.mark.usefixtures("_clear_cover_hash_cache")
-def test_cover_hash_matcher_double_spread_no_match():
-    """A double-spread cover doesn't match an unrelated cover."""
-    spread = _make_spread_bytes(
-        _make_image_bytes((65, 100), seed=1), _make_image_bytes((65, 100), seed=2)
-    )
-    mock_comic = Mock()
-    mock_comic.get_page.return_value = spread
-    unrelated = _hash_hex(_make_image_bytes((65, 100), seed=3))
-
-    assert CoverHashMatcher.is_within_hamming_distance(mock_comic, unrelated) is False
-
-
-def test_cover_hash_matcher_filter_by_hamming_distance():
-    """Test filtering issues by hamming distance."""
-    mock_comic = Mock()
-    issue1 = create_mock_base_issue()
-    issue1.cover_hash = "hash1"
-    issue2 = create_mock_base_issue()
-    issue2.cover_hash = "hash2"
-
-    with patch.object(
-        CoverHashMatcher, "is_within_hamming_distance", side_effect=[True, False]
-    ):
-        result = CoverHashMatcher.filter_by_hamming_distance(mock_comic, [issue1, issue2])
-        assert len(result) == 1
-        assert result[0] == issue1
-
-
-# MetadataMapper tests
-def test_metadata_mapper_create_resource_list():
-    """Test creating resource list."""
-    resources = [Mock(name="Resource1", id=1), Mock(name="Resource2", id=2)]
-    result = MetadataMapper.create_resource_list(resources)
-    assert len(result) == 2
-    assert all(isinstance(item, Basic) for item in result)
-
-
-def test_metadata_mapper_create_notes():
-    """Test creating notes."""
-    issue_id = 123
-    result = MetadataMapper.create_notes(issue_id)
-    assert isinstance(result, Notes)
-    assert "MetronTagger" in result.metron_info
-    assert f"issue_id:{issue_id}" in result.comic_rack
-
-
-def test_metadata_mapper_map_ratings():
-    """Test rating mapping."""
-    test_cases = [
-        ("Everyone", ("Everyone", "Everyone")),
-        ("Teen", ("Teen", "Teen")),
-        ("Teen Plus", ("Teen Plus", "Teen")),
-        ("Mature", ("Mature", "Mature 17+")),
-        ("Unknown Rating", ("Unknown", "Unknown")),
-    ]
-
-    for input_rating, expected in test_cases:
-        result = MetadataMapper.map_ratings(input_rating)
-        assert result.metron_info == expected[0]
-        assert result.comic_rack == expected[1]
-
-
-def test_metadata_mapper_map_response_to_metadata():
-    """Test mapping response to metadata."""
-
-    resp = create_mock_issue_response()
-    result = MetadataMapper.map_response_to_metadata(resp)
-
-    assert isinstance(result, Metadata)
-    assert result.series.name == "Test Series"
-    assert result.issue == "1"
-    assert len(result.info_source) >= 1
-    assert result.info_source[0].name == "Metron"
-    # Verify price is mapped
-    assert result.prices is not None
-    assert len(result.prices) == 1
-    assert result.prices[0].amount == Decimal("3.99")
-    assert result.prices[0].currency == "USD"
-    # Verify community rating is mapped
-    assert result.community_rating == Decimal("4.25")
-    assert result.rating_count == 8
-
-
-def test_metadata_mapper_map_response_to_metadata_without_average_rating():
-    """Test mapping response to metadata when no average rating is present."""
-
-    resp = create_mock_issue_response(average_rating=None, rating_count=0)
-    result = MetadataMapper.map_response_to_metadata(resp)
-
-    assert result.community_rating is None
-    assert result.rating_count is None
-
-
-def test_metadata_mapper_map_response_to_metadata_with_alternate_number():
-    """Test mapping response to metadata when an alternate number is present."""
-
-    resp = create_mock_issue_response(alt_number="1AU")
-    result = MetadataMapper.map_response_to_metadata(resp)
-
-    assert result.alternate_number == "1AU"
-
-
-def test_metadata_mapper_map_response_to_metadata_without_alternate_number():
-    """Test mapping response to metadata when no alternate number is present."""
-
-    resp = create_mock_issue_response(alt_number=None)
-    result = MetadataMapper.map_response_to_metadata(resp)
-
-    assert result.alternate_number is None
-
-
-def test_metadata_mapper_set_basic_issue_info_with_alternate_number():
-    """Test setting basic issue info maps the alternate number."""
-    resp = create_mock_issue_response(alt_number="25")
-    md = Metadata()
-    MetadataMapper._set_basic_issue_info(md, resp)
-
-    assert md.alternate_number == "25"
-
-
-def test_metadata_mapper_set_basic_issue_info_without_alternate_number():
-    """Test setting basic issue info when no alternate number is present."""
-    resp = create_mock_issue_response(alt_number=None)
-    md = Metadata()
-    MetadataMapper._set_basic_issue_info(md, resp)
-
-    assert md.alternate_number is None
-
-
-def test_metadata_mapper_set_series_info_with_alt_names():
-    """Test setting series info maps alternate names."""
-    resp = create_mock_issue_response(alt_names=["Alt Name One", "Alt Name Two"])
-    md = Metadata()
-    MetadataMapper._set_series_info(md, resp)
-
-    assert [n.name for n in md.series.alternative_names] == [
-        "Alt Name One",
-        "Alt Name Two",
-    ]
-
-
-def test_metadata_mapper_set_series_info_without_alt_names():
-    """Test setting series info when no alternate names are present."""
-    resp = create_mock_issue_response(alt_names=[])
-    md = Metadata()
-    MetadataMapper._set_series_info(md, resp)
-
-    assert md.series.alternative_names == []
-
-
-def test_metadata_mapper_set_series_info_with_language():
-    """Test setting series info maps the series language."""
-    resp = create_mock_issue_response(language="en")
-    md = Metadata()
-    MetadataMapper._set_series_info(md, resp)
-
-    assert md.series.language == "en"
-
-
-def test_metadata_mapper_set_series_info_without_language():
-    """Test setting series info when no language is present."""
-    resp = create_mock_issue_response(language=None)
-    md = Metadata()
-    MetadataMapper._set_series_info(md, resp)
-
-    assert md.series.language is None
-
-
-def test_metadata_mapper_convert_gtin_to_int_valid():
-    """Test converting valid GTIN string to int."""
-    result = MetadataMapper._convert_gtin_to_int("9781234567890")
-    assert result == 9781234567890
-    assert isinstance(result, int)
-
-
-def test_metadata_mapper_convert_gtin_to_int_invalid_string():
-    """Test converting invalid GTIN string returns None."""
-    result = MetadataMapper._convert_gtin_to_int("invalid")
-    assert result is None
-
-
-def test_metadata_mapper_convert_gtin_to_int_none():
-    """Test converting None returns None."""
-    result = MetadataMapper._convert_gtin_to_int(None)
-    assert result is None
-
-
-def test_metadata_mapper_convert_gtin_to_int_empty_string():
-    """Test converting empty string returns None."""
-    result = MetadataMapper._convert_gtin_to_int("")
-    assert result is None
-
-
-def test_metadata_mapper_set_gtin_info_both_isbn_and_upc():
-    """Test setting GTIN info with both ISBN and UPC."""
-    resp = create_mock_issue_response(isbn="9781234567890", upc="12345678901")
-    md = Metadata()
-    MetadataMapper._set_gtin_info(md, resp)
-
-    assert md.gtin is not None
-    assert md.gtin.isbn == 9781234567890
-    assert md.gtin.upc == 12345678901
-
-
-def test_metadata_mapper_set_gtin_info_isbn_only():
-    """Test setting GTIN info with ISBN only."""
-    resp = create_mock_issue_response(isbn="9781234567890", upc=None)
-    md = Metadata()
-    MetadataMapper._set_gtin_info(md, resp)
-
-    assert md.gtin is not None
-    assert md.gtin.isbn == 9781234567890
-    assert md.gtin.upc is None
-
-
-def test_metadata_mapper_set_gtin_info_upc_only():
-    """Test setting GTIN info with UPC only."""
-    resp = create_mock_issue_response(isbn=None, upc="12345678901")
-    md = Metadata()
-    MetadataMapper._set_gtin_info(md, resp)
-
-    assert md.gtin is not None
-    assert md.gtin.isbn is None
-    assert md.gtin.upc == 12345678901
-
-
-def test_metadata_mapper_set_gtin_info_neither():
-    """Test setting GTIN info with neither ISBN nor UPC."""
-    resp = create_mock_issue_response(isbn=None, upc=None)
-    md = Metadata()
-    MetadataMapper._set_gtin_info(md, resp)
-
-    assert md.gtin is None
-
-
-def test_metadata_mapper_set_gtin_info_invalid_values():
-    """Test setting GTIN info with invalid values."""
-    resp = create_mock_issue_response(isbn="invalid", upc="also_invalid")
-    md = Metadata()
-    MetadataMapper._set_gtin_info(md, resp)
-
-    # Both values are invalid, so gtin should not be set
-    assert md.gtin is None
-
-
-def test_metadata_mapper_map_response_to_metadata_with_gtin():
-    """Test mapping response to metadata includes GTIN data."""
-    resp = create_mock_issue_response(isbn="9781234567890", upc="12345678901")
-    result = MetadataMapper.map_response_to_metadata(resp)
-
-    assert isinstance(result, Metadata)
-    assert result.gtin is not None
-    assert result.gtin.isbn == 9781234567890
-    assert result.gtin.upc == 12345678901
-
-
-def test_metadata_mapper_series_language_written_to_metron_info_xml():
-    """Test that the series language mapped from a response ends up as the
-    Series element's ``lang`` attribute when writing MetronInfo.xml."""
-    resp = create_mock_issue_response(language="en")
-    md = Metadata()
-    MetadataMapper._set_series_info(md, resp)
-
-    xml_string = MetronInfo().string_from_metadata(md)
-    root = ET.fromstring(xml_string)  # noqa: S314
-
-    series_node = root.find("Series")
-    assert series_node is not None
-    assert series_node.get("lang") == "en"
-
-
-def test_metadata_mapper_series_without_language_omits_lang_attribute():
-    """Test that a missing series language leaves the ``lang`` attribute unset
-    when writing MetronInfo.xml."""
-    resp = create_mock_issue_response(language=None)
-    md = Metadata()
-    MetadataMapper._set_series_info(md, resp)
-
-    xml_string = MetronInfo().string_from_metadata(md)
-    root = ET.fromstring(xml_string)  # noqa: S314
-
-    series_node = root.find("Series")
-    assert series_node is not None
-    assert series_node.get("lang") is None
-
-
 # Talker class tests
 def test_talker_initialization():
     """Test Talker initialization."""
-    with patch("metrontagger.talker.mokkari.api") as mock_api_func:
-        talker = Talker("my-token", metron_info=True, comic_info=False)
-        assert talker.metron_info is True
-        assert talker.comic_info is False
+    with patch("metrontagger.metron_client.mokkari.api") as mock_api_func:
+        talker = Talker("my-token", [MetadataFormat.METRON_INFO])
+        assert talker.formats == (MetadataFormat.METRON_INFO,)
         assert isinstance(talker.match_results, OnlineMatchResults)
         mock_api_func.assert_called_once_with(
             user_agent=f"Metron-Tagger/{__version__}",
@@ -826,129 +207,6 @@ def test_talker_initialization():
         assert isinstance(
             mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
         )
-
-
-def test_talker_initialization_with_username_only_used_for_redis():
-    """Test a username isn't passed to mokkari, since Basic Auth is no longer used."""
-    token = "my-token"  # noqa: S105
-    with patch("metrontagger.talker.mokkari.api") as mock_api_func:
-        Talker(token, metron_info=True, comic_info=False, username="user")
-        mock_api_func.assert_called_once_with(
-            user_agent=f"Metron-Tagger/{__version__}",
-            api_token=token,
-            rate_limiter=ANY,
-        )
-        assert isinstance(
-            mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
-        )
-
-
-@patch("metrontagger.talker.UIPresenter.print_warning")
-def test_talker_with_redis_url_without_username_falls_back(mock_warning):
-    """Test Redis rate limiting is skipped without a username, even with an API token."""
-    with (
-        patch("redis.Redis.from_url") as mock_from_url,
-        patch("metrontagger.talker.mokkari.api") as mock_api_func,
-    ):
-        Talker(
-            "my-token",
-            True,
-            True,
-            redis_url="redis://localhost:6379/0",
-        )
-        assert isinstance(
-            mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
-        )
-        mock_from_url.assert_not_called()
-    assert "Metron username" in mock_warning.call_args.args[0]
-
-
-def test_talker_with_redis_url_uses_redis_rate_limiter():
-    """Test a reachable Redis URL builds a RedisRateLimiter for the API session."""
-    mock_client = Mock()
-    with (
-        patch("redis.Redis.from_url", return_value=mock_client) as mock_from_url,
-        patch("mokkari.redis_rate_limit.RedisRateLimiter") as mock_limiter_cls,
-        patch("metrontagger.talker.mokkari.api") as mock_api_func,
-    ):
-        talker = Talker(
-            "my-token", True, True, username="user", redis_url="redis://localhost:6379/0"
-        )
-        mock_from_url.assert_called_once_with(
-            "redis://localhost:6379/0",
-            socket_connect_timeout=REDIS_SOCKET_TIMEOUT,
-            socket_timeout=REDIS_SOCKET_TIMEOUT,
-        )
-        mock_client.ping.assert_called_once_with()
-        mock_limiter_cls.assert_called_once_with(mock_client, "user")
-        assert mock_api_func.call_args.kwargs["rate_limiter"] is mock_limiter_cls.return_value
-
-        talker.close()
-        mock_client.close.assert_called_once_with()
-
-
-def test_talker_with_redis_url_and_token_keys_by_username():
-    """Test the Redis rate limiter is keyed by username, not the API token."""
-    with (
-        patch("redis.Redis.from_url", return_value=Mock()),
-        patch("mokkari.redis_rate_limit.RedisRateLimiter") as mock_limiter_cls,
-        patch("metrontagger.talker.mokkari.api"),
-    ):
-        Talker(
-            "my-token",
-            True,
-            True,
-            username="user",
-            redis_url="redis://localhost:6379/0",
-        )
-        assert mock_limiter_cls.call_args.args[1] == "user"
-
-
-@patch("metrontagger.talker.UIPresenter.print_warning")
-def test_talker_with_unreachable_redis_falls_back(mock_warning):
-    """Test an unreachable Redis server falls back to the local rate limiter."""
-    import redis  # noqa: PLC0415
-
-    mock_client = Mock()
-    mock_client.ping.side_effect = redis.ConnectionError("refused")
-    with (
-        patch("redis.Redis.from_url", return_value=mock_client),
-        patch("metrontagger.talker.mokkari.api") as mock_api_func,
-    ):
-        talker = Talker(
-            "my-token", True, True, username="user", redis_url="redis://localhost:1"
-        )
-        assert isinstance(
-            mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
-        )
-        mock_client.close.assert_called_once_with()
-        assert talker._redis_client is None
-    assert "Unable to connect to Redis" in mock_warning.call_args.args[0]
-
-
-@patch("metrontagger.talker.UIPresenter.print_warning")
-def test_talker_with_invalid_redis_url_falls_back(mock_warning):
-    """Test an invalid Redis URL falls back to the local rate limiter."""
-    with patch("metrontagger.talker.mokkari.api") as mock_api_func:
-        Talker("my-token", True, True, username="user", redis_url="bogus://nowhere")
-        assert isinstance(
-            mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
-        )
-    assert "Invalid Redis URL" in mock_warning.call_args.args[0]
-
-
-@patch("metrontagger.talker.UIPresenter.print_warning")
-def test_talker_without_redis_installed_falls_back(mock_warning):
-    """Test a missing redis package falls back to the local rate limiter."""
-    with (
-        patch.dict("sys.modules", {"redis": None}),
-        patch("metrontagger.talker.mokkari.api") as mock_api_func,
-    ):
-        Talker("my-token", True, True, username="user", redis_url="redis://localhost:6379/0")
-        assert isinstance(
-            mock_api_func.call_args.kwargs["rate_limiter"], HeaderPacedRateLimiter
-        )
-    assert "metron-tagger[redis]" in mock_warning.call_args.args[0]
 
 
 def test_talker_close_closes_api_session(talker, mock_api):
@@ -982,7 +240,7 @@ def test_talker_create_choice_list():
 
 def test_talker_handle_existing_id_metron():
     """Test handling existing Metron ID."""
-    talker = Talker("my-token", True, True)
+    talker = Talker("my-token", [MetadataFormat.COMIC_INFO, MetadataFormat.METRON_INFO])
     result = talker._handle_existing_id(InfoSource.METRON, 123)
     assert result == 123
 
@@ -996,12 +254,12 @@ def test_talker_handle_existing_id_comic_vine(talker):
 
 def test_talker_handle_existing_id_unknown():
     """Test handling unknown source ID."""
-    talker = Talker("my-token", True, True)
+    talker = Talker("my-token", [MetadataFormat.COMIC_INFO, MetadataFormat.METRON_INFO])
     result = talker._handle_existing_id(InfoSource.UNKNOWN, 123)
     assert result is None
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_get_existing_metadata_id_success(mock_comic_class, talker):
     """Test successful extraction of existing metadata ID."""
     mock_comic = Mock()
@@ -1020,7 +278,7 @@ def test_talker_get_existing_metadata_id_success(mock_comic_class, talker):
         assert result == (InfoSource.METRON, 123, datetime(2023, 6, 15, tzinfo=tzinfo))
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_get_existing_metadata_id_comic_vine_no_modified(mock_comic_class, talker):
     """Test that Comic Vine source returns None for modified."""
     mock_comic = Mock()
@@ -1039,7 +297,7 @@ def test_talker_get_existing_metadata_id_comic_vine_no_modified(mock_comic_class
         assert result == (InfoSource.COMIC_VINE, 456, None)
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_get_existing_metadata_id_no_metadata(mock_comic_class, talker):
     """Test extraction when no metadata exists."""
     mock_comic = Mock()
@@ -1052,7 +310,7 @@ def test_talker_get_existing_metadata_id_no_metadata(mock_comic_class, talker):
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_search_by_filename_multiple_matches_skip_enabled(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -1080,7 +338,7 @@ def test_search_by_filename_multiple_matches_skip_enabled(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_search_by_filename_multiple_matches_skip_disabled(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -1108,7 +366,7 @@ def test_search_by_filename_multiple_matches_skip_disabled(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_search_by_filename_single_match_within_hamming_skip_enabled(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -1133,7 +391,7 @@ def test_search_by_filename_single_match_within_hamming_skip_enabled(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_search_by_filename_single_match_outside_hamming_skip_enabled(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -1158,7 +416,7 @@ def test_search_by_filename_single_match_outside_hamming_skip_enabled(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_search_by_filename_single_match(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -1180,7 +438,7 @@ def test_talker_search_by_filename_single_match(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_search_by_filename_no_matches(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -1201,7 +459,7 @@ def test_talker_search_by_filename_no_matches(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_search_by_filename_multiple_matches(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -1222,7 +480,7 @@ def test_talker_search_by_filename_multiple_matches(
         assert len(talker.match_results.multiple_matches) == 1
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_write_metadata_formats_success(mock_comic_class, talker):
     """Test successful metadata writing."""
     mock_comic = Mock()
@@ -1237,7 +495,7 @@ def test_talker_write_metadata_formats_success(mock_comic_class, talker):
     assert len(result) == 2
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_write_issue_md_success(mock_comic_class, talker, sample_path):
     """Test successful issue metadata writing."""
     mock_comic = Mock()
@@ -1272,7 +530,7 @@ def test_talker_write_issue_md_api_error(talker, sample_path):
         assert error_calls
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_write_issue_md_with_if_modified_since(mock_comic_class, talker, sample_path):
     """Test issue metadata writing passes if_modified_since to API."""
     mock_comic = Mock()
@@ -1318,36 +576,34 @@ def test_talker_write_issue_md_not_modified_no_message_without_modified(talker, 
         assert not info_calls
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_should_skip_existing_metadata_true(mock_comic_class, talker):
     """Test skipping file with existing metadata."""
     mock_comic = Mock()
     mock_comic.has_metadata.return_value = True
     mock_comic_class.return_value = mock_comic
 
-    args = Mock()
-    args.ignore_existing = True
-
-    result = talker._should_skip_existing_metadata(args, mock_comic)
+    result = talker._should_skip_existing_metadata(
+        mock_comic, ProcessingConfig(ignore_existing=True)
+    )
     assert result is True
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_should_skip_existing_metadata_false(mock_comic_class, talker):
     """Test not skipping file without ignore flag."""
     mock_comic = Mock()
     mock_comic.has_metadata.return_value = True
     mock_comic_class.return_value = mock_comic
 
-    args = Mock()
-    args.ignore_existing = False
-
-    result = talker._should_skip_existing_metadata(args, mock_comic)
+    result = talker._should_skip_existing_metadata(
+        mock_comic, ProcessingConfig(ignore_existing=False)
+    )
     assert result is False
 
 
 @patch("metrontagger.talker.questionary.print")
-@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.ui.create_print_title")
 def test_post_process_matches_displays_skipped(mock_create_title, mock_print, talker):
     """Test that _post_process_matches displays skipped matches."""
     # Add some skipped matches
@@ -1373,7 +629,7 @@ def test_post_process_matches_displays_skipped(mock_create_title, mock_print, ta
 
 
 @patch("metrontagger.talker.questionary.print")
-@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.ui.create_print_title")
 def test_post_process_matches_no_skipped(mock_create_title, talker):
     """Test that _post_process_matches doesn't display skipped section when empty."""
     # Don't add any skipped matches
@@ -1388,9 +644,9 @@ def test_post_process_matches_no_skipped(mock_create_title, talker):
     assert len(title_calls) == 0
 
 
-@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.ui.create_print_title")
 @patch("metrontagger.talker.questionary.print")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_identify_comics_with_skip_multiple_enabled(
     mock_comic_class,
     mock_print,  # noqa: ARG001
@@ -1404,11 +660,9 @@ def test_identify_comics_with_skip_multiple_enabled(
     mock_comic.has_metadata.return_value = False
     mock_comic_class.return_value = mock_comic
 
-    args = Mock()
-    args.ignore_existing = False
-    args.accept_only = False
-    args.skip_multiple = True
-    args.id = None
+    config = ProcessingConfig(
+        ignore_existing=False, accept_only=False, skip_multiple=True, series_id=None
+    )
 
     file_list = [Path("test1.cbz"), Path("test2.cbz")]
 
@@ -1420,7 +674,7 @@ def test_identify_comics_with_skip_multiple_enabled(
         ) as mock_process,
         patch.object(talker, "_post_process_matches"),
     ):
-        talker.identify_comics(args, file_list)
+        talker.identify_comics(file_list, config)
 
         # Verify _process_file was called with correct ProcessingConfig
         assert mock_process.call_count == 2
@@ -1431,9 +685,9 @@ def test_identify_comics_with_skip_multiple_enabled(
             assert config.skip_multiple is True
 
 
-@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.ui.create_print_title")
 @patch("metrontagger.talker.questionary.print")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_identify_comics_with_skip_multiple_disabled(
     mock_comic_class,
     mock_print,  # noqa: ARG001
@@ -1447,11 +701,9 @@ def test_identify_comics_with_skip_multiple_disabled(
     mock_comic.has_metadata.return_value = False
     mock_comic_class.return_value = mock_comic
 
-    args = Mock()
-    args.ignore_existing = False
-    args.accept_only = False
-    args.skip_multiple = False
-    args.id = None
+    config = ProcessingConfig(
+        ignore_existing=False, accept_only=False, skip_multiple=False, series_id=None
+    )
 
     file_list = [Path("test.cbz")]
 
@@ -1463,7 +715,7 @@ def test_identify_comics_with_skip_multiple_disabled(
         ) as mock_process,
         patch.object(talker, "_post_process_matches"),
     ):
-        talker.identify_comics(args, file_list)
+        talker.identify_comics(file_list, config)
 
         # Verify _process_file was called with correct ProcessingConfig
         mock_process.assert_called_once()
@@ -1474,28 +726,29 @@ def test_identify_comics_with_skip_multiple_disabled(
         assert config.skip_multiple is False
 
 
-@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.ui.create_print_title")
 @patch("metrontagger.talker.questionary.print")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_identify_comics_with_ignore_modified_enabled(
     mock_comic_class,
     mock_print,  # noqa: ARG001
     mock_create_title,  # noqa: ARG001
     talker,
 ):
-    """Test identify_comics wires args.ignore_modified into ProcessingConfig."""
+    """Test identify_comics passes ignore_modified through to each file."""
     mock_comic = Mock()
     mock_comic.is_writable.return_value = True
     mock_comic.seems_to_be_a_comic_archive.return_value = True
     mock_comic.has_metadata.return_value = False
     mock_comic_class.return_value = mock_comic
 
-    args = Mock()
-    args.ignore_existing = False
-    args.accept_only = False
-    args.skip_multiple = False
-    args.ignore_modified = True
-    args.id = None
+    config = ProcessingConfig(
+        ignore_existing=False,
+        accept_only=False,
+        skip_multiple=False,
+        ignore_modified=True,
+        series_id=None,
+    )
 
     file_list = [Path("test.cbz")]
 
@@ -1507,7 +760,7 @@ def test_identify_comics_with_ignore_modified_enabled(
         ) as mock_process,
         patch.object(talker, "_post_process_matches"),
     ):
-        talker.identify_comics(args, file_list)
+        talker.identify_comics(file_list, config)
 
         mock_process.assert_called_once()
         call_args = mock_process.call_args
@@ -1526,7 +779,7 @@ def test_talker_process_file_ignore_modified_drops_date(mock_print, talker):  # 
     modified = datetime(2023, 6, 15, tzinfo=tzinfo)
 
     with (
-        patch.object(talker, "_create_comic", return_value=mock_comic),
+        patch("metrontagger.talker.open_comic", return_value=mock_comic),
         patch.object(
             talker,
             "_get_existing_metadata_id",
@@ -1550,7 +803,7 @@ def test_talker_process_file_keeps_modified_by_default(mock_print, talker):  # n
     modified = datetime(2023, 6, 15, tzinfo=tzinfo)
 
     with (
-        patch.object(talker, "_create_comic", return_value=mock_comic),
+        patch("metrontagger.talker.open_comic", return_value=mock_comic),
         patch.object(
             talker,
             "_get_existing_metadata_id",
@@ -1566,7 +819,7 @@ def test_talker_process_file_keeps_modified_by_default(mock_print, talker):  # n
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_skip_multiple_with_accept_only_both_enabled(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -1592,7 +845,7 @@ def test_skip_multiple_with_accept_only_both_enabled(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_skip_multiple_with_series_id_filter(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -1616,7 +869,7 @@ def test_skip_multiple_with_series_id_filter(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_skip_multiple_with_hamming_filter_reduces_to_single(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -1646,9 +899,9 @@ def test_skip_multiple_with_hamming_filter_reduces_to_single(
         assert len(talker.match_results.skipped_matches) == 0
 
 
-@patch("metrontagger.talker.create_print_title")
+@patch("metrontagger.ui.create_print_title")
 @patch("metrontagger.talker.questionary.print")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_identify_comics_success(mock_comic_class, _, mock_create_title, talker):  # noqa: PT019
     """Test successful comic identification."""
     mock_comic = Mock()
@@ -1659,10 +912,7 @@ def test_talker_identify_comics_success(mock_comic_class, _, mock_create_title, 
     mock_comic.write_metadata.return_value = True
     mock_comic_class.return_value = mock_comic
 
-    args = Mock()
-    args.ignore_existing = False
-    args.accept_only = False
-    args.id = None
+    config = ProcessingConfig(ignore_existing=False, accept_only=False, series_id=None)
 
     file_list = [Path("test.cbz")]
 
@@ -1675,7 +925,7 @@ def test_talker_identify_comics_success(mock_comic_class, _, mock_create_title, 
         patch.object(talker, "_write_issue_md"),
         patch.object(talker, "_post_process_matches"),
     ):
-        talker.identify_comics(args, file_list)
+        talker.identify_comics(file_list, config)
         mock_create_title.assert_called()
 
 
@@ -1698,14 +948,13 @@ def test_talker_retrieve_single_issue_prints_rate_limit_status(talker, sample_pa
 
 def test_talker_identify_comics_prints_rate_limit_status(talker):
     """Test that identify_comics reports the rate limit status after processing."""
-    args = Mock()
-    args.id = None
+    config = ProcessingConfig(series_id=None)
 
     with (
         patch.object(talker, "_post_process_matches"),
         patch.object(talker, "_print_rate_limit_status") as mock_print_rate_limit,
     ):
-        talker.identify_comics(args, [])
+        talker.identify_comics([], config)
         mock_print_rate_limit.assert_called_once()
 
 
@@ -1721,19 +970,19 @@ def test_talker_print_rate_limit_status(talker):
         mock_print.assert_called_once_with(4823, 5000, reset)
 
 
-def test_ui_presenter_print_rate_limit_status():
+def test_talker_presenter_print_rate_limit_status():
     """Test that the rate limit message is printed when limit data is known."""
     reset = datetime(2026, 7, 21, tzinfo=UTC)
     with patch("metrontagger.talker.questionary.print") as mock_print:
-        UIPresenter.print_rate_limit_status(4823, 5000, reset)
+        TalkerPresenter.print_rate_limit_status(4823, 5000, reset)
         mock_print.assert_called_once()
         assert "4,823/5,000 daily requests remaining" in mock_print.call_args[0][0]
 
 
-def test_ui_presenter_print_rate_limit_status_without_reset():
+def test_talker_presenter_print_rate_limit_status_without_reset():
     """Test that the message omits the reset time when it isn't known."""
     with patch("metrontagger.talker.questionary.print") as mock_print:
-        UIPresenter.print_rate_limit_status(4823, 5000, None)
+        TalkerPresenter.print_rate_limit_status(4823, 5000, None)
         mock_print.assert_called_once()
         msg = mock_print.call_args[0][0]
         assert "4,823/5,000 daily requests remaining" in msg
@@ -1748,17 +997,17 @@ def test_ui_presenter_print_rate_limit_status_without_reset():
         (None, None),
     ],
 )
-def test_ui_presenter_print_rate_limit_status_unknown(remaining, limit):
+def test_talker_presenter_print_rate_limit_status_unknown(remaining, limit):
     """Test that nothing is printed when the sustained limit isn't known yet."""
     with patch("metrontagger.talker.questionary.print") as mock_print:
-        UIPresenter.print_rate_limit_status(remaining, limit, None)
+        TalkerPresenter.print_rate_limit_status(remaining, limit, None)
         mock_print.assert_not_called()
 
 
 # Edge cases and error handling
 @patch("metrontagger.talker.comicfn2dict", return_value={})
 @patch("metrontagger.talker.create_query_params", return_value=None)
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_search_by_filename_parse_error(
     mock_comic_class,
     mock_create_params,  # noqa: ARG001
@@ -1775,7 +1024,7 @@ def test_talker_search_by_filename_parse_error(
     assert search_result.has_multiple_matches is False
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_process_file_not_writable(mock_comic_class, talker):
     """Test processing file that's not writable."""
     mock_comic = Mock()
@@ -1796,365 +1045,9 @@ def test_info_source_enum():
     assert InfoSource.UNKNOWN.name == "UNKNOWN"
 
 
-# Tests for _handle_api_call method
-def test_handle_api_call_success(talker):
-    """Test successful API call."""
-    mock_call = Mock(return_value="success")
-    result = talker._handle_api_call(mock_call)
-    assert result == "success"
-    mock_call.assert_called_once()
-
-
-def test_handle_api_call_rate_limit_no_retry_after(talker):
-    """Test rate limit error with no retry_after attribute."""
-    error = RateLimitError("Rate limit exceeded")
-    mock_call = Mock(side_effect=error)
-
-    result = talker._handle_api_call(mock_call)
-    assert result is None
-    mock_call.assert_called_once()
-
-
-def test_handle_api_call_rate_limit_zero_retry_after(talker):
-    """Test rate limit error with retry_after = 0."""
-    error = RateLimitError("Rate limit exceeded", retry_after=0)
-    mock_call = Mock(side_effect=error)
-
-    result = talker._handle_api_call(mock_call)
-    assert result is None
-    mock_call.assert_called_once()
-
-
-@patch("metrontagger.talker.UIPresenter.print_error")
-def test_handle_api_call_redis_error_stops_processing(mock_error, talker):
-    """Test a Redis rate limiter error stops further processing."""
-    talker._redis_errors = (redis.RedisError,)
-    mock_call = Mock(side_effect=redis.ConnectionError("refused"))
-
-    result = talker._handle_api_call(mock_call, "Failed to retrieve data")
-
-    assert result is None
-    assert talker._stop_processing is True
-    assert "Redis rate limiter error" in mock_error.call_args.args[0]
-
-
-def test_handle_api_call_redis_error_not_caught_without_redis(talker):
-    """Test Redis errors aren't swallowed when no Redis rate limiter is in use."""
-    mock_call = Mock(side_effect=redis.ConnectionError("refused"))
-
-    with pytest.raises(redis.ConnectionError):
-        talker._handle_api_call(mock_call)
-
-
-@patch("metrontagger.talker.UIPresenter.print_error")
-@patch("metrontagger.talker.time.sleep")
-def test_handle_api_call_redis_error_on_retry_stops_processing(mock_sleep, mock_error, talker):
-    """Test a Redis error raised while retrying after a rate limit stops processing."""
-    talker._redis_errors = (redis.RedisError,)
-    error = RateLimitError("Rate limit exceeded", retry_after=30)
-    mock_call = Mock(side_effect=[error, redis.ConnectionError("refused")])
-
-    result = talker._handle_api_call(mock_call)
-
-    assert result is None
-    assert talker._stop_processing is True
-    mock_sleep.assert_called_once_with(32)
-    assert "Redis rate limiter error" in mock_error.call_args.args[0]
-
-
-@patch("metrontagger.talker.UIPresenter.print_error")
-@patch("metrontagger.talker.time.sleep")
-def test_handle_api_call_redis_error_on_second_retry_stops_processing(
-    mock_sleep, mock_error, talker
-):
-    """Test a Redis error raised on the second short rate-limit retry stops processing."""
-    talker._redis_errors = (redis.RedisError,)
-    mock_call = Mock(
-        side_effect=[
-            RateLimitError("Rate limit exceeded", retry_after=30),
-            RateLimitError("Rate limit exceeded", retry_after=10),
-            redis.ConnectionError("refused"),
-        ]
-    )
-
-    result = talker._handle_api_call(mock_call)
-
-    assert result is None
-    assert talker._stop_processing is True
-    assert mock_call.call_count == 3
-    assert mock_sleep.call_count == 2
-    assert "Redis rate limiter error" in mock_error.call_args.args[0]
-
-
-@patch("metrontagger.talker.time.sleep")
-def test_handle_api_call_rate_limit_short_delay_success(mock_sleep, talker):
-    """Test rate limit with short delay (< 60s) that succeeds on retry."""
-    error = RateLimitError("Rate limit exceeded", retry_after=30)
-    mock_call = Mock(side_effect=[error, "success"])
-
-    result = talker._handle_api_call(mock_call)
-
-    assert result == "success"
-    mock_sleep.assert_called_once_with(32)
-    assert mock_call.call_count == 2
-
-
-@patch("metrontagger.talker.time.sleep")
-def test_handle_api_call_rate_limit_short_delay_retry_fails(mock_sleep, talker):
-    """Test rate limit with short delay (< 60s) that fails on retry."""
-    error = RateLimitError("Rate limit exceeded", retry_after=45)
-    retry_error = ApiError("API error on retry")
-    mock_call = Mock(side_effect=[error, retry_error])
-
-    result = talker._handle_api_call(mock_call)
-
-    assert result is None
-    mock_sleep.assert_called_once_with(47)
-    assert mock_call.call_count == 2
-
-
-@patch("metrontagger.talker.questionary.confirm")
-@patch("metrontagger.talker.time.sleep")
-@patch("metrontagger.talker.time.monotonic")
-def test_handle_api_call_rate_limit_long_delay_user_confirms_success(
-    mock_monotonic, mock_sleep, mock_confirm, talker
-):
-    """Test rate limit with long delay (>= 60s) where user confirms and retry succeeds."""
-    mock_monotonic.side_effect = [1000.0, 1000.0]  # no time spent answering the prompt
-    error = RateLimitError("Rate limit exceeded", retry_after=120)
-    mock_call = Mock(side_effect=[error, "success"])
-    mock_confirm.return_value.ask.return_value = True
-
-    result = talker._handle_api_call(mock_call)
-
-    assert result == "success"
-    mock_sleep.assert_called_once_with(122)
-    mock_confirm.assert_called_once()
-    assert mock_call.call_count == 2
-    assert talker._stop_processing is False
-
-
-@patch("metrontagger.talker.questionary.confirm")
-@patch("metrontagger.talker.time.sleep")
-@patch("metrontagger.talker.time.monotonic")
-def test_handle_api_call_rate_limit_long_delay_user_confirms_retry_fails(
-    mock_monotonic, mock_sleep, mock_confirm, talker
-):
-    """Test rate limit with long delay (>= 60s) where user confirms but retry fails."""
-    mock_monotonic.side_effect = [1000.0, 1000.0]  # no time spent answering the prompt
-    error = RateLimitError("Rate limit exceeded", retry_after=90)
-    retry_error = RateLimitError("Still rate limited")
-    mock_call = Mock(side_effect=[error, retry_error])
-    mock_confirm.return_value.ask.return_value = True
-
-    result = talker._handle_api_call(mock_call)
-
-    assert result is None
-    mock_sleep.assert_called_once_with(92)
-    mock_confirm.assert_called_once()
-    assert mock_call.call_count == 2
-    assert talker._stop_processing is False
-
-
-@patch("metrontagger.talker.questionary.confirm")
-@patch("metrontagger.talker.time.sleep")
-@patch("metrontagger.talker.time.monotonic")
-def test_handle_api_call_rate_limit_long_delay_deducts_time_spent_answering(
-    mock_monotonic, mock_sleep, mock_confirm, talker
-):
-    """Time spent waiting for the user's answer is deducted from the retry sleep."""
-    # 35 seconds pass between when retry_after is known and when the user answers.
-    mock_monotonic.side_effect = [1000.0, 1035.0]
-    error = RateLimitError("Rate limit exceeded", retry_after=120)
-    mock_call = Mock(side_effect=[error, "success"])
-    mock_confirm.return_value.ask.return_value = True
-
-    result = talker._handle_api_call(mock_call)
-
-    assert result == "success"
-    # 120 - 35 elapsed + 2s buffer = 87
-    mock_sleep.assert_called_once_with(87)
-
-
-@patch("metrontagger.talker.questionary.confirm")
-@patch("metrontagger.talker.time.sleep")
-@patch("metrontagger.talker.time.monotonic")
-def test_handle_api_call_rate_limit_long_delay_answer_exceeds_retry_after(
-    mock_monotonic, mock_sleep, mock_confirm, talker
-):
-    """If the user takes longer than retry_after to answer, don't sleep a negative amount."""
-    # 150 seconds pass, more than the 120s retry_after.
-    mock_monotonic.side_effect = [1000.0, 1150.0]
-    error = RateLimitError("Rate limit exceeded", retry_after=120)
-    mock_call = Mock(side_effect=[error, "success"])
-    mock_confirm.return_value.ask.return_value = True
-
-    result = talker._handle_api_call(mock_call)
-
-    assert result == "success"
-    # elapsed already exceeds retry_after, so only the buffer remains
-    mock_sleep.assert_called_once_with(2)
-
-
-@patch("metrontagger.talker.questionary.confirm")
-def test_handle_api_call_rate_limit_long_delay_user_declines(mock_confirm, talker):
-    """Test rate limit with long delay (>= 60s) where user declines to wait."""
-    error = RateLimitError("Rate limit exceeded", retry_after=300)
-    mock_call = Mock(side_effect=error)
-    mock_confirm.return_value.ask.return_value = False
-
-    result = talker._handle_api_call(mock_call)
-
-    assert result is None
-    mock_confirm.assert_called_once()
-    assert mock_call.call_count == 1
-    assert talker._stop_processing is True
-
-
-def test_handle_api_call_api_error(talker):
-    """Test handling of ApiError."""
-    error = ApiError("API error occurred")
-    mock_call = Mock(side_effect=error)
-
-    result = talker._handle_api_call(mock_call, error_context="Test API call")
-
-    assert result is None
-    mock_call.assert_called_once()
-    assert talker._stop_processing is False
-
-
-@pytest.mark.parametrize("status_code", [400, 401])
-def test_handle_api_call_fatal_http_error_stops_processing(talker, status_code):
-    """A 400 or 401 response should stop further tagging, not just this call."""
-    error = create_http_api_error(status_code)
-    mock_call = Mock(side_effect=error)
-
-    result = talker._handle_api_call(mock_call, error_context="Test API call")
-
-    assert result is None
-    assert talker._stop_processing is True
-
-
-@pytest.mark.parametrize("status_code", [403, 404, 500, 503])
-def test_handle_api_call_non_fatal_http_error_does_not_stop_processing(talker, status_code):
-    """Other HTTP errors are logged but shouldn't halt processing of remaining files."""
-    error = create_http_api_error(status_code)
-    mock_call = Mock(side_effect=error)
-
-    result = talker._handle_api_call(mock_call, error_context="Test API call")
-
-    assert result is None
-    assert talker._stop_processing is False
-
-
-def test_get_http_status_code_from_chained_http_error(talker):
-    """Status code is recovered from the HTTPError that ApiError was raised from."""
-    error = create_http_api_error(401)
-    assert talker._get_http_status_code(error) == 401
-
-
-def test_get_http_status_code_without_cause_returns_none(talker):
-    """An ApiError with no chained HTTPError (e.g. JSON decode failure) has no status code."""
-    error = ApiError("Invalid JSON response")
-    assert talker._get_http_status_code(error) is None
-
-
-# Tests for _retry_api_call method
-def test_retry_api_call_success(talker):
-    """Test successful retry."""
-    mock_call = Mock(return_value="retry success")
-    result = talker._retry_api_call(mock_call)
-    assert result == "retry success"
-    mock_call.assert_called_once()
-
-
-def test_retry_api_call_rate_limit_error(talker):
-    """Test retry that fails with RateLimitError."""
-    error = RateLimitError("Still rate limited")
-    mock_call = Mock(side_effect=error)
-
-    result = talker._retry_api_call(mock_call)
-    assert result is None
-    mock_call.assert_called_once()
-
-
-def test_retry_api_call_api_error(talker):
-    """Test retry that fails with ApiError."""
-    error = ApiError("API error")
-    mock_call = Mock(side_effect=error)
-
-    result = talker._retry_api_call(mock_call)
-    assert result is None
-    mock_call.assert_called_once()
-    assert talker._stop_processing is False
-
-
-def test_retry_api_call_fatal_http_error_stops_processing(talker):
-    """A 401 hit during a retry should also stop further processing."""
-    error = create_http_api_error(401)
-    mock_call = Mock(side_effect=error)
-
-    result = talker._retry_api_call(mock_call)
-    assert result is None
-    assert talker._stop_processing is True
-
-
-@patch("metrontagger.talker.time.sleep")
-def test_retry_api_call_fatal_http_error_after_short_rate_limit_wait(mock_sleep, talker):
-    """A fatal error hit on the second attempt (after a short rate-limit wait) also stops."""
-    rate_limit_error = RateLimitError("Rate limit exceeded", retry_after=10)
-    fatal_error = create_http_api_error(400)
-    mock_call = Mock(side_effect=[rate_limit_error, fatal_error])
-
-    result = talker._retry_api_call(mock_call)
-
-    assert result is None
-    assert talker._stop_processing is True
-    assert mock_call.call_count == 2
-    mock_sleep.assert_called_once_with(12)
-
-
 # Cover-first search
 BOBA_FETT = Path("Star Wars - The Book of Boba Fett 005 (2027) (Digital).cbz")
 BOBA_FETT_SERIES = "Star Wars: The Book of Boba Fett"
-SEARCH_HASH = hex_to_hash("0000000000000000")
-
-
-def hash_at_distance(bits: int) -> str:
-    """A cover hash exactly `bits` bits from SEARCH_HASH."""
-    return f"{(1 << bits) - 1:016x}"
-
-
-def test_get_search_hashes_single_cover():
-    """A single cover is searched by its full-cover hash, at the cover-search limit."""
-    with patch.object(
-        CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=("full",)
-    ):
-        assert CoverHashMatcher.get_search_hashes(Mock()) == (("full", COVER_ACCEPT_DISTANCE),)
-
-
-def test_get_search_hashes_double_spread():
-    """A spread is searched by its right then left half, then as a whole.
-
-    The halves are held to the half-cover limit, since one of them is the back
-    cover. The whole cover comes last in case it's a genuinely landscape single cover.
-    """
-    with patch.object(
-        CoverHashMatcher,
-        "get_comic_cover_hashes_cached",
-        return_value=("full", "right", "left"),
-    ):
-        assert CoverHashMatcher.get_search_hashes(Mock()) == (
-            ("right", HALF_COVER_HAMMING_DISTANCE),
-            ("left", HALF_COVER_HAMMING_DISTANCE),
-            ("full", COVER_ACCEPT_DISTANCE),
-        )
-
-
-def test_get_search_hashes_no_cover():
-    """No hashes when the cover can't be hashed."""
-    with patch.object(CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=()):
-        assert CoverHashMatcher.get_search_hashes(Mock()) == ()
 
 
 def test_cover_search_params_defaults_issue_to_one():
@@ -2200,21 +1093,6 @@ def test_cover_search_params_missing_fields(metadata):
     assert Talker._cover_search_params(metadata, None) is None
 
 
-def test_rank_by_distance():
-    """Issues are ranked closest first; ones without a valid hash are dropped."""
-    far = create_mock_base_issue(1, hash_at_distance(12))
-    near = create_mock_base_issue(2, hash_at_distance(2))
-    invalid = [
-        create_mock_base_issue(3, ""),
-        create_mock_base_issue(4, "zzzzzzzzzzzzzzzz"),
-        # Valid hex of another size raises TypeError rather than ValueError.
-        create_mock_base_issue(5, "abcd"),
-        create_mock_base_issue(6, "0" * 64),
-    ]
-    ranked = CoverHashMatcher.rank_by_distance(SEARCH_HASH, [far, *invalid, near])
-    assert [(d, i.id) for d, i in ranked] == [(2, 2), (12, 1)]
-
-
 def cover_issue(issue_id: int, bits: int, series_name: str = BOBA_FETT_SERIES):
     """A search result whose cover is `bits` from SEARCH_HASH, in the filename's series."""
     return create_mock_base_issue(issue_id, hash_at_distance(bits), series_name)
@@ -2242,7 +1120,11 @@ def test_search_by_cover_accepts_clear_closest_match(talker):
 
     assert result == CoverMatches(accepted=issue)
     # The cover search only reports; _process_file records the outcome.
-    assert not talker.match_results.has_results
+    results = talker.match_results
+    assert results.good_matches == []
+    assert results.no_matches == []
+    assert results.multiple_matches == []
+    assert results.skipped_matches == []
     talker.api.issues_list.assert_called_once_with(
         params={
             "number": "5",
@@ -2310,7 +1192,7 @@ def test_search_by_cover_api_error_keeps_earlier_candidates(talker):
     """An API error ends the search but keeps what earlier hashes found."""
     far = cover_issue(1, COVER_ACCEPT_DISTANCE + 2)
     left = hex_to_hash(hash_at_distance(1))
-    with patch.object(talker, "_handle_api_call", side_effect=[[far], None]):
+    with patch.object(talker.client, "call", side_effect=[[far], None]):
         result = search_by_cover(talker, [], hashes=(SEARCH_HASH, left))
     assert result == CoverMatches(candidates=[far])
 
@@ -2338,7 +1220,7 @@ def make_writable_comic():
 def process_file(talker, cover, config=None):
     """Run _process_file with the cover search returning `cover`."""
     with (
-        patch.object(talker, "_create_comic", return_value=make_writable_comic()),
+        patch("metrontagger.talker.open_comic", return_value=make_writable_comic()),
         patch.object(talker, "_get_existing_metadata_id", return_value=None),
         patch.object(talker, "_search_by_cover", return_value=cover),
         patch.object(talker, "_search_by_filename") as by_filename,
@@ -2368,7 +1250,7 @@ def test_process_file_falls_back_with_cover_candidates(talker):
 
 def test_process_file_stops_after_fatal_cover_error(talker):
     """A fatal API error in the cover search doesn't go on to the filename search."""
-    talker._stop_processing = True
+    talker.client.stop_processing = True
     result, by_filename = process_file(talker, CoverMatches())
 
     assert result == SearchResult(issue_id=None, has_multiple_matches=False)
@@ -2427,7 +1309,7 @@ def test_process_file_parses_filename_once(talker):
     """The filename is parsed once and shared by the cover and filename searches."""
     parsed = {"series": "Test", "issue": "1", "year": "2026"}
     with (
-        patch.object(talker, "_create_comic", return_value=make_writable_comic()),
+        patch("metrontagger.talker.open_comic", return_value=make_writable_comic()),
         patch.object(talker, "_get_existing_metadata_id", return_value=None),
         patch("metrontagger.talker.comicfn2dict", return_value=parsed) as parse,
         patch.object(talker, "_search_by_cover", return_value=CoverMatches()) as by_cover,
@@ -2610,7 +1492,7 @@ def test_search_by_filename_api_error_offers_cover_candidates(talker):
     candidate = cover_issue(1, COVER_ACCEPT_DISTANCE + 2)
     with (
         patch("metrontagger.talker.create_query_params", return_value={"number": "1"}),
-        patch.object(talker, "_handle_api_call", return_value=None),
+        patch.object(talker.client, "call", return_value=None),
     ):
         result = talker._search_by_filename(
             BOBA_FETT, Mock(), ProcessingConfig(), {}, [candidate]
@@ -2629,29 +1511,6 @@ def test_search_by_filename_skips_only_after_both_searches(talker):
     assert talker.match_results.skipped_matches == [BOBA_FETT]
 
 
-@pytest.mark.parametrize(
-    ("metron_hash", "expected"),
-    [
-        (hash_at_distance(5), 5),
-        (None, None),
-        ("", None),
-        ("zzzzzzzzzzzzzzzz", None),
-        ("abcd", None),  # a different size raises TypeError
-    ],
-)
-def test_cover_hash_distance(metron_hash, expected):
-    """The distance is None when the Metron hash can't be compared."""
-    assert CoverHashMatcher.distance(SEARCH_HASH, metron_hash) == expected
-
-
-def test_is_within_hamming_distance_wrong_size_hash():
-    """A Metron hash of another size doesn't match, rather than raising TypeError."""
-    with patch.object(
-        CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=(SEARCH_HASH,)
-    ):
-        assert CoverHashMatcher.is_within_hamming_distance(Mock(), "abcd") is False
-
-
 def test_search_by_cover_drops_unrelated_candidates(talker):
     """Same-number covers from unrelated series aren't offered for a comic not on Metron."""
     unrelated = [cover_issue(1, 19, "Hit Comics"), cover_issue(2, 20, "Conan & Dragonero")]
@@ -2668,7 +1527,7 @@ def test_search_by_cover_series_id_keeps_all_candidates(talker):
 
 def test_search_by_cover_after_fatal_error(talker):
     """No cover search request is made after a fatal error for this comic."""
-    talker._stop_processing = True
+    talker.client.stop_processing = True
     assert search_by_cover(talker, [[cover_issue(1, 0)]]) == CoverMatches()
     talker.api.issues_list.assert_not_called()
 
@@ -2687,23 +1546,129 @@ def test_search_by_cover_half_cover_limit(talker, bits, accepted):
     assert result == expected
 
 
-def test_hash_cover_image_hashes_cover_as_displayed():
-    """A portrait cover stored sideways with an EXIF rotation hashes as displayed.
+@pytest.mark.parametrize(
+    ("formats", "existing", "expected"),
+    [
+        ([MetadataFormat.METRON_INFO], {MetadataFormat.COMIC_INFO}, False),
+        ([MetadataFormat.METRON_INFO], {MetadataFormat.METRON_INFO}, True),
+        ([MetadataFormat.COMIC_INFO], {MetadataFormat.METRON_INFO}, False),
+        (
+            [MetadataFormat.COMIC_INFO, MetadataFormat.METRON_INFO],
+            {MetadataFormat.COMIC_INFO},
+            True,
+        ),
+        ([MetadataFormat.COMIC_INFO, MetadataFormat.METRON_INFO], set(), False),
+    ],
+    ids=[
+        "mi_writer_ci_only",
+        "mi_writer_has_mi",
+        "ci_writer_mi_only",
+        "both_has_ci",
+        "untagged",
+    ],
+)
+def test_should_skip_existing_metadata_checks_only_written_formats(
+    formats, existing, expected
+):
+    """--ignore-existing skips a comic only if it has a format this Talker writes."""
+    with patch("metrontagger.metron_client.mokkari.api"):
+        talker = Talker("my-token", formats)
+    comic = Mock()
+    comic.has_metadata.side_effect = lambda fmt: fmt in existing
 
-    Metron's cover is upright, so hashing the stored (sideways) pixels wouldn't match.
-    """
-    portrait = Image.new("RGB", (100, 150), "white")
-    draw = ImageDraw.Draw(portrait)
-    draw.rectangle((10, 10, 60, 40), fill="black")
-    draw.ellipse((30, 80, 90, 140), fill="gray")
-    draw.line((0, 150, 100, 0), fill="black", width=5)
-    stored = portrait.rotate(90, expand=True)
-    exif = Image.Exif()
-    exif[ExifTags.Base.Orientation] = 6  # rotate 90 degrees clockwise to display
-    buf = io.BytesIO()
-    stored.save(buf, format="PNG", exif=exif)
+    result = talker._should_skip_existing_metadata(
+        comic, ProcessingConfig(ignore_existing=True)
+    )
 
-    with Image.open(io.BytesIO(buf.getvalue())) as img:
-        hashes = CoverHashMatcher.hash_cover_image(img)
+    assert result is expected
 
-    assert hashes == (phash(portrait.convert("L")),)
+
+def test_metadata_extractor_invalid_id_without_series():
+    """An invalid ID on metadata with no series is logged without crashing."""
+    md = create_mock_metadata()
+    md.series = None
+
+    with patch("metrontagger.talker.get_issue_id_from_note") as mock_get_id:
+        mock_get_id.return_value = {"source": "Metron", "id": "invalid"}
+        assert MetadataExtractor.get_id_from_comic_info(md) is None
+
+
+@pytest.mark.parametrize(
+    ("series_format", "expected_collection"),
+    [
+        ("Trade Paperback", True),
+        ("Hardcover", True),
+        ("Hard Cover", True),
+        ("Single Issue", False),
+        (None, False),
+    ],
+)
+@patch("metrontagger.comics.Comic")
+def test_write_issue_md_collection_flag(
+    mock_comic_class, talker, sample_path, series_format, expected_collection
+):
+    """A series with no format is written as a non-collection, not a crash."""
+    mock_comic_class.return_value.get_number_of_pages.return_value = 20
+    mock_comic_class.return_value.write_metadata.return_value = True
+    md = Metadata()
+    md.series = Series("Aquaman", format=series_format)
+
+    with (
+        patch.object(talker.metadata_mapper, "map_response_to_metadata", return_value=md),
+        patch.object(talker.ui, "print_metadata_write_success") as mock_success,
+    ):
+        talker._write_issue_md(sample_path, 123)
+
+    assert mock_success.call_args.kwargs["is_collection"] is expected_collection
+
+
+def test_post_process_matches_skips_prompts_after_stop(talker):
+    """Once processing has stopped, multiple matches aren't offered for a choice."""
+    talker.match_results.add_multiple_match(
+        MultipleMatch(Path("a.cbz"), [create_mock_base_issue()])
+    )
+    talker.client.stop_processing = True
+
+    with (
+        patch.object(talker, "_select_choice_from_matches") as mock_select,
+        patch.object(talker.ui, "print_match_results"),
+        patch.object(talker.ui, "print_info") as mock_info,
+    ):
+        talker._post_process_matches()
+
+    mock_select.assert_not_called()
+    mock_info.assert_called_once_with("Skipping the remaining multiple matches.")
+
+
+def test_post_process_matches_stops_after_a_choice_hits_a_fatal_error(talker):
+    """A fatal error while writing one choice stops the prompts for the rest."""
+    for name in ("a.cbz", "b.cbz"):
+        talker.match_results.add_multiple_match(
+            MultipleMatch(Path(name), [create_mock_base_issue()])
+        )
+
+    def fail_fatally(*_args):
+        talker.client.stop_processing = True
+
+    with (
+        patch.object(talker, "_select_choice_from_matches", return_value=123) as mock_select,
+        patch.object(talker, "_write_issue_md", side_effect=fail_fatally),
+        patch.object(talker.ui, "print_match_results"),
+        patch.object(talker.ui, "print_info"),
+    ):
+        talker._post_process_matches()
+
+    assert mock_select.call_count == 1
+
+
+def test_write_issue_md_failed_call_is_not_reported_as_not_modified(talker, sample_path):
+    """An API error isn't also reported as the comic being up to date."""
+    talker.api.issue.side_effect = ApiError("Server error")
+
+    with (
+        patch.object(talker.ui, "print_info") as mock_info,
+        patch.object(talker.ui, "print_error"),
+    ):
+        talker._write_issue_md(sample_path, 123, modified=datetime(2024, 1, 1, tzinfo=UTC))
+
+    assert not any("not been modified" in str(c.args[0]) for c in mock_info.call_args_list)

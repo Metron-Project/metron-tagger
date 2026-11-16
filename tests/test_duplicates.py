@@ -5,13 +5,12 @@ import time
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import pandas as pd
 import pytest
 from darkseid.comic import ComicArchiveError
 from imagehash import average_hash, hex_to_hash
 from PIL import Image, JpegImagePlugin
 
-from metrontagger.duplicates import DuplicateIssue, Duplicates
+from metrontagger.duplicates import DuplicateIssue, Duplicates, DuplicatesPresenter
 
 
 # Fixtures for test data
@@ -92,8 +91,7 @@ def test_duplicates_init_success(sample_files):
     """Test successful initialization of Duplicates class."""
     duplicates = Duplicates(sample_files)
     assert duplicates._file_lst == sample_files
-    assert duplicates._data_frame is None
-    assert len(duplicates._hash_cache) == 0
+    assert duplicates._hash_cache is None
 
 
 def test_duplicates_init_empty_list():
@@ -107,8 +105,7 @@ def test_duplicates_context_manager(sample_files):
     with Duplicates(sample_files) as duplicates:
         assert duplicates._file_lst == sample_files
     # Cache should be cleared after exiting context
-    assert duplicates._data_frame is None
-    assert len(duplicates._hash_cache) == 0
+    assert duplicates._hash_cache is None
 
 
 # Hash calculation tests
@@ -191,7 +188,7 @@ def test_calculate_image_hash_none_page_data():
 
 
 # Comic processing tests
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_process_comic_pages_success(mock_comic_class, sample_files, mock_image_data):
     """Test successful comic page processing."""
     mock_comic = Mock()
@@ -211,7 +208,7 @@ def test_process_comic_pages_success(mock_comic_class, sample_files, mock_image_
         assert pages[0]["hash"] == "hash123"
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_process_comic_pages_hash_failure(mock_comic_class, sample_files):
     """Test comic page processing when hash calculation fails."""
     mock_comic = Mock()
@@ -227,7 +224,7 @@ def test_process_comic_pages_hash_failure(mock_comic_class, sample_files):
         assert not pages
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_process_comic_pages_exception(mock_comic_class, sample_files):
     """Test comic page processing with exception during page retrieval."""
     mock_comic = Mock()
@@ -241,10 +238,29 @@ def test_process_comic_pages_exception(mock_comic_class, sample_files):
     assert not pages
 
 
-# DataFrame building tests
-@patch("metrontagger.duplicates.Comic")
-def test_build_dataframe_success(mock_comic_class, sample_files):
-    """Test successful DataFrame building."""
+# Scanning and duplicate lookup tests
+def _scan_returns(duplicates: Duplicates, pages: list[tuple[str, int, str]]):
+    """Patch `duplicates` to scan the given (path, index, hash) pages instead of comics."""
+    return patch.object(
+        duplicates,
+        "_generate_page_hashes",
+        return_value=iter([{"path": p, "index": i, "hash": h} for p, i, h in pages]),
+    )
+
+
+# hash_b and hash_a each appear on two pages; "unique" on only one.
+SCANNED_PAGES = [
+    ("a.cbz", 1, "hash_b"),
+    ("b.cbz", 2, "hash_b"),
+    ("a.cbz", 3, "hash_a"),
+    ("c.cbz", 1, "hash_a"),
+    ("c.cbz", 2, "unique"),
+]
+
+
+@patch("metrontagger.comics.Comic")
+def test_scan_hashes_every_interior_page(mock_comic_class, sample_files):
+    """A real scan (over mocked comics) hashes each interior page once."""
     mock_comic = Mock()
     mock_comic.path = Path("test.cbz")
     mock_comic.is_writable.return_value = True
@@ -259,22 +275,20 @@ def test_build_dataframe_success(mock_comic_class, sample_files):
         patch.object(duplicates, "_calculate_image_hash", return_value="hash123"),
         patch("metrontagger.duplicates.tqdm", side_effect=lambda x, **kwargs: x),
     ):
-        df = duplicates._build_dataframe()
+        stats = duplicates.get_statistics()
 
-        assert not df.empty
-        assert len(df) == len(sample_files)  # One interior page per file (cover skipped)
-        assert "path" in df.columns
-        assert "index" in df.columns
-        assert "hash" in df.columns
+    # One interior page per file (the cover is skipped), all with the same hash.
+    assert stats["total_pages"] == len(sample_files)
+    assert duplicates.get_distinct_hashes() == ["hash123"]
 
 
-@patch("metrontagger.duplicates.Comic")
-def test_build_dataframe_no_valid_hashes(mock_comic_class, sample_files):
-    """Test DataFrame building when no valid hashes are found."""
+@patch("metrontagger.comics.Comic")
+def test_scan_no_valid_hashes(mock_comic_class, sample_files, caplog):
+    """Pages that can't be hashed are left out; with none left there are no duplicates."""
     mock_comic = Mock()
     mock_comic.is_writable.return_value = True
     mock_comic.can_remove_pages.return_value = True
-    mock_comic.get_number_of_pages.return_value = 1
+    mock_comic.get_number_of_pages.return_value = 2
     mock_comic.get_page.return_value = b"image_data"
     mock_comic_class.return_value = mock_comic
 
@@ -284,131 +298,50 @@ def test_build_dataframe_no_valid_hashes(mock_comic_class, sample_files):
         patch.object(duplicates, "_calculate_image_hash", return_value=None),
         patch("metrontagger.duplicates.tqdm", side_effect=lambda x, **kwargs: x),
     ):
-        df = duplicates._build_dataframe()
-        assert df.empty
+        assert duplicates.get_distinct_hashes() == []
+        assert duplicates.get_statistics()["total_pages"] == 0
+
+    assert "No valid page hashes found" in caplog.text
 
 
-def test_build_dataframe_caching(sample_files):
-    """Test that DataFrame is cached after first build."""
-    duplicates = Duplicates(sample_files)
-    mock_df = pd.DataFrame({"test": [1, 2, 3]})
-    duplicates._data_frame = mock_df
+def test_get_distinct_hashes_only_repeated_hashes_sorted():
+    duplicates = Duplicates([Path("test.cbz")])
 
-    # Should return cached DataFrame without processing
-    result = duplicates._build_dataframe()
-    assert result is mock_df
+    with _scan_returns(duplicates, SCANNED_PAGES):
+        assert duplicates.get_distinct_hashes() == ["hash_a", "hash_b"]
 
 
-# Duplicate detection tests
-def test_get_duplicate_pages_dataframe():
-    """Test getting DataFrame with only duplicate pages."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
+def test_get_comic_list_from_hash_in_scan_order():
+    duplicates = Duplicates([Path("test.cbz")])
 
-    # Mock DataFrame with duplicates
-    test_data = pd.DataFrame(
-        {
-            "path": ["comic1.cbz", "comic2.cbz", "comic3.cbz"],
-            "index": [0, 1, 0],
-            "hash": ["hash1", "hash1", "hash2"],
-        }
-    )
-    duplicates._data_frame = test_data
+    with _scan_returns(duplicates, SCANNED_PAGES):
+        comics = duplicates.get_comic_list_from_hash("hash_b")
 
-    duplicate_df = duplicates.get_duplicate_pages_dataframe()
-
-    # Should only contain rows with hash1 (the duplicate)
-    assert len(duplicate_df) == 2
-    assert all(duplicate_df["hash"] == "hash1")
-
-
-def test_get_duplicate_pages_dataframe_empty():
-    """Test getting duplicate pages when no data exists."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-    duplicates._data_frame = pd.DataFrame()
-
-    result = duplicates.get_duplicate_pages_dataframe()
-    assert result.empty
-
-
-def test_get_distinct_hashes():
-    """Test getting distinct hash values."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-
-    with patch.object(duplicates, "get_duplicate_pages_dataframe") as mock_get_dupes:
-        mock_df = pd.DataFrame({"hash": ["hash1", "hash1", "hash2", "hash2"]})
-        mock_get_dupes.return_value = mock_df
-
-        hashes = duplicates.get_distinct_hashes()
-        assert len(hashes) == 2
-        assert "hash1" in hashes
-        assert "hash2" in hashes
-
-
-def test_get_distinct_hashes_empty():
-    """Test getting distinct hashes when no duplicates exist."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-
-    with patch.object(duplicates, "get_duplicate_pages_dataframe") as mock_get_dupes:
-        mock_get_dupes.return_value = pd.DataFrame()
-
-        hashes = duplicates.get_distinct_hashes()
-        assert hashes == []
-
-
-# Comic info retrieval tests
-def test_get_comic_info_for_hash_found():
-    """Test retrieving comic info for existing hash."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-    duplicates._hash_cache["hash1"] = [{"path": "comic1.cbz", "index": 0}]
-
-    result = duplicates.get_comic_info_for_hash("hash1")
-
-    assert result is not None
-    assert result.path_ == "comic1.cbz"
-    assert result.pages_index == [0]
-
-
-def test_get_comic_info_for_hash_not_found():
-    """Test retrieving comic info for non-existing hash."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-
-    result = duplicates.get_comic_info_for_hash("nonexistent_hash")
-    assert result is None
-
-
-def test_get_comic_list_from_hash():
-    """Test getting list of comics from hash."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-    duplicates._hash_cache["hash1"] = [
-        {"path": "comic1.cbz", "index": 0},
-        {"path": "comic2.cbz", "index": 1},
-    ]
-
-    result = duplicates.get_comic_list_from_hash("hash1")
-
-    assert len(result) == 2
-    assert result[0].path_ == "comic1.cbz"
-    assert result[1].path_ == "comic2.cbz"
+    assert [(c.path_, c.pages_index) for c in comics] == [("a.cbz", [1]), ("b.cbz", [2])]
 
 
 def test_get_comic_list_from_hash_not_found():
-    """Test getting comic list for non-existing hash."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
+    duplicates = Duplicates([Path("test.cbz")])
 
-    result = duplicates.get_comic_list_from_hash("nonexistent_hash")
-    assert result == []
+    with _scan_returns(duplicates, SCANNED_PAGES):
+        assert duplicates.get_comic_list_from_hash("nonexistent_hash") == []
+
+
+@pytest.mark.parametrize("pages", [SCANNED_PAGES, []], ids=["found", "nothing_found"])
+def test_scan_runs_once(pages):
+    """Every lookup shares one scan, even when the scan found nothing."""
+    duplicates = Duplicates([Path("test.cbz")])
+
+    with _scan_returns(duplicates, pages) as mock_generate:
+        duplicates.get_distinct_hashes()
+        duplicates.get_comic_list_from_hash("hash_a")
+        duplicates.get_statistics()
+
+    mock_generate.assert_called_once()
 
 
 # Page deletion tests
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_delete_comic_pages_success(mock_comic_class):
     """Test successful page deletion."""
     mock_comic = Mock()
@@ -417,14 +350,14 @@ def test_delete_comic_pages_success(mock_comic_class):
 
     duplicates_list = [DuplicateIssue("comic1.cbz", [0, 2])]
 
-    with patch("metrontagger.duplicates.questionary"):
+    with patch("metrontagger.ui.questionary"):
         results = Duplicates.delete_comic_pages(duplicates_list)
 
     assert results["comic1.cbz"] is True
     mock_comic.remove_pages.assert_called_once_with([2, 0])  # Reversed order
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_delete_comic_pages_failure(mock_comic_class):
     """Test page deletion failure."""
     mock_comic = Mock()
@@ -433,20 +366,20 @@ def test_delete_comic_pages_failure(mock_comic_class):
 
     duplicates_list = [DuplicateIssue("comic1.cbz", [0])]
 
-    with patch("metrontagger.duplicates.questionary"):
+    with patch("metrontagger.ui.questionary"):
         results = Duplicates.delete_comic_pages(duplicates_list)
 
     assert results["comic1.cbz"] is False
 
 
-# @patch("metrontagger.duplicates.Comic")
+# @patch("metrontagger.comics.Comic")
 # def test_delete_comic_pages_exception(mock_comic_class):
 #     """Test page deletion with exception."""
 #     mock_comic_class.side_effect = ComicArchiveError
 #
 #     duplicates_list = [DuplicateIssue("comic1.cbz", [0])]
 #
-#     with patch("metrontagger.duplicates.questionary"):
+#     with patch("metrontagger.ui.questionary"):
 #         results = Duplicates.delete_comic_pages(duplicates_list)
 #
 #     assert results["comic1.cbz"] is False
@@ -458,6 +391,17 @@ def test_delete_comic_pages_empty_list():
     assert results == {}
 
 
+@patch("metrontagger.comics.Comic")
+def test_show_image_missing_page_data(mock_comic_class):
+    """A page with no image data isn't shown."""
+    mock_comic_class.return_value.get_page.return_value = None
+
+    with patch("metrontagger.duplicates.Image.open") as mock_open:
+        assert Duplicates.show_image(DuplicateIssue("comic1.cbz", [3])) is False
+
+    mock_open.assert_not_called()
+
+
 def test_show_image_no_pages():
     """Test image display with no page indices."""
     duplicate_issue = DuplicateIssue("comic1.cbz", [])
@@ -466,7 +410,7 @@ def test_show_image_no_pages():
     assert result is False
 
 
-# @patch("metrontagger.duplicates.Comic")
+# @patch("metrontagger.comics.Comic")
 # def test_show_image_exception(mock_comic_class):
 #     """Test image display with exception."""
 #     mock_comic = Mock()
@@ -475,7 +419,7 @@ def test_show_image_no_pages():
 #
 #     duplicate_issue = DuplicateIssue("comic1.cbz", [0])
 #
-#     with patch("metrontagger.duplicates.questionary"):
+#     with patch("metrontagger.ui.questionary"):
 #         result = Duplicates.show_image(duplicate_issue)
 #         assert result is False
 
@@ -483,100 +427,52 @@ def test_show_image_no_pages():
 # Statistics tests
 def test_get_statistics():
     """Test getting statistics about duplicate detection."""
-    sample_files = [Path("test1.cbz"), Path("test2.cbz")]
-    duplicates = Duplicates(sample_files)
+    duplicates = Duplicates([Path("test1.cbz"), Path("test2.cbz")])
 
-    # Mock the data
-    test_data = pd.DataFrame(
-        {
-            "path": ["comic1.cbz", "comic2.cbz", "comic3.cbz", "comic4.cbz"],
-            "index": [0, 1, 0, 1],
-            "hash": ["hash1", "hash1", "hash2", "hash3"],
-        }
-    )
-    duplicates._data_frame = test_data
-
-    with patch.object(duplicates, "get_distinct_hashes", return_value=["hash1"]):
+    with _scan_returns(duplicates, SCANNED_PAGES):
         stats = duplicates.get_statistics()
 
-    assert stats["total_pages"] == 4
-    assert stats["duplicate_pages"] == 2  # Only hash1 pages
-    assert stats["unique_duplicate_hashes"] == 1
-    assert stats["comics_processed"] == 2
+    assert stats == {
+        "total_pages": 5,
+        "duplicate_pages": 4,  # hash_a and hash_b pages, not "unique"
+        "unique_duplicate_hashes": 2,
+        "comics_processed": 2,
+    }
 
 
 def test_get_statistics_empty():
     """Test getting statistics with no data."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-    duplicates._data_frame = pd.DataFrame()
+    duplicates = Duplicates([Path("test.cbz")])
 
-    with patch.object(duplicates, "get_distinct_hashes", return_value=[]):
+    with _scan_returns(duplicates, []):
         stats = duplicates.get_statistics()
 
-    assert stats["total_pages"] == 0
-    assert stats["duplicate_pages"] == 0
-    assert stats["unique_duplicate_hashes"] == 0
-    assert stats["comics_processed"] == 1
+    assert stats == {
+        "total_pages": 0,
+        "duplicate_pages": 0,
+        "unique_duplicate_hashes": 0,
+        "comics_processed": 1,
+    }
 
 
 # Cache management tests
-def test_clear_cache(sample_files):
-    """Test cache clearing functionality."""
+def test_clear_cache_forces_rescan(sample_files):
+    """After the cache is cleared, the next lookup scans the comics again."""
     duplicates = Duplicates(sample_files)
 
-    # Set some cached data
-    duplicates._data_frame = pd.DataFrame({"test": [1, 2, 3]})
-    duplicates._hash_cache["test"] = [{"path": "test.cbz", "index": 0}]
+    with _scan_returns(duplicates, SCANNED_PAGES) as mock_generate:
+        duplicates.get_distinct_hashes()
+        duplicates._clear_cache()
+        assert duplicates._hash_cache is None
 
-    duplicates._clear_cache()
+        mock_generate.return_value = iter([])
+        assert duplicates.get_distinct_hashes() == []
 
-    assert duplicates._data_frame is None
-    assert len(duplicates._hash_cache) == 0
-
-
-def test_build_hash_cache():
-    """Test hash cache building."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-
-    test_data = pd.DataFrame(
-        {"path": ["comic1.cbz", "comic2.cbz"], "index": [0, 1], "hash": ["hash1", "hash2"]}
-    )
-    duplicates._data_frame = test_data
-
-    duplicates._build_hash_cache()
-
-    assert "hash1" in duplicates._hash_cache
-    assert "hash2" in duplicates._hash_cache
-    assert duplicates._hash_cache["hash1"][0]["path"] == "comic1.cbz"
-    assert duplicates._hash_cache["hash1"][0]["index"] == 0
-
-
-def test_build_hash_cache_empty():
-    """Test hash cache building with empty DataFrame."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-    duplicates._data_frame = pd.DataFrame()
-
-    duplicates._build_hash_cache()
-
-    assert len(duplicates._hash_cache) == 0
-
-
-def test_build_hash_cache_none():
-    """Test hash cache building with None DataFrame."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-    duplicates._data_frame = None
-
-    duplicates._build_hash_cache()
-
-    assert len(duplicates._hash_cache) == 0
+    assert mock_generate.call_count == 2
 
 
 # Integration-style tests
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_full_duplicate_detection_workflow(mock_comic_class, mock_image_data):
     """Test complete workflow from file list to duplicate detection."""
     sample_files = [Path("comic1.cbz"), Path("comic2.cbz")]
@@ -595,22 +491,15 @@ def test_full_duplicate_detection_workflow(mock_comic_class, mock_image_data):
         patch.object(duplicates, "_calculate_image_hash", return_value="identical_hash"),
         patch("metrontagger.duplicates.tqdm", side_effect=lambda x, **kwargs: x),
     ):
-        # Build the dataframe
-        df = duplicates._build_dataframe()
-        assert len(df) == 2
-
-        # Get duplicates
-        duplicate_df = duplicates.get_duplicate_pages_dataframe()
-        assert len(duplicate_df) == 2  # Both pages are duplicates of each other
-
         # Get distinct hashes
         hashes = duplicates.get_distinct_hashes()
         assert len(hashes) == 1
         assert hashes[0] == "identical_hash"
 
-        # Get comic info
-        comic_info = duplicates.get_comic_info_for_hash("identical_hash")
-        assert comic_info is not None
+        # Get the comics containing the duplicate image
+        comics = duplicates.get_comic_list_from_hash("identical_hash")
+        # One entry per comic; the cover (page 0) isn't scanned.
+        assert [c.pages_index for c in comics] == [[1], [1]]
 
         # Get statistics
         stats = duplicates.get_statistics()
@@ -620,7 +509,7 @@ def test_full_duplicate_detection_workflow(mock_comic_class, mock_image_data):
 
 
 # Error handling tests
-# @patch("metrontagger.duplicates.Comic")
+# @patch("metrontagger.comics.Comic")
 # def test_generate_page_hashes_with_unwritable_comic(mock_comic_class, sample_files):
 #     """Test handling of unwritable comics."""
 #     mock_comic = Mock()
@@ -634,7 +523,7 @@ def test_full_duplicate_detection_workflow(mock_comic_class, mock_image_data):
 #         assert not hashes
 
 
-# @patch("metrontagger.duplicates.Comic")
+# @patch("metrontagger.comics.Comic")
 # def test_generate_page_hashes_with_comic_exception(mock_comic_class, sample_files):
 #     """Test handling of exceptions during comic processing."""
 #     mock_comic_class.side_effect = Exception("Comic creation failed")
@@ -689,7 +578,7 @@ def test_get_page_indices_quick_mode_two_pages(sample_files):
     assert duplicates._get_page_indices(2) == [1]
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_process_comic_pages_quick_mode(mock_comic_class, sample_files, mock_image_data):
     """Test that quick mode only processes expected pages."""
     mock_comic = Mock()
@@ -740,7 +629,7 @@ def test_duplicates_init_max_workers_capped(sample_files):
     assert Duplicates([Path("a.cbz")])._max_workers == 1
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_generate_page_hashes_preserves_file_order(mock_comic_class, sample_files):
     """Test that results follow the file list order even if later comics finish first."""
     delays = {"comic1.cbz": 0.15, "comic2.cbz": 0.05, "comic3.cbz": 0.0}
@@ -761,7 +650,7 @@ def test_generate_page_hashes_preserves_file_order(mock_comic_class, sample_file
     assert [Path(r["path"]).name for r in rows] == [f.name for f in sample_files]
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_generate_page_hashes_skips_bad_comics(mock_comic_class):
     """Test that invalid and read-only comics are skipped without affecting the rest."""
     files = [Path("bad.cbz"), Path("readonly.cbz"), Path("good.cbz")]
@@ -785,7 +674,7 @@ def test_generate_page_hashes_skips_bad_comics(mock_comic_class):
 
 
 @pytest.mark.parametrize("name", ["issue.PDF", "issue.cbr"])
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_generate_page_hashes_skips_unsupported_formats(mock_comic_class, name):
     """Test that comics whose pages can't be removed (e.g. PDFs and RARs) are skipped."""
     files = [Path(name), Path("issue.cbz")]
@@ -805,7 +694,7 @@ def test_generate_page_hashes_skips_unsupported_formats(mock_comic_class, name):
     assert [Path(r["path"]).name for r in rows] == ["issue.cbz"]
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_generate_page_hashes_single_worker_is_serial(mock_comic_class, sample_files):
     """Test that max_workers=1 scans without creating a thread pool."""
     mock_comic_class.side_effect = _fake_comic
@@ -820,3 +709,89 @@ def test_generate_page_hashes_single_worker_is_serial(mock_comic_class, sample_f
 
     mock_executor.assert_not_called()
     assert len(rows) == len(sample_files)
+
+
+# DuplicatesPresenter tests
+@pytest.fixture
+def printed(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Record every message printed through the UI layer."""
+    lines: list[str] = []
+    monkeypatch.setattr(
+        "metrontagger.ui.questionary.print", lambda msg, **_kw: lines.append(str(msg))
+    )
+    return lines
+
+
+def _sized_dup(path: str, pages: list[int], start: int, end: int | None) -> DuplicateIssue:
+    dup = DuplicateIssue(path, pages)
+    dup.starting_size_bytes = start
+    dup.ending_size_bytes = end
+    return dup
+
+
+def test_create_statistics_msg() -> None:
+    msg = DuplicatesPresenter.create_statistics_msg(
+        {
+            "total_pages": 1234,
+            "duplicate_pages": 5,
+            "unique_duplicate_hashes": 2,
+            "comics_processed": 3,
+        }
+    )
+
+    assert "Total Pages Scanned: 1,234" in msg
+    assert "Duplicate Pages Found: 5" in msg
+    assert "Unique Duplicate Images: 2" in msg
+    assert "Comics Processed: 3" in msg
+
+
+def test_print_pre_processing_summary(printed: list[str]) -> None:
+    dups = [
+        _sized_dup("a.cbz", [1, 2], 2048, None),
+        _sized_dup("b.cbz", [3], 1024, None),
+    ]
+
+    DuplicatesPresenter.print_pre_processing_summary(dups)
+
+    out = "\n".join(printed)
+    assert "Comics to process: 2" in out
+    assert "Total duplicate pages to remove: 3" in out
+    assert "Total starting size: 3.00 KB" in out
+
+
+def test_print_summaries_skip_empty_list(printed: list[str]) -> None:
+    DuplicatesPresenter.print_pre_processing_summary([])
+    DuplicatesPresenter.print_post_processing_summary([], {})
+
+    assert printed == []
+
+
+def test_print_post_processing_summary(printed: list[str]) -> None:
+    dups = [
+        _sized_dup("/x/a.cbz", [1, 2], 4096, 2048),
+        _sized_dup("/x/b.cbz", [3], 1024, 1024),
+        _sized_dup("/x/c.cbz", [4], 1024, None),
+    ]
+
+    DuplicatesPresenter.print_post_processing_summary(
+        dups, {"/x/a.cbz": True, "/x/b.cbz": True, "/x/c.cbz": False}
+    )
+
+    out = "\n".join(printed)
+    assert "a.cbz - Removed 2 pages (Saved: 2.00 KB, 50.0%)" in out
+    assert "b.cbz - Removed 1 page\n" in out + "\n"
+    assert "Total pages removed: 3" in out
+    assert "Total space saved: 2.00 KB" in out
+    assert "Average space saved per comic: 1.00 KB" in out
+    assert "FAILED TO PROCESS" in out
+    assert "c.cbz - Failed to remove 1 page" in out
+
+
+def test_print_post_processing_summary_all_failed(printed: list[str]) -> None:
+    DuplicatesPresenter.print_post_processing_summary(
+        [_sized_dup("a.cbz", [1], 1024, None)], {}
+    )
+
+    out = "\n".join(printed)
+    assert "SUCCESSFULLY PROCESSED" not in out
+    assert "a.cbz - Failed to remove 1 page" in out

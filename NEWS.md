@@ -1,5 +1,52 @@
 # 📰 Metron-Tagger News
 
+## Unreleased
+
+## 🚀 Features
+
+- Search by cover hash before falling back to filename search @bpepple (#294)
+- Options that need `--comicinfo` and/or `--metroninfo` (`--missing`,
+  `--delete`, `--online`, `--id`, `--validate`) now stop with a usage error
+  before anything runs, instead of exiting partway through a run. The exit
+  status is now 2.
+
+## 🐛 Bug Fixes
+
+- Online tagging now finds a Metron ID stored only in a comic's ComicInfo.xml
+  when its MetronInfo.xml has no ID. This works around a darkseid caching bug
+  ([darkseid#267](https://github.com/Metron-Project/darkseid/issues/267)).
+- Pressing Ctrl-C at the API token or sort directory prompt no longer saves
+  `None` as that setting. A `None` saved by an earlier version is cleared when
+  the settings load, so you're asked for the token again.
+- Fix a crash after tagging an issue whose series has no format.
+- `--migrate` no longer stops at the first invalid comic; it skips it and
+  migrates the rest.
+- Duplicate page removal could group one comic's pages under another comic whose
+  path contained the first one's (for example, `a.cbz` and `ba.cbz`).
+- A comic with malformed metadata XML is renamed and sorted using its other
+  metadata format, instead of from empty metadata, and `--migrate` reports a
+  malformed ComicInfo.xml instead of migrating it as an empty MetronInfo.xml.
+- Online tagging no longer crashes with a traceback when Metron returns a
+  non-standard HTTP status, such as Cloudflare's 520–524; the error is reported
+  and tagging continues.
+- Tagging an issue from a Hardcover series now shows it as a collection; only
+  Metron's old "Hard Cover" name was recognized.
+- When online tagging stops (an authentication error, or declining to wait out a
+  rate limit), you're no longer asked to choose between the multiple matches
+  found so far, since each choice needs another API request.
+- A re-tag that fails is no longer also reported as "has not been modified since
+  last tagging".
+- An authentication error (HTTP 401) now says to check your API token, rather
+  than a username and password.
+- A setting with an invalid value now uses its default. For example, an
+  unrecognized `rename_use_smart_string_cleanup` value used to turn smart
+  cleanup off; it now leaves it on, the default.
+
+## 🧰 Maintenance
+
+- Drop the pandas dependency.
+- Internal refactoring, more tests, and type checking with pyright.
+
 ## v2.5.1
 
 ## 🚀 Features

@@ -14,7 +14,7 @@ __version__ = version("metron-tagger")
 # Registers a JPEG XL decoder with Pillow when the optional `jxl` extra is installed,
 # so .jxl comic pages can be cover-hashed and duplicate-checked like any other image.
 with suppress(ImportError):
-    from pillow_jxl import JpegXLImagePlugin
+    from pillow_jxl import JpegXLImagePlugin  # pyright: ignore[reportMissingImports]
 
     # The plugin defaults to one decoder thread per CPU core for every image. Duplicate
     # detection already decodes pages in a thread pool, so per-image threading would

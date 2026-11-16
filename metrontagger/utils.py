@@ -1,6 +1,7 @@
 """Some miscellaneous functions"""
 
 __all__ = [
+    "ParsedFilename",
     "cleanup_string",
     "create_print_title",
     "create_query_params",
@@ -16,12 +17,15 @@ from itertools import pairwise
 from logging import getLogger
 from os import environ
 from pathlib import Path, PurePath
-from typing import Any
+from typing import Any, TypeAlias
 
 from darkseid.utils import remove_articles
 from xdg.BaseDirectory import save_config_path
 
 LOGGER = getLogger(__name__)
+
+# A filename parsed by comicfn2dict: series, issue, year and so on, by name.
+ParsedFilename: TypeAlias = dict[str, str | tuple[str, ...]]
 
 
 def get_settings_folder() -> Path:
@@ -144,7 +148,7 @@ def _normalize_issue_number(number: Any) -> str:
     return "½" if issue_str == ".5" else issue_str
 
 
-def search_issue_number(metadata: dict[str, str | tuple[str, ...]]) -> str:
+def search_issue_number(metadata: ParsedFilename) -> str:
     """Return the issue number to search Metron for, from a parsed filename.
 
     A filename without an issue number is searched as #1, since that's usually a
@@ -196,7 +200,9 @@ def series_words(text: str) -> set[str]:
     return set(words) | {first + second for first, second in pairwise(words)}
 
 
-def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str, str] | None:
+def create_query_params(
+    metadata: ParsedFilename,
+) -> dict[str, str | int] | None:
     """Generate query parameters for searching based on provided metadata.
 
     This function creates a dictionary of query parameters using series and issue information from the metadata.

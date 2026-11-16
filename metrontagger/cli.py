@@ -6,10 +6,10 @@ from logging import getLogger
 import questionary
 
 from metrontagger import __version__, init_logging
-from metrontagger.options import make_parser
+from metrontagger.options import check_args, make_parser
 from metrontagger.run import Runner
 from metrontagger.settings import MetronTaggerSettings
-from metrontagger.styles import Styles
+from metrontagger.ui import UIPresenter
 
 LOGGER = getLogger(__name__)
 
@@ -25,33 +25,55 @@ def get_args() -> Namespace:
     """
 
     parser = make_parser()
-    return parser.parse_args()
+    args = parser.parse_args()
+    check_args(parser, args)
+    return args
+
+
+def _ask(question: str) -> str:
+    """Ask the user for text, exiting if they cancel the prompt.
+
+    questionary's `ask()` returns None when the user presses Ctrl-C (after printing
+    "Cancelled by user"), so that's treated as a request to quit rather than an answer.
+
+    Returns:
+        The answer with surrounding whitespace removed; may be empty.
+    """
+    answer = questionary.text(question).ask()
+    if answer is None:
+        raise SystemExit(1)
+    return answer.strip()
 
 
 def _metron_credentials(settings: MetronTaggerSettings) -> None:
-    """Prompt for and store a Metron API token if one isn't already configured."""
-    if settings["metron.auth_token"]:
+    """Prompt for and store a Metron API token if one isn't already configured.
+
+    Exits if no token is given, since online tagging can't work without one.
+    """
+    if settings.get_str("metron.auth_token"):
         return
 
-    questionary.print(
+    UIPresenter.print_info(
         "Metron-Tagger authenticates with a Metron API token. You can generate one "
-        "from your Metron profile page under 'API Tokens'.",
-        style=Styles.INFO,
+        "from your Metron profile page under 'API Tokens'."
     )
-    settings["metron.auth_token"] = questionary.text("What is your Metron API token?").ask()
+    if not (token := _ask("What is your Metron API token?")):
+        UIPresenter.print_error("A Metron API token is needed for --online and --id. Exiting.")
+        raise SystemExit(1)
+    settings["metron.auth_token"] = token
     LOGGER.debug("Added Metron API token")
 
 
 def _set_sort_directory(settings: MetronTaggerSettings) -> None:
-    """Prompt for the default sort directory if not set.
+    """Prompt for the default sort directory if not set, and store it.
 
-    If the default sort directory is not already set in the settings,
-    prompt the user for it and store it.
+    An empty answer isn't stored; sorting then reports that no directory was given.
     """
-    if not settings["sort.directory"]:
-        settings["sort.directory"] = questionary.text(
-            "What is the default sort directory?"
-        ).ask()
+    if settings.get_str("sort.directory"):
+        return
+
+    if sort_dir := _ask("What is the default sort directory?"):
+        settings["sort.directory"] = sort_dir
         LOGGER.debug("Added default sort directory")
 
 
@@ -60,9 +82,6 @@ def main() -> None:
 
     This function parses command line arguments, creates MetronTaggerSettings based on the arguments, initializes a
     Runner with the settings, and runs the main operations of the application.
-
-    Returns:
-        None
     """
     init_logging()
     settings = MetronTaggerSettings()

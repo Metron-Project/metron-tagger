@@ -7,7 +7,7 @@ __all__ = ["FileRenamer"]
 
 import contextlib
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -17,11 +17,10 @@ if TYPE_CHECKING:
 
     from darkseid.metadata import Metadata
 
-import questionary
 from darkseid.issue_string import IssueString
 from darkseid.utils import unique_file
 
-from metrontagger.styles import Styles
+from metrontagger.ui import UIPresenter
 from metrontagger.utils import cleanup_string
 
 
@@ -50,21 +49,15 @@ class TokenType(Enum):
 class FormatMapping:
     """Immutable mapping for format conversions."""
 
-    MAPPING: dict[str, str] = None
-
-    def __post_init__(self):
-        if self.MAPPING is None:
-            object.__setattr__(
-                self,
-                "MAPPING",
-                {
-                    "Hard Cover": "HC",  # Old Metron Value
-                    "Hardcover": "HC",
-                    "Trade Paperback": "TPB",
-                    "Digital Chapters": "Digital Chapter",  # Old Metron Value
-                    "Digital Chapter": "Digital Chapter",
-                },
-            )
+    MAPPING: dict[str, str] = field(
+        default_factory=lambda: {
+            "Hard Cover": "HC",  # Old Metron Value
+            "Hardcover": "HC",
+            "Trade Paperback": "TPB",
+            "Digital Chapters": "Digital Chapter",  # Old Metron Value
+            "Digital Chapter": "Digital Chapter",
+        }
+    )
 
     def get(self, key: str, default: str = "") -> str:
         """Get format mapping with default value."""
@@ -311,7 +304,7 @@ class FileRenamer:
             values[TokenType.SERIES] = md.series.name
             values[TokenType.VOLUME] = md.series.volume
             values[TokenType.ISSUE_COUNT] = md.series.issue_count
-            values[TokenType.FORMAT] = self._format_mapping.get(md.series.format)
+            values[TokenType.FORMAT] = self._format_mapping.get(md.series.format or "")
         else:
             values[TokenType.SERIES] = "Unknown"
             values[TokenType.VOLUME] = 0
@@ -383,10 +376,7 @@ class FileRenamer:
             The path to the renamed comic file, or None if the renaming process is skipped.
         """
         if self._metadata is None:
-            questionary.print(
-                f"Metadata hasn't been set for {comic}. Skipping...",
-                style=Styles.WARNING,
-            )
+            UIPresenter.print_warning(f"Metadata hasn't been set for {comic}. Skipping...")
             return None
 
         new_name = self.determine_name(comic)
@@ -394,20 +384,14 @@ class FileRenamer:
             return None
 
         if new_name == comic.name:
-            questionary.print(
-                f"Filename for '{comic.name}' is already good!",
-                style=Styles.SUCCESS,
-            )
+            UIPresenter.print_success(f"Filename for '{comic.name}' is already good!")
             return None
 
         try:
             unique_name = unique_file(comic.parent / new_name)
             comic.rename(unique_name)
         except OSError as e:
-            questionary.print(
-                f"Failed to rename '{comic.name}': {e}",
-                style=Styles.WARNING,
-            )
+            UIPresenter.print_warning(f"Failed to rename '{comic.name}': {e}")
             return None
         else:
             return unique_name
