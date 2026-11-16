@@ -67,3 +67,61 @@ def test__set_sort_directory(
 
     # Assert
     assert settings["sort.directory"] == expected_sort_dir
+
+
+@pytest.mark.parametrize("answer", [None, "", "   "], ids=["ctrl_c", "empty", "blank"])
+@patch("questionary.print")
+@patch("questionary.text")
+def test__metron_credentials_no_answer_exits_without_saving(
+    mock_text: MagicMock, mock_print: MagicMock, settings: MetronTaggerSettings, answer
+) -> None:
+    """Ctrl-C (ask() returns None) or an empty answer exits, and nothing is saved."""
+    mock_text.return_value.ask.return_value = answer
+
+    with pytest.raises(SystemExit) as exc:
+        _metron_credentials(settings)
+
+    assert exc.value.code == 1
+    assert settings["metron.auth_token"] == ""
+    assert "None" not in settings.settings_file.read_text(encoding="utf-8")
+    # An empty answer is explained; on Ctrl-C questionary already said "Cancelled".
+    printed = " ".join(str(c.args[0]) for c in mock_print.call_args_list)
+    assert ("token is needed" in printed) is (answer is not None)
+
+
+@patch("questionary.print", new=MagicMock())
+@patch("questionary.text")
+def test__metron_credentials_strips_token(
+    mock_text: MagicMock, settings: MetronTaggerSettings
+) -> None:
+    """A pasted token's surrounding whitespace isn't saved."""
+    mock_text.return_value.ask.return_value = "  brand-new-token\n"
+
+    _metron_credentials(settings)
+
+    assert settings["metron.auth_token"] == "brand-new-token"  # noqa: S105
+
+
+@patch("questionary.text")
+def test__set_sort_directory_ctrl_c_exits_without_saving(
+    mock_text: MagicMock, settings: MetronTaggerSettings
+) -> None:
+    mock_text.return_value.ask.return_value = None
+
+    with pytest.raises(SystemExit):
+        _set_sort_directory(settings)
+
+    assert settings["sort.directory"] == ""
+
+
+@pytest.mark.parametrize("answer", ["", "   "], ids=["empty", "blank"])
+@patch("questionary.text")
+def test__set_sort_directory_empty_answer_not_saved(
+    mock_text: MagicMock, settings: MetronTaggerSettings, answer: str
+) -> None:
+    """An empty answer isn't saved, and doesn't exit: the sort step reports it."""
+    mock_text.return_value.ask.return_value = answer
+
+    _set_sort_directory(settings)
+
+    assert settings["sort.directory"] == ""
