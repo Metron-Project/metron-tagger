@@ -1,6 +1,5 @@
 """Tests for the comic-opening and metadata-format helpers."""
 
-import zipfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -16,6 +15,7 @@ from metrontagger.comics import (
     open_comic,
     read_preferred_metadata,
 )
+from tests.fakes import with_malformed_xml
 
 CI = MetadataFormat.COMIC_INFO
 MI = MetadataFormat.METRON_INFO
@@ -210,21 +210,10 @@ def test_iter_metadata_reads_each_format_fresh(fake_comic: Path) -> None:
     assert read == {MI: "From MetronInfo", CI: "From ComicInfo"}
 
 
-def _with_malformed(path: Path, name: str) -> Path:
-    """Replace `name` in the archive at `path` with XML that can't be parsed."""
-    with zipfile.ZipFile(path) as zf:
-        files = {n: zf.read(n) for n in zf.namelist() if n != name}
-    with zipfile.ZipFile(path, "w") as zf:
-        for n, data in files.items():
-            zf.writestr(n, data)
-        zf.writestr(name, "<Broken><Series>no closing tags")
-    return path
-
-
 def test_read_preferred_metadata_falls_back_on_malformed_xml(fake_comic: Path) -> None:
     """Malformed MetronInfo.xml (which darkseid reads as empty) falls back to ComicInfo."""
     assert Comic(fake_comic).write_metadata(_metadata("From ComicInfo"), CI)
-    _with_malformed(fake_comic, "MetronInfo.xml")
+    with_malformed_xml(fake_comic, "MetronInfo.xml")
     assert Comic(fake_comic).has_metadata(MI)
 
     md = read_preferred_metadata(Comic(fake_comic))
@@ -236,7 +225,7 @@ def test_read_preferred_metadata_falls_back_on_malformed_xml(fake_comic: Path) -
 
 def test_read_preferred_metadata_all_malformed_is_none(fake_comic: Path) -> None:
     assert Comic(fake_comic).write_metadata(_metadata("X"), CI)
-    _with_malformed(_with_malformed(fake_comic, "MetronInfo.xml"), "ComicInfo.xml")
+    with_malformed_xml(with_malformed_xml(fake_comic, "MetronInfo.xml"), "ComicInfo.xml")
 
     assert read_preferred_metadata(Comic(fake_comic)) is None
 

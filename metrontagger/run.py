@@ -11,7 +11,13 @@ from darkseid.utils import get_recursive_filelist
 from darkseid.validate import SchemaVersion
 from tqdm import tqdm
 
-from metrontagger.comics import FORMAT_NAMES, format_list, open_comic, read_preferred_metadata
+from metrontagger.comics import (
+    FORMAT_NAMES,
+    format_list,
+    iter_metadata,
+    open_comic,
+    read_preferred_metadata,
+)
 from metrontagger.duplicates import DuplicateIssue, Duplicates, DuplicatesPresenter
 from metrontagger.filerenamer import FileRenamer
 from metrontagger.filesorter import FileSorter
@@ -87,7 +93,13 @@ class Runner:
             if comic.has_metadata(MetadataFormat.COMIC_INFO) and not comic.has_metadata(
                 MetadataFormat.METRON_INFO
             ):
-                md = comic.read_metadata(MetadataFormat.COMIC_INFO)
+                read = next(iter_metadata(comic, [MetadataFormat.COMIC_INFO]), None)
+                if read is None:
+                    UIPresenter.print_error(
+                        f"Unable to read ComicInfo.xml from '{comic}'. Skipping..."
+                    )
+                    continue
+                _, md = read
                 _add_migration_note(md)
                 if comic.write_metadata(md, MetadataFormat.METRON_INFO):
                     UIPresenter.print_success(

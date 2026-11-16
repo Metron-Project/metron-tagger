@@ -518,3 +518,29 @@ def test_call_non_standard_http_status_is_reported_not_raised(mock_error, client
     assert client.call(mock_call, error_context="Failed to retrieve data") is None
     assert client.stop_processing is False
     assert mock_error.call_args.args[0] == "Failed to retrieve data: Web server is down"
+
+
+@patch("metrontagger.ui.UIPresenter.print_error", new=Mock())
+def test_call_records_whether_it_failed(client):
+    """last_call_failed tells a failed call apart from one that returned no data."""
+    client.call(Mock(return_value="ok"))
+    assert client.last_call_failed is False
+
+    client.call(Mock(return_value=None))  # e.g. a 304 Not Modified
+    assert client.last_call_failed is False
+
+    client.call(Mock(side_effect=ApiError("Server error")))
+    assert client.last_call_failed is True
+
+    client.call(Mock(return_value="ok"))
+    assert client.last_call_failed is False
+
+
+@patch("metrontagger.ui.UIPresenter.print_error")
+def test_unauthorized_message_points_at_api_token(mock_error, client):
+    """A 401 sends the user to their API token; password auth no longer exists."""
+    client.call(Mock(side_effect=create_http_api_error(401)))
+
+    message = mock_error.call_args.args[0]
+    assert "API token" in message
+    assert "password" not in message

@@ -85,6 +85,9 @@ class MetronClient:
             rate_limiter=rate_limiter,
         )
         self.stop_processing = False
+        # Whether the most recent `call` failed. A call that returns None either failed
+        # or got no data back (e.g. a 304 Not Modified), and callers can tell which.
+        self.last_call_failed = False
 
     def _create_redis_rate_limiter(
         self, redis_url: str, username: str | None
@@ -192,8 +195,8 @@ class MetronClient:
         LOGGER.error("%s: unrecoverable HTTP %s error: %s", error_context, status_code, error)
         if status_code == HTTPStatus.UNAUTHORIZED:
             msg = (
-                "Metron authentication failed (HTTP 401). Check your username and "
-                "password, or your API token. Stopping further processing."
+                "Metron authentication failed (HTTP 401). Check the API token "
+                "(auth_token) in your settings. Stopping further processing."
             )
         else:
             msg = f"Metron rejected the request (HTTP 400): {error}. Stopping further processing."
@@ -286,9 +289,10 @@ class MetronClient:
             The result of the API call, or None if it didn't succeed.
         """
         context = error_context
+        self.last_call_failed = True
         for attempt in range(MAX_API_ATTEMPTS):
             try:
-                return api_call()
+                result = api_call()
             except RateLimitError as e:
                 delay = self._rate_limit_wait(e, attempt)
             except ApiError as e:
@@ -297,6 +301,9 @@ class MetronClient:
             except self._redis_errors as e:
                 self._handle_redis_error(e, context)
                 return None
+            else:
+                self.last_call_failed = False
+                return result
 
             if delay is None:
                 return None

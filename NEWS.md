@@ -24,12 +24,20 @@
 - Duplicate page removal could group one comic's pages under another comic whose
   path contained the first one's (for example, `a.cbz` and `ba.cbz`).
 - A comic with malformed metadata XML is renamed and sorted using its other
-  metadata format, instead of from empty metadata.
+  metadata format, instead of from empty metadata, and `--migrate` reports a
+  malformed ComicInfo.xml instead of migrating it as an empty MetronInfo.xml.
 - Online tagging no longer crashes with a traceback when Metron returns a
   non-standard HTTP status, such as Cloudflare's 520–524; the error is reported
   and tagging continues.
 - Tagging an issue from a Hardcover series now shows it as a collection; only
   Metron's old "Hard Cover" name was recognized.
+- When online tagging stops (an authentication error, or declining to wait out a
+  rate limit), you're no longer asked to choose between the multiple matches
+  found so far, since each choice needs another API request.
+- A re-tag that fails is no longer also reported as "has not been modified since
+  last tagging".
+- An authentication error (HTTP 401) now says to check your API token, rather
+  than a username and password.
 - A setting with an invalid value now uses its default. For example, an
   unrecognized `rename_use_smart_string_cleanup` value used to turn smart
   cleanup off; it now leaves it on, the default.

@@ -1620,3 +1620,55 @@ def test_write_issue_md_collection_flag(
         talker._write_issue_md(sample_path, 123)
 
     assert mock_success.call_args.kwargs["is_collection"] is expected_collection
+
+
+def test_post_process_matches_skips_prompts_after_stop(talker):
+    """Once processing has stopped, multiple matches aren't offered for a choice."""
+    talker.match_results.add_multiple_match(
+        MultipleMatch(Path("a.cbz"), [create_mock_base_issue()])
+    )
+    talker.client.stop_processing = True
+
+    with (
+        patch.object(talker, "_select_choice_from_matches") as mock_select,
+        patch.object(talker.ui, "print_match_results"),
+        patch.object(talker.ui, "print_info") as mock_info,
+    ):
+        talker._post_process_matches()
+
+    mock_select.assert_not_called()
+    mock_info.assert_called_once_with("Skipping the remaining multiple matches.")
+
+
+def test_post_process_matches_stops_after_a_choice_hits_a_fatal_error(talker):
+    """A fatal error while writing one choice stops the prompts for the rest."""
+    for name in ("a.cbz", "b.cbz"):
+        talker.match_results.add_multiple_match(
+            MultipleMatch(Path(name), [create_mock_base_issue()])
+        )
+
+    def fail_fatally(*_args):
+        talker.client.stop_processing = True
+
+    with (
+        patch.object(talker, "_select_choice_from_matches", return_value=123) as mock_select,
+        patch.object(talker, "_write_issue_md", side_effect=fail_fatally),
+        patch.object(talker.ui, "print_match_results"),
+        patch.object(talker.ui, "print_info"),
+    ):
+        talker._post_process_matches()
+
+    assert mock_select.call_count == 1
+
+
+def test_write_issue_md_failed_call_is_not_reported_as_not_modified(talker, sample_path):
+    """An API error isn't also reported as the comic being up to date."""
+    talker.api.issue.side_effect = ApiError("Server error")
+
+    with (
+        patch.object(talker.ui, "print_info") as mock_info,
+        patch.object(talker.ui, "print_error"),
+    ):
+        talker._write_issue_md(sample_path, 123, modified=datetime(2024, 1, 1, tzinfo=UTC))
+
+    assert not any("not been modified" in str(c.args[0]) for c in mock_info.call_args_list)

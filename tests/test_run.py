@@ -13,7 +13,7 @@ from metrontagger.duplicates import DuplicateIssue
 from metrontagger.run import Runner, _add_migration_note
 from metrontagger.settings import MetronTaggerSettings
 from metrontagger.talker import ProcessingConfig
-from tests.fakes import create_cover_page
+from tests.fakes import create_cover_page, with_malformed_xml
 
 
 @pytest.mark.parametrize(
@@ -804,3 +804,16 @@ def test_add_migration_note(
     assert md.notes is not None
     assert md.notes.metron_info == expected_metron_info
     assert md.notes.comic_rack == expected_comic_rack
+
+
+def test_migrate_ci_to_mi_skips_malformed_comic_info(
+    fake_comic: Path, fake_metadata: Metadata, output: list[str]
+) -> None:
+    """Malformed ComicInfo.xml is reported, not migrated as an empty MetronInfo.xml."""
+    _tag(fake_comic, fake_metadata, CI)
+    with_malformed_xml(fake_comic, "ComicInfo.xml")
+
+    Runner.migrate_ci_to_mi([fake_comic])
+
+    assert not Comic(fake_comic).has_metadata(MI)
+    assert "Unable to read ComicInfo.xml" in "\n".join(output)

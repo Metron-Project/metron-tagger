@@ -657,13 +657,17 @@ class Talker:
         # Print match results summary
         self.ui.print_match_results(self.match_results)
 
-        # Handle files with multiple matches
-        if self.match_results.multiple_matches:
-            for match_set in self.match_results.multiple_matches:
-                if issue_id := self._select_choice_from_matches(
-                    match_set.filename, match_set.matches
-                ):
-                    self._write_issue_md(match_set.filename, issue_id)
+        # Ask about files with multiple matches, unless processing was stopped (a
+        # fatal API error, or the user declining to wait out a rate limit): every
+        # choice would need another API call.
+        for match_set in self.match_results.multiple_matches:
+            if self.client.stop_processing:
+                self.ui.print_info("Skipping the remaining multiple matches.")
+                break
+            if issue_id := self._select_choice_from_matches(
+                match_set.filename, match_set.matches
+            ):
+                self._write_issue_md(match_set.filename, issue_id)
 
     def _write_metadata_formats(self, comic: Comic, metadata: Metadata) -> list[str]:
         """Write metadata in the requested formats."""
@@ -688,7 +692,9 @@ class Talker:
             "Failed to retrieve data",
         )
         if resp is None:
-            if modified is not None:
+            # None is a 304 Not Modified only if the call didn't fail; a failure
+            # has already been reported by MetronClient.call.
+            if modified is not None and not self.client.last_call_failed:
                 self.ui.print_info(
                     f"{filename.name} has not been modified since last tagging."
                 )

@@ -1,8 +1,10 @@
 """Fake objects and test data shared by several test modules."""
 
+import zipfile
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from io import BytesIO
+from pathlib import Path
 from random import randint
 from typing import Any
 from unittest.mock import Mock
@@ -106,3 +108,14 @@ def create_cover_page() -> bytes:
     buf = BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
+
+
+def with_malformed_xml(path: Path, name: str) -> Path:
+    """Replace `name` in the archive at `path` with XML that can't be parsed."""
+    with zipfile.ZipFile(path) as zf:
+        files = {n: zf.read(n) for n in zf.namelist() if n != name}
+    with zipfile.ZipFile(path, "w") as zf:
+        for n, data in files.items():
+            zf.writestr(n, data)
+        zf.writestr(name, "<Broken><Series>no closing tags")
+    return path
