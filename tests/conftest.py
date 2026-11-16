@@ -1,32 +1,19 @@
 import zipfile
 from argparse import ArgumentParser
 from datetime import date
-from io import BytesIO
 from pathlib import Path
-from random import randint
 from unittest.mock import Mock
 
 import pytest
 from darkseid.comic import Comic, MetadataFormat
 from darkseid.metadata import Credit, Metadata, Publisher, Role, Series
-from PIL import Image
 
 from metrontagger.options import make_parser
 from metrontagger.settings import MetronTaggerSettings
 from metrontagger.talker import Talker
+from tests.fakes import create_cover_page
 
 CONTENT = "blah blah blah"
-
-
-def create_cover_page() -> bytes:
-    """Create a small randomly colored square image."""
-    r = randint(0, 255)  # noqa: S311
-    g = randint(0, 255)  # noqa: S311
-    b = randint(0, 255)  # noqa: S311
-    img = Image.new("RGB", (250, 250), (r, g, b))
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    return buf.getvalue()
 
 
 @pytest.fixture(scope="session")

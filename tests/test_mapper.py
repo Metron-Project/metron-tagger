@@ -7,7 +7,7 @@ from unittest.mock import Mock
 from darkseid.metadata import Basic, Metadata, MetronInfo
 
 from metrontagger.mapper import MetadataMapper
-from tests.metron_fakes import (
+from tests.fakes import (
     create_mock_issue_response,
 )
 

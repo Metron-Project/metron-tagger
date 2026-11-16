@@ -13,7 +13,7 @@ from metrontagger.duplicates import DuplicateIssue
 from metrontagger.run import Runner, _add_migration_note
 from metrontagger.settings import MetronTaggerSettings
 from metrontagger.talker import ProcessingConfig
-from tests.conftest import create_cover_page
+from tests.fakes import create_cover_page
 
 
 @pytest.mark.parametrize(

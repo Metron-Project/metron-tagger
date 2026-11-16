@@ -30,7 +30,7 @@ from metrontagger.talker import (
     Talker,
     TalkerPresenter,
 )
-from tests.metron_fakes import (
+from tests.fakes import (
     SEARCH_HASH,
     create_mock_base_issue,
     create_mock_issue_response,

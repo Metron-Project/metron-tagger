@@ -1,11 +1,14 @@
-"""Fake Metron API objects shared by the talker, cover and mapper tests."""
+"""Fake objects and test data shared by several test modules."""
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from io import BytesIO
+from random import randint
 from typing import Any
 from unittest.mock import Mock
 
 from imagehash import hex_to_hash
+from PIL import Image
 
 tzinfo = timezone(timedelta(hours=-5))
 
@@ -92,3 +95,14 @@ SEARCH_HASH = hex_to_hash("0000000000000000")
 def hash_at_distance(bits: int) -> str:
     """A cover hash exactly `bits` bits from SEARCH_HASH."""
     return f"{(1 << bits) - 1:016x}"
+
+
+def create_cover_page() -> bytes:
+    """Create a small randomly colored square image."""
+    r = randint(0, 255)  # noqa: S311
+    g = randint(0, 255)  # noqa: S311
+    b = randint(0, 255)  # noqa: S311
+    img = Image.new("RGB", (250, 250), (r, g, b))
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()

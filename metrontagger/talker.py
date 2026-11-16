@@ -26,6 +26,7 @@ from metrontagger.mapper import MetadataMapper
 from metrontagger.metron_client import MetronClient
 from metrontagger.ui import UIPresenter
 from metrontagger.utils import (
+    ParsedFilename,
     create_query_params,
     search_issue_number,
     series_words,
@@ -378,7 +379,7 @@ class Talker:
         filename: Path,
         comic: Comic,
         config: ProcessingConfig,
-        parsed: dict[str, str | tuple[str, ...]] | None = None,
+        parsed: ParsedFilename | None = None,
         cover_candidates: list[BaseIssue] | None = None,
     ) -> SearchResult:
         """Search for comic by filename parsing.
@@ -440,7 +441,7 @@ class Talker:
 
     @staticmethod
     def _cover_search_params(
-        metadata: dict[str, str | tuple[str, ...]], series_id: int | None
+        metadata: ParsedFilename, series_id: int | None
     ) -> dict[str, str | int] | None:
         """Build the cover search filters from the filename, or None if it lacks them.
 
@@ -473,7 +474,7 @@ class Talker:
         filename: Path,
         comic: Comic,
         config: ProcessingConfig,
-        metadata: dict[str, str | tuple[str, ...]],
+        metadata: ParsedFilename,
     ) -> CoverMatches:
         """Search Metron for the comic by its cover hash, issue number, and year.
 
@@ -537,7 +538,7 @@ class Talker:
         ranked: list[tuple[int, BaseIssue]],
         accept_distance: int,
         config: ProcessingConfig,
-        metadata: dict[str, str | tuple[str, ...]],
+        metadata: ParsedFilename,
     ) -> BaseIssue | None:
         """Return the closest cover match if it can be accepted, else None.
 
@@ -567,7 +568,7 @@ class Talker:
         return None
 
     @staticmethod
-    def _series_agrees(metadata: dict[str, str | tuple[str, ...]], issue: BaseIssue) -> bool:
+    def _series_agrees(metadata: ParsedFilename, issue: BaseIssue) -> bool:
         """Return True if the issue's series name shares a word with the filename's.
 
         Both the parsed series and title are used, since the filename parser often
@@ -634,7 +635,7 @@ class Talker:
 
         # Search by cover first. If no cover match is accepted, the filename search
         # runs, and its prompt also offers the cover search's candidates.
-        parsed: dict[str, str | tuple[str, ...]] = comicfn2dict(fn, verbose=0)
+        parsed: ParsedFilename = comicfn2dict(fn, verbose=0)
         cover = self._search_by_cover(fn, comic, config, parsed)
         if cover.accepted is not None:
             return self._resolve_search(fn, cover.accepted, [], config)

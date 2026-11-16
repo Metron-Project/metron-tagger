@@ -14,7 +14,7 @@ from metrontagger.cover_match import (
     HAMMING_DISTANCE,
     CoverHashMatcher,
 )
-from tests.metron_fakes import (
+from tests.fakes import (
     SEARCH_HASH,
     create_mock_base_issue,
     hash_at_distance,
