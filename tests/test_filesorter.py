@@ -358,7 +358,7 @@ def test_load_comic_metadata_success_metron(mock_comic_class, file_sorter, mock_
 
     assert result is not None
     mock_comic.has_metadata.assert_called_with(MetadataFormat.METRON_INFO)
-    mock_comic.read_metadata.assert_called_with(MetadataFormat.METRON_INFO)
+    mock_comic.read_metadata.assert_called_with(MetadataFormat.METRON_INFO, strict=True)
 
 
 @patch("metrontagger.comics.Comic")
@@ -377,7 +377,7 @@ def test_load_comic_metadata_success_comic_rack(
     mock_comic.has_metadata.assert_has_calls(
         [call(MetadataFormat.METRON_INFO), call(MetadataFormat.COMIC_INFO)]
     )
-    mock_comic.read_metadata.assert_called_with(MetadataFormat.COMIC_INFO)
+    mock_comic.read_metadata.assert_called_with(MetadataFormat.COMIC_INFO, strict=True)
 
 
 @patch("metrontagger.comics.Comic")
