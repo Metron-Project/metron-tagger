@@ -16,15 +16,20 @@
   when its MetronInfo.xml has no ID. This works around a darkseid caching bug
   ([darkseid#267](https://github.com/Metron-Project/darkseid/issues/267)).
 - Pressing Ctrl-C at the API token or sort directory prompt no longer saves
-  `None` as that setting. If an earlier version saved `auth_token = None`,
-  remove that line from `settings.ini` and run again to be asked for the token.
+  `None` as that setting. A `None` saved by an earlier version is cleared when
+  the settings load, so you're asked for the token again.
 - Fix a crash after tagging an issue whose series has no format.
 - `--migrate` no longer stops at the first invalid comic; it skips it and
   migrates the rest.
 - Duplicate page removal could group one comic's pages under another comic whose
   path contained the first one's (for example, `a.cbz` and `ba.cbz`).
-- Renaming no longer fails on a comic with unreadable metadata XML; it falls
-  back to the comic's other metadata format.
+- A comic with malformed metadata XML is renamed and sorted using its other
+  metadata format, instead of from empty metadata.
+- Online tagging no longer crashes with a traceback when Metron returns a
+  non-standard HTTP status, such as Cloudflare's 520–524; the error is reported
+  and tagging continues.
+- Tagging an issue from a Hardcover series now shows it as a collection; only
+  Metron's old "Hard Cover" name was recognized.
 - A setting with an invalid value now uses its default. For example, an
   unrecognized `rename_use_smart_string_cleanup` value used to turn smart
   cleanup off; it now leaves it on, the default.

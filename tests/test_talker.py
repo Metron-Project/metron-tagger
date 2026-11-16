@@ -64,7 +64,7 @@ def sample_path():
 
 def create_mock_metadata():
     """Create a mock Metadata object."""
-    md = Mock(spec=Metadata)
+    md = Mock(spec=Metadata, is_empty=False)
     md.info_source = [Mock(name="metron", id_=123)]
     md.notes = Mock()
     md.notes.comic_rack = "Tagged with MetronTagger [issue_id:123]"
@@ -1595,7 +1595,13 @@ def test_metadata_extractor_invalid_id_without_series():
 
 @pytest.mark.parametrize(
     ("series_format", "expected_collection"),
-    [("Trade Paperback", True), ("Hard Cover", True), ("Single Issue", False), (None, False)],
+    [
+        ("Trade Paperback", True),
+        ("Hardcover", True),
+        ("Hard Cover", True),
+        ("Single Issue", False),
+        (None, False),
+    ],
 )
 @patch("metrontagger.comics.Comic")
 def test_write_issue_md_collection_flag(

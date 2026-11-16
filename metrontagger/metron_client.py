@@ -163,10 +163,16 @@ class MetronClient:
         the status code as an attribute. When it *was* raised from an HTTP
         error response though, it's chained with `raise ... from err`, so the
         status code can still be recovered from `__cause__`.
+
+        Returns None for a status `HTTPStatus` doesn't define, such as the 520-524
+        codes Cloudflare returns, so those are reported like other API errors.
         """
         cause = error.__cause__
         if isinstance(cause, HTTPError) and cause.response is not None:
-            return HTTPStatus(cause.response.status_code)
+            try:
+                return HTTPStatus(cause.response.status_code)
+            except ValueError:
+                return None
         return None
 
     def _handle_fatal_api_error(self, error: ApiError, error_context: str) -> bool:

@@ -46,6 +46,14 @@ class MetronTaggerSettings:
         "metron": ("password", "token_migration_prompted"),
     }
 
+    # Options older versions could save as the literal string "None" when the user
+    # cancelled the setup prompt for them. That value is cleared on load, so the
+    # user is asked again instead of every run failing with it.
+    PROMPTED_OPTIONS: ClassVar[tuple[tuple[str, str], ...]] = (
+        ("metron", "auth_token"),
+        ("sort", "directory"),
+    )
+
     def __init__(self, config_dir: str | Path | None = None) -> None:
         """Initialize MetronTaggerSettings.
 
@@ -91,6 +99,9 @@ class MetronTaggerSettings:
         # Drop options no longer used, e.g. the Basic Auth password
         self._remove_obsolete_options()
 
+        # Clear "None" saved by older versions' cancelled setup prompts
+        self._clear_cancelled_prompt_values()
+
     def _ensure_sections(self) -> None:
         """Ensure all required configuration sections exist."""
         required_sections = list(self.DEFAULT_CONFIG.keys())
@@ -115,6 +126,19 @@ class MetronTaggerSettings:
                     LOGGER.debug(
                         "Set default value for %s.%s: %s", section_name, option, default_value
                     )
+
+    def _clear_cancelled_prompt_values(self) -> None:
+        """Clear prompted options saved as "None", and save if any were found."""
+        cleared = False
+        for section_name, option in self.PROMPTED_OPTIONS:
+            if self.config.get(section_name, option, fallback="") == "None":
+                self.config.set(section_name, option, "")
+                LOGGER.info(
+                    "Cleared %s.%s saved as 'None' by a cancelled prompt", section_name, option
+                )
+                cleared = True
+        if cleared:
+            self._save_config()
 
     def _remove_obsolete_options(self) -> None:
         """Remove options no longer used by Metron-Tagger and save if any were found."""

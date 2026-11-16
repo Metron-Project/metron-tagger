@@ -42,6 +42,10 @@ if TYPE_CHECKING:
 
 LOGGER = getLogger(__name__)
 
+# Series formats shown as a "(Collection)" when tagged, lowercased. "hard cover" is
+# Metron's old name for "Hardcover" (see FormatMapping in filerenamer.py).
+COLLECTION_FORMATS = frozenset({"trade paperback", "hardcover", "hard cover"})
+
 
 @unique
 class InfoSource(Enum):
@@ -702,10 +706,7 @@ class Talker:
 
         if written_formats := self._write_metadata_formats(comic, md):
             series_format = md.series.format if md.series else None
-            collection = bool(series_format) and series_format.lower() in {
-                "trade paperback",
-                "hard cover",
-            }
+            collection = bool(series_format) and series_format.lower() in COLLECTION_FORMATS
             self.ui.print_metadata_write_success(
                 formats=written_formats,
                 series_name=md.series.name if md.series else "Unknown",

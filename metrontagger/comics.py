@@ -70,23 +70,35 @@ def iter_metadata(
     """Yield each of `formats`, in order, that the comic has and can be read.
 
     A format whose XML can't be read is logged and skipped, so callers fall through
-    to the next format.
+    to the next format. darkseid doesn't raise for malformed XML: it logs the parse
+    error and returns an empty Metadata, so an empty result counts as unreadable.
     """
+    current = comic
+    has_read = False
     for fmt in formats:
-        if not comic.has_metadata(fmt):
+        if not current.has_metadata(fmt):
             continue
+        if has_read:
+            # darkseid's Comic caches the first metadata it reads in one slot shared
+            # by every format, so reading another format from the same object would
+            # return the earlier one again. Reopen the archive to read this one fresh.
+            # Remove once https://github.com/Metron-Project/darkseid/issues/267 is fixed.
+            reopened = open_comic(comic.path, report=False)
+            if reopened is None:
+                return
+            current = reopened
+        has_read = True
         try:
-            md = comic.read_metadata(fmt)
+            md = current.read_metadata(fmt)
         except (ArchiverReadError, KeyError) as e:
             LOGGER.warning("Unable to read %s from %s: %s", FORMAT_NAMES[fmt], comic, e)
             continue
-        if md is not None:
-            yield fmt, md
-        # darkseid's Comic caches the first metadata it reads in one slot shared by
-        # every format, so reading another format from the same object would return
-        # this one again. Reopen the archive so the next format is read fresh.
-        # Remove once https://github.com/Metron-Project/darkseid/issues/267 is fixed.
-        comic = Comic(comic.path)
+        if md is None or md.is_empty:
+            LOGGER.warning(
+                "Unable to read %s from %s: no metadata parsed", FORMAT_NAMES[fmt], comic
+            )
+            continue
+        yield fmt, md
 
 
 def read_preferred_metadata(comic: Comic) -> Metadata | None:

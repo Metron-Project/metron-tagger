@@ -139,3 +139,38 @@ def test_settings_typed_getter_falls_back_to_default(tmp_path) -> None:
 def test_settings_typed_getter_wrong_type_or_unknown_key(settings, getter, key) -> None:
     with pytest.raises(KeyError):
         getattr(settings, getter)(key)
+
+
+def test_settings_clears_none_saved_by_cancelled_prompt(tmp_path) -> None:
+    """A token or sort directory saved as "None" by an older version is cleared."""
+    from metrontagger.settings import MetronTaggerSettings  # noqa: PLC0415
+
+    settings_file = tmp_path / "settings.ini"
+    settings_file.write_text(
+        "[metron]\nuser = None\nauth_token = None\n[sort]\ndirectory = None\n",
+        encoding="utf-8",
+    )
+
+    config = MetronTaggerSettings(config_dir=tmp_path)
+
+    assert config.get_str("metron.auth_token") == ""
+    assert config.get_str("sort.directory") == ""
+    # Only the prompted options are touched.
+    assert config.get_str("metron.user") == "None"
+    saved = settings_file.read_text(encoding="utf-8")
+    assert "auth_token = None" not in saved
+    assert "directory = None" not in saved
+
+
+def test_settings_keeps_real_prompted_values(tmp_path) -> None:
+    from metrontagger.settings import MetronTaggerSettings  # noqa: PLC0415
+
+    (tmp_path / "settings.ini").write_text(
+        "[metron]\nauth_token = real-token\n[sort]\ndirectory = /comics/None\n",
+        encoding="utf-8",
+    )
+
+    config = MetronTaggerSettings(config_dir=tmp_path)
+
+    assert config.get_str("metron.auth_token") == "real-token"
+    assert config.get_str("sort.directory") == "/comics/None"

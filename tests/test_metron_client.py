@@ -502,3 +502,19 @@ def test_call_fatal_http_error_after_second_short_rate_limit(mock_sleep, client)
     assert client.stop_processing is True
     assert mock_call.call_count == 3
     assert mock_sleep.call_count == 2
+
+
+@pytest.mark.parametrize("status_code", [520, 522, 524])
+def test_get_http_status_code_non_standard_status_returns_none(client, status_code):
+    """Cloudflare's non-standard 52x codes aren't HTTPStatus members."""
+    assert client._get_http_status_code(create_http_api_error(status_code)) is None
+
+
+@patch("metrontagger.ui.UIPresenter.print_error")
+def test_call_non_standard_http_status_is_reported_not_raised(mock_error, client):
+    """A Cloudflare 520 is reported as a failed call instead of crashing the run."""
+    mock_call = Mock(side_effect=create_http_api_error(520, "Web server is down"))
+
+    assert client.call(mock_call, error_context="Failed to retrieve data") is None
+    assert client.stop_processing is False
+    assert mock_error.call_args.args[0] == "Failed to retrieve data: Web server is down"

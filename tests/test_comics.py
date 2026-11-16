@@ -1,5 +1,6 @@
 """Tests for the comic-opening and metadata-format helpers."""
 
+import zipfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -31,7 +32,8 @@ def printed(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
 
 def _metadata(series: str) -> Metadata:
-    md = Metadata()
+    """Metadata as darkseid returns it after parsing a format's XML."""
+    md = Metadata(is_empty=False)
     md.series = Series(series)
     md.issue = "1"
     return md
@@ -206,3 +208,60 @@ def test_iter_metadata_reads_each_format_fresh(fake_comic: Path) -> None:
     }
 
     assert read == {MI: "From MetronInfo", CI: "From ComicInfo"}
+
+
+def _with_malformed(path: Path, name: str) -> Path:
+    """Replace `name` in the archive at `path` with XML that can't be parsed."""
+    with zipfile.ZipFile(path) as zf:
+        files = {n: zf.read(n) for n in zf.namelist() if n != name}
+    with zipfile.ZipFile(path, "w") as zf:
+        for n, data in files.items():
+            zf.writestr(n, data)
+        zf.writestr(name, "<Broken><Series>no closing tags")
+    return path
+
+
+def test_read_preferred_metadata_falls_back_on_malformed_xml(fake_comic: Path) -> None:
+    """Malformed MetronInfo.xml (which darkseid reads as empty) falls back to ComicInfo."""
+    assert Comic(fake_comic).write_metadata(_metadata("From ComicInfo"), CI)
+    _with_malformed(fake_comic, "MetronInfo.xml")
+    assert Comic(fake_comic).has_metadata(MI)
+
+    md = read_preferred_metadata(Comic(fake_comic))
+
+    assert md is not None
+    assert md.series is not None
+    assert md.series.name == "From ComicInfo"
+
+
+def test_read_preferred_metadata_all_malformed_is_none(fake_comic: Path) -> None:
+    assert Comic(fake_comic).write_metadata(_metadata("X"), CI)
+    _with_malformed(_with_malformed(fake_comic, "MetronInfo.xml"), "ComicInfo.xml")
+
+    assert read_preferred_metadata(Comic(fake_comic)) is None
+
+
+def test_iter_metadata_reopens_only_to_read_another_format() -> None:
+    """The archive is reopened only when a second format is actually read."""
+    comic = _mock_comic({MI: _metadata("MI"), CI: _metadata("CI")})
+
+    with patch("metrontagger.comics.open_comic", return_value=comic) as mock_open:
+        read_preferred_metadata(comic)  # stops after MetronInfo
+        assert mock_open.call_count == 0
+
+        list(iter_metadata(comic))  # reads both
+        assert mock_open.call_count == 1
+
+    single = _mock_comic({CI: _metadata("CI")})
+    with patch("metrontagger.comics.open_comic") as mock_open:
+        list(iter_metadata(single))
+    mock_open.assert_not_called()
+
+
+def test_iter_metadata_stops_if_reopen_fails() -> None:
+    """If the archive can't be reopened (e.g. it was moved), iteration ends quietly."""
+    mi = _metadata("MI")
+    comic = _mock_comic({MI: mi, CI: _metadata("CI")})
+
+    with patch("metrontagger.comics.open_comic", return_value=None):
+        assert list(iter_metadata(comic)) == [(MI, mi)]

@@ -351,7 +351,7 @@ def test_load_comic_metadata_success_metron(mock_comic_class, file_sorter, mock_
     """Test successful metadata loading with MetronInfo format."""
     mock_comic = Mock()
     mock_comic.has_metadata.side_effect = lambda fmt: fmt == MetadataFormat.METRON_INFO
-    mock_comic.read_metadata.return_value = Mock(spec=Metadata)
+    mock_comic.read_metadata.return_value = Mock(spec=Metadata, is_empty=False)
     mock_comic_class.return_value = mock_comic
 
     result = file_sorter._load_comic_metadata(mock_comic_file)
@@ -368,7 +368,7 @@ def test_load_comic_metadata_success_comic_rack(
     """Test successful metadata loading with ComicRack format."""
     mock_comic = Mock()
     mock_comic.has_metadata.side_effect = lambda fmt: fmt == MetadataFormat.COMIC_INFO
-    mock_comic.read_metadata.return_value = Mock(spec=Metadata)
+    mock_comic.read_metadata.return_value = Mock(spec=Metadata, is_empty=False)
     mock_comic_class.return_value = mock_comic
 
     result = file_sorter._load_comic_metadata(mock_comic_file)
