@@ -60,7 +60,7 @@ def test__update_ci_xml(
     if has_metadata:
         mock_comic.read_metadata.return_value = Metadata()
         mock_comic.get_number_of_pages.return_value = 10
-    monkeypatch.setattr("metrontagger.run.Comic", lambda _: mock_comic)
+    monkeypatch.setattr("metrontagger.comics.Comic", lambda _: mock_comic)
 
     # Act
     with caplog.at_level("ERROR"):  # Capture log messages at ERROR level
@@ -84,7 +84,7 @@ def test_migrate_ci_to_mi_skips_invalid_comic(
             raise ComicArchiveError
         return Comic(path)
 
-    monkeypatch.setattr("metrontagger.run.Comic", comic_factory)
+    monkeypatch.setattr("metrontagger.comics.Comic", comic_factory)
 
     comic = Comic(fake_comic)
     assert comic.write_metadata(fake_metadata, MetadataFormat.COMIC_INFO)
@@ -218,7 +218,7 @@ def test_delete_metadata_reports_failure(
     mock_comic = Mock(spec=Comic)
     mock_comic.has_metadata.return_value = True
     mock_comic.remove_metadata.return_value = False
-    monkeypatch.setattr("metrontagger.run.Comic", lambda _: mock_comic)
+    monkeypatch.setattr("metrontagger.comics.Comic", lambda _: mock_comic)
     runner = _make_runner(parser, settings, str(fake_comic), "--delete", "-c")
 
     runner._delete_metadata([fake_comic])
@@ -276,7 +276,7 @@ def test_export_to_zip_reports_failure(
     cbt = tmp_path / "comic.cbt"
     mock_comic = Mock(spec=Comic)
     mock_comic.export_as_zip.return_value = False
-    monkeypatch.setattr("metrontagger.run.Comic", lambda _: mock_comic)
+    monkeypatch.setattr("metrontagger.comics.Comic", lambda _: mock_comic)
     runner = _make_runner(parser, settings, str(cbt), "-z", "--delete-original")
 
     runner._export_to_zip([cbt])
@@ -299,7 +299,7 @@ def test_export_to_zip_skips_invalid_comic(
             raise ComicArchiveError
         return Comic(path)
 
-    monkeypatch.setattr("metrontagger.run.Comic", comic_factory)
+    monkeypatch.setattr("metrontagger.comics.Comic", comic_factory)
     runner = _make_runner(parser, settings, str(bad), "-z")
 
     runner._export_to_zip([bad, good])

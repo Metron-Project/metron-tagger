@@ -15,15 +15,17 @@ from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 
-from darkseid.comic import Comic, ComicArchiveError
 from imagehash import average_hash
 from PIL import Image, UnidentifiedImageError
 from tqdm import tqdm
 
+from metrontagger.comics import open_comic
 from metrontagger.ui import UIPresenter
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
+
+    from darkseid.comic import Comic
 
 
 LOGGER = getLogger(__name__)
@@ -274,10 +276,8 @@ class Duplicates:
         Returns:
             list[dict[str, str | int]]: Page hash information, empty if the comic was skipped.
         """
-        try:
-            comic = Comic(item)
-        except ComicArchiveError:
-            LOGGER.exception("Comic not valid: '%s'", str(item))
+        # Runs in worker threads under a progress bar, so only log invalid comics.
+        if (comic := open_comic(item, report=False)) is None:
             return []
 
         if not comic.can_remove_pages():
@@ -428,10 +428,7 @@ class Duplicates:
 
         results = {}
         for item in duplicates_list:
-            try:
-                comic = Comic(item.path_)
-            except ComicArchiveError:
-                LOGGER.exception("Comic not valid: %s", str(item))
+            if (comic := open_comic(item.path_, report=False)) is None:
                 continue
 
             # Sort pages in descending order to avoid index shifting issues
@@ -473,10 +470,7 @@ class Duplicates:
             LOGGER.warning("No page indices available for %s", duplicate_issue.path_)
             return False
 
-        try:
-            comic = Comic(duplicate_issue.path_)
-        except ComicArchiveError:
-            LOGGER.exception("Comic not valid: %s", duplicate_issue.path_)
+        if (comic := open_comic(duplicate_issue.path_, report=False)) is None:
             return False
 
         # Use first page index if multiple are available

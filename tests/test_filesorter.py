@@ -346,7 +346,7 @@ def test_create_directory_structure_already_exists(file_sorter, tmp_path):
 
 
 # Test _load_comic_metadata method
-@patch("metrontagger.filesorter.Comic")
+@patch("metrontagger.comics.Comic")
 def test_load_comic_metadata_success_metron(mock_comic_class, file_sorter, mock_comic_file):
     """Test successful metadata loading with MetronInfo format."""
     mock_comic = Mock()
@@ -361,7 +361,7 @@ def test_load_comic_metadata_success_metron(mock_comic_class, file_sorter, mock_
     mock_comic.read_metadata.assert_called_with(MetadataFormat.METRON_INFO)
 
 
-@patch("metrontagger.filesorter.Comic")
+@patch("metrontagger.comics.Comic")
 def test_load_comic_metadata_success_comic_rack(
     mock_comic_class, file_sorter, mock_comic_file
 ):
@@ -380,7 +380,7 @@ def test_load_comic_metadata_success_comic_rack(
     mock_comic.read_metadata.assert_called_with(MetadataFormat.COMIC_INFO)
 
 
-@patch("metrontagger.filesorter.Comic")
+@patch("metrontagger.comics.Comic")
 def test_load_comic_metadata_no_metadata(mock_comic_class, file_sorter, mock_comic_file):
     """Test metadata loading when no metadata is available."""
     mock_comic = Mock()
@@ -392,7 +392,7 @@ def test_load_comic_metadata_no_metadata(mock_comic_class, file_sorter, mock_com
     assert result is None
 
 
-# @patch("metrontagger.filesorter.Comic")
+# @patch("metrontagger.comics.Comic")
 # def test_load_comic_metadata_comic_open_error(mock_comic_class, file_sorter, mock_comic_file):
 #     """Test metadata loading when comic file cannot be opened."""
 #     mock_comic_class.side_effect = Exception("Cannot open comic")

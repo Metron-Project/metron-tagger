@@ -188,7 +188,7 @@ def test_calculate_image_hash_none_page_data():
 
 
 # Comic processing tests
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_process_comic_pages_success(mock_comic_class, sample_files, mock_image_data):
     """Test successful comic page processing."""
     mock_comic = Mock()
@@ -208,7 +208,7 @@ def test_process_comic_pages_success(mock_comic_class, sample_files, mock_image_
         assert pages[0]["hash"] == "hash123"
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_process_comic_pages_hash_failure(mock_comic_class, sample_files):
     """Test comic page processing when hash calculation fails."""
     mock_comic = Mock()
@@ -224,7 +224,7 @@ def test_process_comic_pages_hash_failure(mock_comic_class, sample_files):
         assert not pages
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_process_comic_pages_exception(mock_comic_class, sample_files):
     """Test comic page processing with exception during page retrieval."""
     mock_comic = Mock()
@@ -258,7 +258,7 @@ SCANNED_PAGES = [
 ]
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_scan_hashes_every_interior_page(mock_comic_class, sample_files):
     """A real scan (over mocked comics) hashes each interior page once."""
     mock_comic = Mock()
@@ -282,7 +282,7 @@ def test_scan_hashes_every_interior_page(mock_comic_class, sample_files):
     assert duplicates.get_distinct_hashes() == ["hash123"]
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_scan_no_valid_hashes(mock_comic_class, sample_files, caplog):
     """Pages that can't be hashed are left out; with none left there are no duplicates."""
     mock_comic = Mock()
@@ -341,7 +341,7 @@ def test_scan_runs_once(pages):
 
 
 # Page deletion tests
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_delete_comic_pages_success(mock_comic_class):
     """Test successful page deletion."""
     mock_comic = Mock()
@@ -357,7 +357,7 @@ def test_delete_comic_pages_success(mock_comic_class):
     mock_comic.remove_pages.assert_called_once_with([2, 0])  # Reversed order
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_delete_comic_pages_failure(mock_comic_class):
     """Test page deletion failure."""
     mock_comic = Mock()
@@ -372,7 +372,7 @@ def test_delete_comic_pages_failure(mock_comic_class):
     assert results["comic1.cbz"] is False
 
 
-# @patch("metrontagger.duplicates.Comic")
+# @patch("metrontagger.comics.Comic")
 # def test_delete_comic_pages_exception(mock_comic_class):
 #     """Test page deletion with exception."""
 #     mock_comic_class.side_effect = ComicArchiveError
@@ -399,7 +399,7 @@ def test_show_image_no_pages():
     assert result is False
 
 
-# @patch("metrontagger.duplicates.Comic")
+# @patch("metrontagger.comics.Comic")
 # def test_show_image_exception(mock_comic_class):
 #     """Test image display with exception."""
 #     mock_comic = Mock()
@@ -461,7 +461,7 @@ def test_clear_cache_forces_rescan(sample_files):
 
 
 # Integration-style tests
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_full_duplicate_detection_workflow(mock_comic_class, mock_image_data):
     """Test complete workflow from file list to duplicate detection."""
     sample_files = [Path("comic1.cbz"), Path("comic2.cbz")]
@@ -498,7 +498,7 @@ def test_full_duplicate_detection_workflow(mock_comic_class, mock_image_data):
 
 
 # Error handling tests
-# @patch("metrontagger.duplicates.Comic")
+# @patch("metrontagger.comics.Comic")
 # def test_generate_page_hashes_with_unwritable_comic(mock_comic_class, sample_files):
 #     """Test handling of unwritable comics."""
 #     mock_comic = Mock()
@@ -512,7 +512,7 @@ def test_full_duplicate_detection_workflow(mock_comic_class, mock_image_data):
 #         assert not hashes
 
 
-# @patch("metrontagger.duplicates.Comic")
+# @patch("metrontagger.comics.Comic")
 # def test_generate_page_hashes_with_comic_exception(mock_comic_class, sample_files):
 #     """Test handling of exceptions during comic processing."""
 #     mock_comic_class.side_effect = Exception("Comic creation failed")
@@ -567,7 +567,7 @@ def test_get_page_indices_quick_mode_two_pages(sample_files):
     assert duplicates._get_page_indices(2) == [1]
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_process_comic_pages_quick_mode(mock_comic_class, sample_files, mock_image_data):
     """Test that quick mode only processes expected pages."""
     mock_comic = Mock()
@@ -618,7 +618,7 @@ def test_duplicates_init_max_workers_capped(sample_files):
     assert Duplicates([Path("a.cbz")])._max_workers == 1
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_generate_page_hashes_preserves_file_order(mock_comic_class, sample_files):
     """Test that results follow the file list order even if later comics finish first."""
     delays = {"comic1.cbz": 0.15, "comic2.cbz": 0.05, "comic3.cbz": 0.0}
@@ -639,7 +639,7 @@ def test_generate_page_hashes_preserves_file_order(mock_comic_class, sample_file
     assert [Path(r["path"]).name for r in rows] == [f.name for f in sample_files]
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_generate_page_hashes_skips_bad_comics(mock_comic_class):
     """Test that invalid and read-only comics are skipped without affecting the rest."""
     files = [Path("bad.cbz"), Path("readonly.cbz"), Path("good.cbz")]
@@ -663,7 +663,7 @@ def test_generate_page_hashes_skips_bad_comics(mock_comic_class):
 
 
 @pytest.mark.parametrize("name", ["issue.PDF", "issue.cbr"])
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_generate_page_hashes_skips_unsupported_formats(mock_comic_class, name):
     """Test that comics whose pages can't be removed (e.g. PDFs and RARs) are skipped."""
     files = [Path(name), Path("issue.cbz")]
@@ -683,7 +683,7 @@ def test_generate_page_hashes_skips_unsupported_formats(mock_comic_class, name):
     assert [Path(r["path"]).name for r in rows] == ["issue.cbz"]
 
 
-@patch("metrontagger.duplicates.Comic")
+@patch("metrontagger.comics.Comic")
 def test_generate_page_hashes_single_worker_is_serial(mock_comic_class, sample_files):
     """Test that max_workers=1 scans without creating a thread pool."""
     mock_comic_class.side_effect = _fake_comic

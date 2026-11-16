@@ -259,7 +259,7 @@ def test_talker_handle_existing_id_unknown():
     assert result is None
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_get_existing_metadata_id_success(mock_comic_class, talker):
     """Test successful extraction of existing metadata ID."""
     mock_comic = Mock()
@@ -278,7 +278,7 @@ def test_talker_get_existing_metadata_id_success(mock_comic_class, talker):
         assert result == (InfoSource.METRON, 123, datetime(2023, 6, 15, tzinfo=tzinfo))
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_get_existing_metadata_id_comic_vine_no_modified(mock_comic_class, talker):
     """Test that Comic Vine source returns None for modified."""
     mock_comic = Mock()
@@ -297,7 +297,7 @@ def test_talker_get_existing_metadata_id_comic_vine_no_modified(mock_comic_class
         assert result == (InfoSource.COMIC_VINE, 456, None)
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_get_existing_metadata_id_no_metadata(mock_comic_class, talker):
     """Test extraction when no metadata exists."""
     mock_comic = Mock()
@@ -310,7 +310,7 @@ def test_talker_get_existing_metadata_id_no_metadata(mock_comic_class, talker):
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_search_by_filename_multiple_matches_skip_enabled(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -338,7 +338,7 @@ def test_search_by_filename_multiple_matches_skip_enabled(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_search_by_filename_multiple_matches_skip_disabled(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -366,7 +366,7 @@ def test_search_by_filename_multiple_matches_skip_disabled(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_search_by_filename_single_match_within_hamming_skip_enabled(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -391,7 +391,7 @@ def test_search_by_filename_single_match_within_hamming_skip_enabled(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_search_by_filename_single_match_outside_hamming_skip_enabled(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -416,7 +416,7 @@ def test_search_by_filename_single_match_outside_hamming_skip_enabled(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_search_by_filename_single_match(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -438,7 +438,7 @@ def test_talker_search_by_filename_single_match(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_search_by_filename_no_matches(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -459,7 +459,7 @@ def test_talker_search_by_filename_no_matches(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_search_by_filename_multiple_matches(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -480,7 +480,7 @@ def test_talker_search_by_filename_multiple_matches(
         assert len(talker.match_results.multiple_matches) == 1
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_write_metadata_formats_success(mock_comic_class, talker):
     """Test successful metadata writing."""
     mock_comic = Mock()
@@ -495,7 +495,7 @@ def test_talker_write_metadata_formats_success(mock_comic_class, talker):
     assert len(result) == 2
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_write_issue_md_success(mock_comic_class, talker, sample_path):
     """Test successful issue metadata writing."""
     mock_comic = Mock()
@@ -530,7 +530,7 @@ def test_talker_write_issue_md_api_error(talker, sample_path):
         assert error_calls
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_write_issue_md_with_if_modified_since(mock_comic_class, talker, sample_path):
     """Test issue metadata writing passes if_modified_since to API."""
     mock_comic = Mock()
@@ -576,7 +576,7 @@ def test_talker_write_issue_md_not_modified_no_message_without_modified(talker, 
         assert not info_calls
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_should_skip_existing_metadata_true(mock_comic_class, talker):
     """Test skipping file with existing metadata."""
     mock_comic = Mock()
@@ -590,7 +590,7 @@ def test_talker_should_skip_existing_metadata_true(mock_comic_class, talker):
     assert result is True
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_should_skip_existing_metadata_false(mock_comic_class, talker):
     """Test not skipping file without ignore flag."""
     mock_comic = Mock()
@@ -648,7 +648,7 @@ def test_post_process_matches_no_skipped(mock_create_title, talker):
 
 @patch("metrontagger.ui.create_print_title")
 @patch("metrontagger.talker.questionary.print")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_identify_comics_with_skip_multiple_enabled(
     mock_comic_class,
     mock_print,  # noqa: ARG001
@@ -691,7 +691,7 @@ def test_identify_comics_with_skip_multiple_enabled(
 
 @patch("metrontagger.ui.create_print_title")
 @patch("metrontagger.talker.questionary.print")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_identify_comics_with_skip_multiple_disabled(
     mock_comic_class,
     mock_print,  # noqa: ARG001
@@ -734,7 +734,7 @@ def test_identify_comics_with_skip_multiple_disabled(
 
 @patch("metrontagger.ui.create_print_title")
 @patch("metrontagger.talker.questionary.print")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_identify_comics_with_ignore_modified_enabled(
     mock_comic_class,
     mock_print,  # noqa: ARG001
@@ -784,7 +784,7 @@ def test_talker_process_file_ignore_modified_drops_date(mock_print, talker):  # 
     modified = datetime(2023, 6, 15, tzinfo=tzinfo)
 
     with (
-        patch.object(talker, "_create_comic", return_value=mock_comic),
+        patch("metrontagger.talker.open_comic", return_value=mock_comic),
         patch.object(
             talker,
             "_get_existing_metadata_id",
@@ -808,7 +808,7 @@ def test_talker_process_file_keeps_modified_by_default(mock_print, talker):  # n
     modified = datetime(2023, 6, 15, tzinfo=tzinfo)
 
     with (
-        patch.object(talker, "_create_comic", return_value=mock_comic),
+        patch("metrontagger.talker.open_comic", return_value=mock_comic),
         patch.object(
             talker,
             "_get_existing_metadata_id",
@@ -824,7 +824,7 @@ def test_talker_process_file_keeps_modified_by_default(mock_print, talker):  # n
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_skip_multiple_with_accept_only_both_enabled(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -850,7 +850,7 @@ def test_skip_multiple_with_accept_only_both_enabled(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_skip_multiple_with_series_id_filter(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -874,7 +874,7 @@ def test_skip_multiple_with_series_id_filter(
 
 @patch("metrontagger.talker.comicfn2dict")
 @patch("metrontagger.talker.create_query_params")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_skip_multiple_with_hamming_filter_reduces_to_single(
     mock_comic_class, mock_create_params, mock_comicfn2dict, talker
 ):
@@ -906,7 +906,7 @@ def test_skip_multiple_with_hamming_filter_reduces_to_single(
 
 @patch("metrontagger.ui.create_print_title")
 @patch("metrontagger.talker.questionary.print")
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_identify_comics_success(mock_comic_class, _, mock_create_title, talker):  # noqa: PT019
     """Test successful comic identification."""
     mock_comic = Mock()
@@ -1016,7 +1016,7 @@ def test_talker_presenter_print_rate_limit_status_unknown(remaining, limit):
 # Edge cases and error handling
 @patch("metrontagger.talker.comicfn2dict", return_value={})
 @patch("metrontagger.talker.create_query_params", return_value=None)
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_search_by_filename_parse_error(
     mock_comic_class,
     mock_create_params,  # noqa: ARG001
@@ -1033,7 +1033,7 @@ def test_talker_search_by_filename_parse_error(
     assert search_result.has_multiple_matches is False
 
 
-@patch("metrontagger.talker.Comic")
+@patch("metrontagger.comics.Comic")
 def test_talker_process_file_not_writable(mock_comic_class, talker):
     """Test processing file that's not writable."""
     mock_comic = Mock()
@@ -1229,7 +1229,7 @@ def make_writable_comic():
 def process_file(talker, cover, config=None):
     """Run _process_file with the cover search returning `cover`."""
     with (
-        patch.object(talker, "_create_comic", return_value=make_writable_comic()),
+        patch("metrontagger.talker.open_comic", return_value=make_writable_comic()),
         patch.object(talker, "_get_existing_metadata_id", return_value=None),
         patch.object(talker, "_search_by_cover", return_value=cover),
         patch.object(talker, "_search_by_filename") as by_filename,
@@ -1318,7 +1318,7 @@ def test_process_file_parses_filename_once(talker):
     """The filename is parsed once and shared by the cover and filename searches."""
     parsed = {"series": "Test", "issue": "1", "year": "2026"}
     with (
-        patch.object(talker, "_create_comic", return_value=make_writable_comic()),
+        patch("metrontagger.talker.open_comic", return_value=make_writable_comic()),
         patch.object(talker, "_get_existing_metadata_id", return_value=None),
         patch("metrontagger.talker.comicfn2dict", return_value=parsed) as parse,
         patch.object(talker, "_search_by_cover", return_value=CoverMatches()) as by_cover,

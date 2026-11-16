@@ -6,13 +6,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import questionary
-from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
+from darkseid.comic import MetadataFormat
 from darkseid.metadata import Metadata, Notes
 from darkseid.utils import get_recursive_filelist
 from darkseid.validate import SchemaVersion
 from tqdm import tqdm
 
 from metrontagger import __version__
+from metrontagger.comics import FORMAT_NAMES, format_list, open_comic, read_preferred_metadata
 from metrontagger.duplicates import DuplicateIssue, Duplicates, DuplicatesPresenter
 from metrontagger.filerenamer import FileRenamer
 from metrontagger.filesorter import FileSorter
@@ -22,14 +23,11 @@ from metrontagger.ui import UIPresenter
 if TYPE_CHECKING:
     from argparse import Namespace
 
+    from darkseid.comic import Comic
+
     from metrontagger.settings import MetronTaggerSettings
 
 LOGGER = getLogger(__name__)
-
-FORMAT_NAMES = {
-    MetadataFormat.COMIC_INFO: "ComicInfo.xml",
-    MetadataFormat.METRON_INFO: "MetronInfo.xml",
-}
 
 VALID_SCHEMA_NAMES = {
     SchemaVersion.COMIC_INFO_V2: "ComicInfo Version 2",
@@ -37,17 +35,6 @@ VALID_SCHEMA_NAMES = {
     SchemaVersion.METRON_INFO_V1_1: "MetronInfo Version 1.1",
     SchemaVersion.METRON_INFO_V1_2: "MetronInfo Version 1.2",
 }
-
-
-def _open_comic(path: Path | str) -> Comic | None:
-    """Open a comic archive, printing an error and returning None if it isn't valid."""
-    path = Path(path)
-    try:
-        return Comic(path)
-    except ComicArchiveError:
-        LOGGER.exception("Comic not valid: %s", path)
-        UIPresenter.print_error(f"'{path.name}' is not a valid comic. Skipping...")
-        return None
 
 
 class Runner:
@@ -96,7 +83,7 @@ class Runner:
         UIPresenter.print_title("Migrating ComicInfo.xml to MetronInfo.xml:")
 
         for item in file_list:
-            if (comic := _open_comic(item)) is None:
+            if (comic := open_comic(item)) is None:
                 continue
 
             if comic.has_metadata(MetadataFormat.COMIC_INFO) and not comic.has_metadata(
@@ -129,21 +116,12 @@ class Runner:
         renamer.set_smart_cleanup(self.config["rename.rename_use_smart_string_cleanup"])
         return renamer
 
-    @staticmethod
-    def _get_comic_metadata(comic: Comic) -> Metadata | None:
-        # Prefer MetronInfo and if not present use ComicRack
-        if comic.has_metadata(MetadataFormat.METRON_INFO):
-            return comic.read_metadata(MetadataFormat.METRON_INFO)
-        if comic.has_metadata(MetadataFormat.COMIC_INFO):
-            return comic.read_metadata(MetadataFormat.COMIC_INFO)
-        return None
-
     def _rename_comic(self, renamer: FileRenamer, path: Path) -> Path | None:
         """Rename a single comic from its metadata, returning its new path if renamed."""
-        if (comic := _open_comic(path)) is None:
+        if (comic := open_comic(path)) is None:
             return None
 
-        if (md := self._get_comic_metadata(comic)) is None:
+        if (md := read_preferred_metadata(comic)) is None:
             UIPresenter.print_warning(f"skipping '{path.name}'. no metadata available.")
             return None
 
@@ -183,7 +161,7 @@ class Runner:
                 )
                 continue
 
-            if (comic := _open_comic(path)) is None:
+            if (comic := open_comic(path)) is None:
                 continue
 
             if not comic.export_as_zip(path.with_suffix(".cbz")):
@@ -205,7 +183,7 @@ class Runner:
         """Validate metadata in comic archives."""
         UIPresenter.print_title("Validating Metadata:")
         for path in file_list:
-            if (comic := _open_comic(path)) is None:
+            if (comic := open_comic(path)) is None:
                 continue
 
             present = [fmt for fmt in FORMAT_NAMES if comic.has_metadata(fmt)]
@@ -261,7 +239,7 @@ class Runner:
             return
 
         for path in file_list:
-            if (comic := _open_comic(path)) is None:
+            if (comic := open_comic(path)) is None:
                 continue
             if not all(comic.has_metadata(fmt) for fmt in formats):
                 UIPresenter.print_success(f"{path}")
@@ -275,7 +253,7 @@ class Runner:
         UIPresenter.print_title("Removing Metadata:")
         selected = self._selected_formats()
         for path in file_list:
-            if (comic := _open_comic(path)) is None:
+            if (comic := open_comic(path)) is None:
                 continue
 
             formats = [fmt for fmt in selected if comic.has_metadata(fmt)]
@@ -283,7 +261,7 @@ class Runner:
                 UIPresenter.print_warning(f"no metadata in '{path.name}'")
                 continue
 
-            names = " and ".join(f"'{FORMAT_NAMES[fmt]}'" for fmt in formats)
+            names = format_list(formats)
             if comic.remove_metadata(formats):
                 UIPresenter.print_success(f"Removed {names} metadata from '{path.name}'.")
             else:
@@ -298,7 +276,7 @@ class Runner:
             file_list: The DuplicateIssue objects for the processed comics.
         """
         for item in tqdm(file_list):
-            if (comic := _open_comic(item.path_)) is None:
+            if (comic := open_comic(item.path_)) is None:
                 continue
 
             if comic.has_metadata(MetadataFormat.COMIC_INFO):

@@ -10,12 +10,11 @@ from shutil import Error as ShutilError, move
 from typing import TYPE_CHECKING, NamedTuple
 
 import questionary
-from darkseid.archivers import ArchiverReadError
-from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
 
 if TYPE_CHECKING:
     from darkseid.metadata import Metadata
 
+from metrontagger.comics import open_comic, read_preferred_metadata
 from metrontagger.ui import UIPresenter
 from metrontagger.utils import cleanup_string
 
@@ -270,22 +269,12 @@ class FileSorter:
         Returns:
             The loaded metadata, or None if no suitable metadata is found.
         """
-        try:
-            comic_archive = Comic(comic_path)
-        except ComicArchiveError:
-            logger.exception("Failed to open comic: %s", str(comic_path))
+        # The caller reports comics it can't sort, so don't print here too.
+        if (comic := open_comic(comic_path, report=False)) is None:
             return None
 
-        # Try MetronInfo first, then ComicRack
-        for format_type in [MetadataFormat.METRON_INFO, MetadataFormat.COMIC_INFO]:
-            if comic_archive.has_metadata(format_type):
-                try:
-                    return comic_archive.read_metadata(format_type)
-                except ArchiverReadError as e:
-                    logger.warning(
-                        f"Failed to read {format_type} metadata from {comic_path}: {e}"
-                    )
-                    continue
+        if (md := read_preferred_metadata(comic)) is not None:
+            return md
 
         logger.warning(f"No readable metadata found in {comic_path}")
         return None

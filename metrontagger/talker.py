@@ -10,10 +10,11 @@ from typing import TYPE_CHECKING
 
 import questionary
 from comicfn2dict import comicfn2dict
-from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
+from darkseid.comic import MetadataFormat
 from darkseid.metadata import Metadata
 from darkseid.utils import get_issue_id_from_note
 
+from metrontagger.comics import format_list, iter_metadata, open_comic
 from metrontagger.cover_match import (
     COVER_ACCEPT_MARGIN,
     COVER_SEARCH_MAX_DISTANCE,
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
     from argparse import Namespace
     from pathlib import Path
 
+    from darkseid.comic import Comic
     from mokkari.schemas.issue import BaseIssue
     from mokkari.session import Session
 
@@ -309,22 +311,6 @@ class Talker:
         """Exit the context manager, closing pooled connections."""
         self.close()
 
-    def _create_comic(self, filename: Path) -> Comic | None:
-        """Safely create a Comic object with error handling.
-
-        Args:
-            filename: Path to the comic file
-
-        Returns:
-            Comic object if successful, None if there was an error
-        """
-        try:
-            return Comic(filename)
-        except ComicArchiveError:
-            LOGGER.exception("Comic not valid: %s", str(filename))
-            self.ui.print_error(f"{filename.name} appears not to be a comic. Skipping...")
-            return None
-
     @staticmethod
     def _create_choice_list(match_set: list[BaseIssue]) -> list[questionary.Choice]:
         """Create a list of choices for selecting issues."""
@@ -350,33 +336,20 @@ class Talker:
         self, comic: Comic
     ) -> tuple[InfoSource, int, datetime | None] | None:
         """Get existing metadata ID from comic if available."""
-        metadata_formats = [
-            (MetadataFormat.METRON_INFO, self.metadata_extractor.get_id_from_metron_info),
-            (MetadataFormat.COMIC_INFO, self.metadata_extractor.get_id_from_comic_info),
-        ]
-
-        for format_type, extractor_func in metadata_formats:
-            if not comic.has_metadata(format_type):
-                continue
-
-            try:
-                md = comic.read_metadata(format_type)
-                if md is not None and (result := extractor_func(md)):
-                    source, id_ = result
-                    modified = (
-                        md.modified
-                        if source == InfoSource.METRON
-                        and format_type == MetadataFormat.METRON_INFO
-                        else None
-                    )
-                    return source, id_, modified
-            except KeyError:
-                format_name = (
-                    "MetronInfo.xml"
-                    if format_type == MetadataFormat.METRON_INFO
-                    else "ComicInfo.xml"
+        extractors = {
+            MetadataFormat.METRON_INFO: self.metadata_extractor.get_id_from_metron_info,
+            MetadataFormat.COMIC_INFO: self.metadata_extractor.get_id_from_comic_info,
+        }
+        # A format without an ID falls through to the next one.
+        for fmt, md in iter_metadata(comic):
+            if result := extractors[fmt](md):
+                source, id_ = result
+                modified = (
+                    md.modified
+                    if source == InfoSource.METRON and fmt == MetadataFormat.METRON_INFO
+                    else None
                 )
-                LOGGER.warning("Unable to find %s. File: %s", format_name, comic)
+                return source, id_, modified
 
         return None
 
@@ -633,12 +606,12 @@ class Talker:
         config: ProcessingConfig,
     ) -> SearchResult:
         """Process a comic file for metadata."""
-        comic = self._create_comic(fn)
+        comic = open_comic(fn)
         if comic is None:
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
         if not comic.is_writable() or not comic.seems_to_be_a_comic_archive():
-            LOGGER.exception("Comic appears not to be a comic or writable: %s", str(fn))
+            LOGGER.warning("Comic appears not to be a comic or writable: %s", fn)
             self.ui.print_error(f"{fn.name} appears not to be a comic or writable.")
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
@@ -688,11 +661,12 @@ class Talker:
         written_formats = []
 
         format_configs = [
-            (MetadataFormat.COMIC_INFO, "'ComicInfo.xml'", self.comic_info),
-            (MetadataFormat.METRON_INFO, "'MetronInfo.xml'", self.metron_info),
+            (MetadataFormat.COMIC_INFO, self.comic_info),
+            (MetadataFormat.METRON_INFO, self.metron_info),
         ]
 
-        for meta_format, file_name, should_write in format_configs:
+        for meta_format, should_write in format_configs:
+            file_name = format_list([meta_format])
             if should_write:
                 try:
                     if comic.write_metadata(metadata, meta_format):
@@ -717,7 +691,7 @@ class Talker:
                 )
             return
 
-        comic = self._create_comic(filename)
+        comic = open_comic(filename)
         if comic is None:
             return
 
@@ -779,7 +753,7 @@ class Talker:
                 self.ui.print_info("Stopping processing of remaining files.")
                 break
 
-            comic = self._create_comic(fn)
+            comic = open_comic(fn)
             if comic is None:
                 continue
 
