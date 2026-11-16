@@ -1,5 +1,39 @@
 # 📰 Metron-Tagger News
 
+## Unreleased
+
+## 🚀 Features
+
+- Search by cover hash before falling back to filename search @bpepple (#294)
+- Options that need `--comicinfo` and/or `--metroninfo` (`--missing`,
+  `--delete`, `--online`, `--id`, `--validate`) now stop with a usage error
+  before anything runs, instead of exiting partway through a run. The exit
+  status is now 2.
+
+## 🐛 Bug Fixes
+
+- Online tagging now finds a Metron ID stored only in a comic's ComicInfo.xml
+  when its MetronInfo.xml has no ID. This works around a darkseid caching bug
+  ([darkseid#267](https://github.com/Metron-Project/darkseid/issues/267)).
+- Pressing Ctrl-C at the API token or sort directory prompt no longer saves
+  `None` as that setting. If an earlier version saved `auth_token = None`,
+  remove that line from `settings.ini` and run again to be asked for the token.
+- Fix a crash after tagging an issue whose series has no format.
+- `--migrate` no longer stops at the first invalid comic; it skips it and
+  migrates the rest.
+- Duplicate page removal could group one comic's pages under another comic whose
+  path contained the first one's (for example, `a.cbz` and `ba.cbz`).
+- Renaming no longer fails on a comic with unreadable metadata XML; it falls
+  back to the comic's other metadata format.
+- A setting with an invalid value now uses its default. For example, an
+  unrecognized `rename_use_smart_string_cleanup` value used to turn smart
+  cleanup off; it now leaves it on, the default.
+
+## 🧰 Maintenance
+
+- Drop the pandas dependency.
+- Internal refactoring, more tests, and type checking with pyright.
+
 ## v2.5.1
 
 ## 🚀 Features
