@@ -32,7 +32,7 @@ from metrontagger.utils import (
 )
 
 if TYPE_CHECKING:
-    from argparse import Namespace
+    from collections.abc import Iterable
     from pathlib import Path
 
     from darkseid.comic import Comic
@@ -273,22 +273,25 @@ class Talker:
     def __init__(
         self,
         api_token: str,
-        metron_info: bool,
-        comic_info: bool,
+        formats: Iterable[MetadataFormat],
         *,
         username: str | None = None,
         redis_url: str | None = None,
     ) -> None:
         """Initialize the Talker with a Metron API token.
 
-        `username` and `redis_url` configure the rate limiter; see `MetronClient`.
+        Args:
+            api_token: The Metron API token.
+            formats: The metadata formats to write, in the order to write them.
+            username: The Metron username; with `redis_url`, configures the shared
+                rate limiter (see `MetronClient`).
+            redis_url: The Redis server for the shared rate limiter, if any.
         """
         self.ui = TalkerPresenter()
         self.client = MetronClient(
             api_token, username=username, redis_url=redis_url, ui=self.ui
         )
-        self.metron_info = metron_info
-        self.comic_info = comic_info
+        self.formats = tuple(formats)
         self.match_results = OnlineMatchResults()
         self.metadata_extractor = MetadataExtractor()
         self.cover_matcher = CoverHashMatcher()
@@ -660,19 +663,13 @@ class Talker:
         """Write metadata in the requested formats."""
         written_formats = []
 
-        format_configs = [
-            (MetadataFormat.COMIC_INFO, self.comic_info),
-            (MetadataFormat.METRON_INFO, self.metron_info),
-        ]
-
-        for meta_format, should_write in format_configs:
+        for meta_format in self.formats:
             file_name = format_list([meta_format])
-            if should_write:
-                try:
-                    if comic.write_metadata(metadata, meta_format):
-                        written_formats.append(file_name)
-                except KeyError:
-                    LOGGER.warning("Failed to write metadata %s for '%s'.", file_name, comic)
+            try:
+                if comic.write_metadata(metadata, meta_format):
+                    written_formats.append(file_name)
+            except KeyError:
+                LOGGER.warning("Failed to write metadata %s for '%s'.", file_name, comic)
 
         return written_formats
 
@@ -720,32 +717,29 @@ class Talker:
                 f"There was a problem writing metadata for '{filename.name}'. Check logs for details."
             )
 
-    def _should_skip_existing_metadata(self, args: Namespace, comic: Comic) -> bool:
-        """Check if file should be skipped due to existing metadata."""
-        if not args.ignore_existing:
+    def _should_skip_existing_metadata(self, comic: Comic, config: ProcessingConfig) -> bool:
+        """Check if file should be skipped because it already has a format to be written."""
+        if not config.ignore_existing:
             return False
+        return any(comic.has_metadata(fmt) for fmt in self.formats)
 
-        has_comic_rack = comic.has_metadata(MetadataFormat.COMIC_INFO)
-        has_metron_info = comic.has_metadata(MetadataFormat.METRON_INFO)
+    def identify_comics(
+        self, file_list: list[Path], config: ProcessingConfig | None = None
+    ) -> None:
+        """Identify and tag comics from a list of files.
 
-        return (has_comic_rack and self.comic_info) or (has_metron_info and self.metron_info)
-
-    def identify_comics(self, args: Namespace, file_list: list[Path]) -> None:
-        """Identify and tag comics from a list of files."""
+        Args:
+            file_list: The comics to tag.
+            config: How to search and when to skip a comic; the defaults if not given.
+        """
+        config = config or ProcessingConfig()
         # Reset stop flag at start of processing
         self.client.stop_processing = False
 
-        title_suffix = f" (Series ID: {args.id})" if args.id is not None else ""
-        self.ui.print_title(f"Starting Online Search and Tagging{title_suffix}:")
-
-        # Create processing configuration from args
-        config = ProcessingConfig(
-            accept_only=args.accept_only,
-            skip_multiple=args.skip_multiple,
-            series_id=args.id,
-            ignore_existing=args.ignore_existing,
-            ignore_modified=args.ignore_modified,
+        title_suffix = (
+            f" (Series ID: {config.series_id})" if config.series_id is not None else ""
         )
+        self.ui.print_title(f"Starting Online Search and Tagging{title_suffix}:")
 
         for fn in file_list:
             # Check if processing should stop (e.g., rate limit declined)
@@ -757,7 +751,7 @@ class Talker:
             if comic is None:
                 continue
 
-            if self._should_skip_existing_metadata(args, comic):
+            if self._should_skip_existing_metadata(comic, config):
                 self.ui.print_warning(f"{fn.name} has metadata. Skipping...")
                 continue
 

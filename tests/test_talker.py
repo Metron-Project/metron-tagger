@@ -6,6 +6,7 @@ from unittest.mock import ANY, Mock, patch
 
 import pytest
 from comicfn2dict import comicfn2dict
+from darkseid.comic import MetadataFormat
 from darkseid.metadata import Metadata
 from imagehash import hex_to_hash
 from mokkari.exceptions import ApiError
@@ -52,7 +53,7 @@ def mock_api():
 def talker(mock_api):
     """Create a Talker instance with mocked API."""
     with patch("metrontagger.metron_client.mokkari.api", return_value=mock_api):
-        return Talker("my-token", metron_info=True, comic_info=True)
+        return Talker("my-token", [MetadataFormat.COMIC_INFO, MetadataFormat.METRON_INFO])
 
 
 @pytest.fixture
@@ -195,9 +196,8 @@ def test_metadata_extractor_get_id_from_comic_info_invalid_id():
 def test_talker_initialization():
     """Test Talker initialization."""
     with patch("metrontagger.metron_client.mokkari.api") as mock_api_func:
-        talker = Talker("my-token", metron_info=True, comic_info=False)
-        assert talker.metron_info is True
-        assert talker.comic_info is False
+        talker = Talker("my-token", [MetadataFormat.METRON_INFO])
+        assert talker.formats == (MetadataFormat.METRON_INFO,)
         assert isinstance(talker.match_results, OnlineMatchResults)
         mock_api_func.assert_called_once_with(
             user_agent=f"Metron-Tagger/{__version__}",
@@ -240,7 +240,7 @@ def test_talker_create_choice_list():
 
 def test_talker_handle_existing_id_metron():
     """Test handling existing Metron ID."""
-    talker = Talker("my-token", True, True)
+    talker = Talker("my-token", [MetadataFormat.COMIC_INFO, MetadataFormat.METRON_INFO])
     result = talker._handle_existing_id(InfoSource.METRON, 123)
     assert result == 123
 
@@ -254,7 +254,7 @@ def test_talker_handle_existing_id_comic_vine(talker):
 
 def test_talker_handle_existing_id_unknown():
     """Test handling unknown source ID."""
-    talker = Talker("my-token", True, True)
+    talker = Talker("my-token", [MetadataFormat.COMIC_INFO, MetadataFormat.METRON_INFO])
     result = talker._handle_existing_id(InfoSource.UNKNOWN, 123)
     assert result is None
 
@@ -583,10 +583,9 @@ def test_talker_should_skip_existing_metadata_true(mock_comic_class, talker):
     mock_comic.has_metadata.return_value = True
     mock_comic_class.return_value = mock_comic
 
-    args = Mock()
-    args.ignore_existing = True
-
-    result = talker._should_skip_existing_metadata(args, mock_comic)
+    result = talker._should_skip_existing_metadata(
+        mock_comic, ProcessingConfig(ignore_existing=True)
+    )
     assert result is True
 
 
@@ -597,10 +596,9 @@ def test_talker_should_skip_existing_metadata_false(mock_comic_class, talker):
     mock_comic.has_metadata.return_value = True
     mock_comic_class.return_value = mock_comic
 
-    args = Mock()
-    args.ignore_existing = False
-
-    result = talker._should_skip_existing_metadata(args, mock_comic)
+    result = talker._should_skip_existing_metadata(
+        mock_comic, ProcessingConfig(ignore_existing=False)
+    )
     assert result is False
 
 
@@ -662,11 +660,9 @@ def test_identify_comics_with_skip_multiple_enabled(
     mock_comic.has_metadata.return_value = False
     mock_comic_class.return_value = mock_comic
 
-    args = Mock()
-    args.ignore_existing = False
-    args.accept_only = False
-    args.skip_multiple = True
-    args.id = None
+    config = ProcessingConfig(
+        ignore_existing=False, accept_only=False, skip_multiple=True, series_id=None
+    )
 
     file_list = [Path("test1.cbz"), Path("test2.cbz")]
 
@@ -678,7 +674,7 @@ def test_identify_comics_with_skip_multiple_enabled(
         ) as mock_process,
         patch.object(talker, "_post_process_matches"),
     ):
-        talker.identify_comics(args, file_list)
+        talker.identify_comics(file_list, config)
 
         # Verify _process_file was called with correct ProcessingConfig
         assert mock_process.call_count == 2
@@ -705,11 +701,9 @@ def test_identify_comics_with_skip_multiple_disabled(
     mock_comic.has_metadata.return_value = False
     mock_comic_class.return_value = mock_comic
 
-    args = Mock()
-    args.ignore_existing = False
-    args.accept_only = False
-    args.skip_multiple = False
-    args.id = None
+    config = ProcessingConfig(
+        ignore_existing=False, accept_only=False, skip_multiple=False, series_id=None
+    )
 
     file_list = [Path("test.cbz")]
 
@@ -721,7 +715,7 @@ def test_identify_comics_with_skip_multiple_disabled(
         ) as mock_process,
         patch.object(talker, "_post_process_matches"),
     ):
-        talker.identify_comics(args, file_list)
+        talker.identify_comics(file_list, config)
 
         # Verify _process_file was called with correct ProcessingConfig
         mock_process.assert_called_once()
@@ -741,19 +735,20 @@ def test_identify_comics_with_ignore_modified_enabled(
     mock_create_title,  # noqa: ARG001
     talker,
 ):
-    """Test identify_comics wires args.ignore_modified into ProcessingConfig."""
+    """Test identify_comics passes ignore_modified through to each file."""
     mock_comic = Mock()
     mock_comic.is_writable.return_value = True
     mock_comic.seems_to_be_a_comic_archive.return_value = True
     mock_comic.has_metadata.return_value = False
     mock_comic_class.return_value = mock_comic
 
-    args = Mock()
-    args.ignore_existing = False
-    args.accept_only = False
-    args.skip_multiple = False
-    args.ignore_modified = True
-    args.id = None
+    config = ProcessingConfig(
+        ignore_existing=False,
+        accept_only=False,
+        skip_multiple=False,
+        ignore_modified=True,
+        series_id=None,
+    )
 
     file_list = [Path("test.cbz")]
 
@@ -765,7 +760,7 @@ def test_identify_comics_with_ignore_modified_enabled(
         ) as mock_process,
         patch.object(talker, "_post_process_matches"),
     ):
-        talker.identify_comics(args, file_list)
+        talker.identify_comics(file_list, config)
 
         mock_process.assert_called_once()
         call_args = mock_process.call_args
@@ -917,10 +912,7 @@ def test_talker_identify_comics_success(mock_comic_class, _, mock_create_title, 
     mock_comic.write_metadata.return_value = True
     mock_comic_class.return_value = mock_comic
 
-    args = Mock()
-    args.ignore_existing = False
-    args.accept_only = False
-    args.id = None
+    config = ProcessingConfig(ignore_existing=False, accept_only=False, series_id=None)
 
     file_list = [Path("test.cbz")]
 
@@ -933,7 +925,7 @@ def test_talker_identify_comics_success(mock_comic_class, _, mock_create_title, 
         patch.object(talker, "_write_issue_md"),
         patch.object(talker, "_post_process_matches"),
     ):
-        talker.identify_comics(args, file_list)
+        talker.identify_comics(file_list, config)
         mock_create_title.assert_called()
 
 
@@ -956,14 +948,13 @@ def test_talker_retrieve_single_issue_prints_rate_limit_status(talker, sample_pa
 
 def test_talker_identify_comics_prints_rate_limit_status(talker):
     """Test that identify_comics reports the rate limit status after processing."""
-    args = Mock()
-    args.id = None
+    config = ProcessingConfig(series_id=None)
 
     with (
         patch.object(talker, "_post_process_matches"),
         patch.object(talker, "_print_rate_limit_status") as mock_print_rate_limit,
     ):
-        talker.identify_comics(args, [])
+        talker.identify_comics([], config)
         mock_print_rate_limit.assert_called_once()
 
 
@@ -1553,3 +1544,40 @@ def test_search_by_cover_half_cover_limit(talker, bits, accepted):
 
     expected = CoverMatches(accepted=issue) if accepted else CoverMatches(candidates=[issue])
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    ("formats", "existing", "expected"),
+    [
+        ([MetadataFormat.METRON_INFO], {MetadataFormat.COMIC_INFO}, False),
+        ([MetadataFormat.METRON_INFO], {MetadataFormat.METRON_INFO}, True),
+        ([MetadataFormat.COMIC_INFO], {MetadataFormat.METRON_INFO}, False),
+        (
+            [MetadataFormat.COMIC_INFO, MetadataFormat.METRON_INFO],
+            {MetadataFormat.COMIC_INFO},
+            True,
+        ),
+        ([MetadataFormat.COMIC_INFO, MetadataFormat.METRON_INFO], set(), False),
+    ],
+    ids=[
+        "mi_writer_ci_only",
+        "mi_writer_has_mi",
+        "ci_writer_mi_only",
+        "both_has_ci",
+        "untagged",
+    ],
+)
+def test_should_skip_existing_metadata_checks_only_written_formats(
+    formats, existing, expected
+):
+    """--ignore-existing skips a comic only if it has a format this Talker writes."""
+    with patch("metrontagger.metron_client.mokkari.api"):
+        talker = Talker("my-token", formats)
+    comic = Mock()
+    comic.has_metadata.side_effect = lambda fmt: fmt in existing
+
+    result = talker._should_skip_existing_metadata(
+        comic, ProcessingConfig(ignore_existing=True)
+    )
+
+    assert result is expected

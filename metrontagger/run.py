@@ -17,7 +17,7 @@ from metrontagger.comics import FORMAT_NAMES, format_list, open_comic, read_pref
 from metrontagger.duplicates import DuplicateIssue, Duplicates, DuplicatesPresenter
 from metrontagger.filerenamer import FileRenamer
 from metrontagger.filesorter import FileSorter
-from metrontagger.talker import Talker
+from metrontagger.talker import ProcessingConfig, Talker
 from metrontagger.ui import UIPresenter
 
 if TYPE_CHECKING:
@@ -370,12 +370,21 @@ class Runner:
         ):
             self._update_ci_xml(duplicates_lst)
 
+    def _processing_config(self: Runner) -> ProcessingConfig:
+        """Build the online search options from the parsed arguments."""
+        return ProcessingConfig(
+            accept_only=self.args.accept_only,
+            skip_multiple=self.args.skip_multiple,
+            series_id=self.args.id,
+            ignore_existing=self.args.ignore_existing,
+            ignore_modified=self.args.ignore_modified,
+        )
+
     def _tag_online(self: Runner, file_list: list[Path]) -> None:
         """Tag comics from Metron, by issue ID for a single file or by searching otherwise."""
         with Talker(
             self.config["metron.auth_token"],
-            self.args.metroninfo,
-            self.args.comicinfo,
+            self._selected_formats(),
             username=self.config["metron.user"] or None,
             redis_url=self.config["metron.redis_url"] or None,
         ) as t:
@@ -383,7 +392,7 @@ class Runner:
                 # Single file with --id: interpret as issue ID
                 t.retrieve_single_issue(self.args.id, file_list[0])
             else:
-                t.identify_comics(self.args, file_list)
+                t.identify_comics(file_list, self._processing_config())
 
     def run(self: Runner) -> None:
         """Run the requested operations, in a fixed order, on every file under the given paths.

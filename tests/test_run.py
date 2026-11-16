@@ -12,6 +12,7 @@ from darkseid.validate import SchemaVersion
 from metrontagger.duplicates import DuplicateIssue
 from metrontagger.run import Runner
 from metrontagger.settings import MetronTaggerSettings
+from metrontagger.talker import ProcessingConfig
 from tests.conftest import create_cover_page
 
 
@@ -714,10 +715,66 @@ def test_run_id_dispatch(
 
     runner.run()
 
-    talker_cls.assert_called_once_with("token", True, False, username=None, redis_url=None)
+    talker_cls.assert_called_once_with("token", [MI], username=None, redis_url=None)
     if expect_single:
         talker.retrieve_single_issue.assert_called_once_with(42, fake_comic)
         talker.identify_comics.assert_not_called()
     else:
         talker.identify_comics.assert_called_once()
+        config = talker.identify_comics.call_args.args[1]
+        assert config == ProcessingConfig(series_id=42)
         talker.retrieve_single_issue.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("flags", "expected"),
+    [
+        ([], ProcessingConfig()),
+        (["--accept-only"], ProcessingConfig(accept_only=True)),
+        (["--skip-multiple"], ProcessingConfig(skip_multiple=True)),
+        (["--ignore-existing"], ProcessingConfig(ignore_existing=True)),
+        (["--ignore-modified"], ProcessingConfig(ignore_modified=True)),
+        (["--id", "7"], ProcessingConfig(series_id=7)),
+    ],
+    ids=[
+        "defaults",
+        "accept_only",
+        "skip_multiple",
+        "ignore_existing",
+        "ignore_modified",
+        "id",
+    ],
+)
+def test_processing_config_from_args(
+    parser: ArgumentParser,
+    settings: MetronTaggerSettings,
+    fake_comic: Path,
+    flags: list[str],
+    expected: ProcessingConfig,
+) -> None:
+    runner = _make_runner(parser, settings, str(fake_comic), "-o", "-c", *flags)
+
+    assert runner._processing_config() == expected
+
+
+@pytest.mark.parametrize(
+    ("flags", "expected_formats"),
+    [(["-c"], [CI]), (["-m"], [MI]), (["-c", "-m"], [CI, MI])],
+    ids=["comicinfo", "metroninfo", "both"],
+)
+def test_tag_online_passes_selected_formats(
+    parser: ArgumentParser,
+    settings: MetronTaggerSettings,
+    fake_comic: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    flags: list[str],
+    expected_formats: list[MetadataFormat],
+) -> None:
+    """Talker writes the chosen formats, ComicInfo first when both are chosen."""
+    talker_cls = MagicMock()
+    monkeypatch.setattr("metrontagger.run.Talker", talker_cls)
+    runner = _make_runner(parser, settings, str(fake_comic), "-o", *flags)
+
+    runner._tag_online([fake_comic])
+
+    assert talker_cls.call_args.args[1] == expected_formats

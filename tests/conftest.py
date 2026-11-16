@@ -7,7 +7,7 @@ from random import randint
 from unittest.mock import Mock
 
 import pytest
-from darkseid.comic import Comic
+from darkseid.comic import Comic, MetadataFormat
 from darkseid.metadata import Credit, Metadata, Publisher, Role, Series
 from PIL import Image
 
@@ -41,7 +41,7 @@ def settings(tmp_path: Path) -> MetronTaggerSettings:
 
 @pytest.fixture(scope="session")
 def talker() -> Talker:
-    return Talker("dummy-token", True, True)
+    return Talker("dummy-token", [MetadataFormat.COMIC_INFO, MetadataFormat.METRON_INFO])
 
 
 @pytest.fixture()
