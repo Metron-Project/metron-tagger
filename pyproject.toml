@@ -236,7 +236,7 @@ exclude = [
   "test_results/",
   "typings/",
 ]
-min_confidence = 61
+min_confidence = 60
 sort_by_size = true
 
 [tool.coverage.report]

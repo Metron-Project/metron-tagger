@@ -163,48 +163,10 @@ class DuplicateIssue:
         return f"{size:.2f} {units[unit_index]}"
 
     @property
-    def starting_size_formatted(self) -> str:
-        """Get formatted starting file size."""
-        if self.starting_size_bytes is not None:
-            return self.format_file_size(self.starting_size_bytes)
-        return "Unknown"
-
-    @property
-    def ending_size_formatted(self) -> str:
-        """Get formatted ending file size."""
-        if self.ending_size_bytes is not None:
-            return self.format_file_size(self.ending_size_bytes)
-        return "Unknown"
-
-    @property
     def size_reduction_formatted(self) -> str:
         """Get formatted size reduction."""
         reduction = self.get_size_reduction()
         return self.format_file_size(reduction) if reduction is not None else "Unknown"
-
-    def get_summary(self) -> dict[str, str | int | float | None]:
-        """Get a summary dictionary of the duplicate issue.
-
-        Returns:
-            dict: Summary information including file details and size metrics.
-        """
-        return {
-            "file_name": Path(self.path_).name,
-            "file_path": self.path_,
-            "duplicate_pages_count": len(self.pages_index),
-            "duplicate_page_indices": self.pages_index.copy(),
-            "starting_size_bytes": self.starting_size_bytes,
-            "ending_size_bytes": self.ending_size_bytes,
-            "starting_size_formatted": self.starting_size_formatted,
-            "ending_size_formatted": self.ending_size_formatted,
-            "size_reduction_bytes": self.get_size_reduction(),
-            "size_reduction_formatted": self.size_reduction_formatted,
-            "size_reduction_percentage": self.get_size_reduction_percentage(),
-        }
-
-
-class DuplicateProcessingError(Exception):
-    """Exception raised when duplicate processing fails."""
 
 
 class Duplicates:
@@ -447,21 +409,6 @@ class Duplicates:
         """
         duplicate_df = self.get_duplicate_pages_dataframe()
         return [] if duplicate_df.empty else list(duplicate_df["hash"].unique())
-
-    def get_comic_info_for_hash(self, img_hash: str) -> DuplicateIssue | None:
-        """Retrieve comic information for a specific hash value.
-
-        Args:
-            img_hash: str: The hash value to search for.
-
-        Returns:
-            DuplicateIssue | None: A DuplicateIssue object or None if hash not found.
-        """
-        if img_hash not in self._hash_cache:
-            return None
-
-        first_entry = self._hash_cache[img_hash][0]
-        return DuplicateIssue(first_entry["path"], [first_entry["index"]])
 
     def get_comic_list_from_hash(self, img_hash: str) -> list[DuplicateIssue]:
         """Get a list of DuplicateIssue objects from a hash value.

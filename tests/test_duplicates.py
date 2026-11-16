@@ -359,29 +359,6 @@ def test_get_distinct_hashes_empty():
         assert hashes == []
 
 
-# Comic info retrieval tests
-def test_get_comic_info_for_hash_found():
-    """Test retrieving comic info for existing hash."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-    duplicates._hash_cache["hash1"] = [{"path": "comic1.cbz", "index": 0}]
-
-    result = duplicates.get_comic_info_for_hash("hash1")
-
-    assert result is not None
-    assert result.path_ == "comic1.cbz"
-    assert result.pages_index == [0]
-
-
-def test_get_comic_info_for_hash_not_found():
-    """Test retrieving comic info for non-existing hash."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-
-    result = duplicates.get_comic_info_for_hash("nonexistent_hash")
-    assert result is None
-
-
 def test_get_comic_list_from_hash():
     """Test getting list of comics from hash."""
     sample_files = [Path("test.cbz")]
@@ -608,9 +585,10 @@ def test_full_duplicate_detection_workflow(mock_comic_class, mock_image_data):
         assert len(hashes) == 1
         assert hashes[0] == "identical_hash"
 
-        # Get comic info
-        comic_info = duplicates.get_comic_info_for_hash("identical_hash")
-        assert comic_info is not None
+        # Get the comics containing the duplicate image
+        comics = duplicates.get_comic_list_from_hash("identical_hash")
+        # One entry per comic; the cover (page 0) isn't scanned.
+        assert [c.pages_index for c in comics] == [[1], [1]]
 
         # Get statistics
         stats = duplicates.get_statistics()

@@ -1129,7 +1129,11 @@ def test_search_by_cover_accepts_clear_closest_match(talker):
 
     assert result == CoverMatches(accepted=issue)
     # The cover search only reports; _process_file records the outcome.
-    assert not talker.match_results.has_results
+    results = talker.match_results
+    assert results.good_matches == []
+    assert results.no_matches == []
+    assert results.multiple_matches == []
+    assert results.skipped_matches == []
     talker.api.issues_list.assert_called_once_with(
         params={
             "number": "5",

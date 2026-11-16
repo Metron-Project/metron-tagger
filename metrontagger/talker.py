@@ -132,16 +132,6 @@ class OnlineMatchResults:
         """Get the list of skipped matches."""
         return self._skipped_matches
 
-    @property
-    def has_results(self) -> bool:
-        """Check if there are any results."""
-        return bool(
-            self._good_matches
-            or self._no_matches
-            or self._multiple_matches
-            or self._skipped_matches
-        )
-
     def add_good_match(self, file_name: Path) -> None:
         """Add a good match to the list."""
         self._good_matches.append(file_name)

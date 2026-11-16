@@ -44,6 +44,6 @@ def test_settings_removes_obsolete_options(tmp_path) -> None:
     config = MetronTaggerSettings(config_dir=tmp_path)
 
     assert config["metron.user"] == "test"
-    assert not config.has_option("metron.password")
-    assert not config.has_option("metron.token_migration_prompted")
+    assert config["metron.password"] is None
+    assert config["metron.token_migration_prompted"] is None
     assert "password" not in settings_file.read_text(encoding="utf-8")
