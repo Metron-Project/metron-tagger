@@ -4,8 +4,10 @@ from datetime import date
 from io import BytesIO
 from pathlib import Path
 from random import randint
+from unittest.mock import Mock
 
 import pytest
+from darkseid.comic import Comic
 from darkseid.metadata import Credit, Metadata, Publisher, Role, Series
 from PIL import Image
 
@@ -90,3 +92,16 @@ def fake_tpb(tmp_path_factory: Path) -> zipfile.ZipFile:
         zf.writestr("cover.jpg", image_data)
 
     return z_file
+
+
+@pytest.fixture
+def mock_comic():
+    """Create a mock Comic object."""
+    comic = Mock(spec=Comic)
+    comic.is_writable.return_value = True
+    comic.seems_to_be_a_comic_archive.return_value = True
+    comic.has_metadata.return_value = False
+    comic.get_number_of_pages.return_value = 20
+    comic.get_page.return_value = b"fake_image_data"
+    comic.write_metadata.return_value = True
+    return comic
