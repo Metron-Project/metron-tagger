@@ -85,6 +85,7 @@ def iter_metadata(
         # darkseid's Comic caches the first metadata it reads in one slot shared by
         # every format, so reading another format from the same object would return
         # this one again. Reopen the archive so the next format is read fresh.
+        # Remove once https://github.com/Metron-Project/darkseid/issues/267 is fixed.
         comic = Comic(comic.path)
 
 
