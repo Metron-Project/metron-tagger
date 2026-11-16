@@ -11,7 +11,6 @@ categories:
       - "bugfix"
   - title: "🧰 Maintenance"
     labels:
-      - "improvements"
       - "chore"
       - "dependencies"
       - "documentation"
@@ -33,7 +32,6 @@ version-resolver:
       - "patch"
       - "bug"
       - "bugfix"
-      - "improvements"
       - "chore"
       - "dependencies"
       - "documentation"
