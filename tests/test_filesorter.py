@@ -565,3 +565,20 @@ def test_file_size_info_creation():
 
     assert size_info.existing_mb == 1.5
     assert size_info.new_mb == 2.0
+
+
+def test_report_error_prints_and_logs_with_traceback(caplog, tmp_path):
+    """An error is shown to the user and logged with the exception that caused it."""
+    from metrontagger.filesorter import _report_error  # noqa: PLC0415
+
+    with patch("metrontagger.ui.UIPresenter.print_error") as mock_print_error:
+        try:
+            (tmp_path / "missing.cbz").stat()
+        except OSError:
+            _report_error("Failed to move 'missing.cbz'")
+
+    mock_print_error.assert_called_once_with("Failed to move 'missing.cbz'")
+    record = caplog.records[-1]
+    assert record.getMessage() == "Failed to move 'missing.cbz'"
+    assert record.exc_info is not None
+    assert record.exc_info[0] is FileNotFoundError

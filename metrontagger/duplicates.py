@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict
+from typing import TYPE_CHECKING, Self, TypedDict
 
 from imagehash import average_hash
 from PIL import Image, UnidentifiedImageError
@@ -232,10 +232,12 @@ class Duplicates:
         self._hash_cache: dict[str, list[PageLocation]] | None = None
         self._total_pages = 0
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
+        """Enter the context manager, returning this Duplicates."""
         return self
 
-    def __exit__(self, *_) -> None:
+    def __exit__(self, *_exc_info: object) -> None:
+        """Exit the context manager, freeing the cached page hashes."""
         self._clear_cache()
 
     def _clear_cache(self) -> None:

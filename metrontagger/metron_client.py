@@ -7,7 +7,7 @@ __all__ = ["MetronClient"]
 import time
 from http import HTTPStatus
 from logging import getLogger
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Self, TypeVar
 
 import mokkari
 import questionary
@@ -146,7 +146,7 @@ class MetronClient:
             self._redis_client.close()
             self._redis_client = None
 
-    def __enter__(self) -> MetronClient:  # noqa: PYI034 - py310 has no typing.Self
+    def __enter__(self) -> Self:
         """Enter the context manager, returning this client."""
         return self
 

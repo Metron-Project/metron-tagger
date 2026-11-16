@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto, unique
 from logging import getLogger
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 import questionary
 from comicfn2dict import comicfn2dict
@@ -307,7 +307,7 @@ class Talker:
         """Close the Metron API session's pooled connections and any Redis client."""
         self.client.close()
 
-    def __enter__(self) -> Talker:  # noqa: PYI034 - py310 has no typing.Self
+    def __enter__(self) -> Self:
         """Enter the context manager, returning this Talker."""
         return self
 
