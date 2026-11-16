@@ -5,7 +5,6 @@ import time
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-import pandas as pd
 import pytest
 from darkseid.comic import ComicArchiveError
 from imagehash import average_hash, hex_to_hash
@@ -92,8 +91,7 @@ def test_duplicates_init_success(sample_files):
     """Test successful initialization of Duplicates class."""
     duplicates = Duplicates(sample_files)
     assert duplicates._file_lst == sample_files
-    assert duplicates._data_frame is None
-    assert len(duplicates._hash_cache) == 0
+    assert duplicates._hash_cache is None
 
 
 def test_duplicates_init_empty_list():
@@ -107,8 +105,7 @@ def test_duplicates_context_manager(sample_files):
     with Duplicates(sample_files) as duplicates:
         assert duplicates._file_lst == sample_files
     # Cache should be cleared after exiting context
-    assert duplicates._data_frame is None
-    assert len(duplicates._hash_cache) == 0
+    assert duplicates._hash_cache is None
 
 
 # Hash calculation tests
@@ -241,10 +238,29 @@ def test_process_comic_pages_exception(mock_comic_class, sample_files):
     assert not pages
 
 
-# DataFrame building tests
+# Scanning and duplicate lookup tests
+def _scan_returns(duplicates: Duplicates, pages: list[tuple[str, int, str]]):
+    """Patch `duplicates` to scan the given (path, index, hash) pages instead of comics."""
+    return patch.object(
+        duplicates,
+        "_generate_page_hashes",
+        return_value=iter([{"path": p, "index": i, "hash": h} for p, i, h in pages]),
+    )
+
+
+# hash_b and hash_a each appear on two pages; "unique" on only one.
+SCANNED_PAGES = [
+    ("a.cbz", 1, "hash_b"),
+    ("b.cbz", 2, "hash_b"),
+    ("a.cbz", 3, "hash_a"),
+    ("c.cbz", 1, "hash_a"),
+    ("c.cbz", 2, "unique"),
+]
+
+
 @patch("metrontagger.duplicates.Comic")
-def test_build_dataframe_success(mock_comic_class, sample_files):
-    """Test successful DataFrame building."""
+def test_scan_hashes_every_interior_page(mock_comic_class, sample_files):
+    """A real scan (over mocked comics) hashes each interior page once."""
     mock_comic = Mock()
     mock_comic.path = Path("test.cbz")
     mock_comic.is_writable.return_value = True
@@ -259,22 +275,20 @@ def test_build_dataframe_success(mock_comic_class, sample_files):
         patch.object(duplicates, "_calculate_image_hash", return_value="hash123"),
         patch("metrontagger.duplicates.tqdm", side_effect=lambda x, **kwargs: x),
     ):
-        df = duplicates._build_dataframe()
+        stats = duplicates.get_statistics()
 
-        assert not df.empty
-        assert len(df) == len(sample_files)  # One interior page per file (cover skipped)
-        assert "path" in df.columns
-        assert "index" in df.columns
-        assert "hash" in df.columns
+    # One interior page per file (the cover is skipped), all with the same hash.
+    assert stats["total_pages"] == len(sample_files)
+    assert duplicates.get_distinct_hashes() == ["hash123"]
 
 
 @patch("metrontagger.duplicates.Comic")
-def test_build_dataframe_no_valid_hashes(mock_comic_class, sample_files):
-    """Test DataFrame building when no valid hashes are found."""
+def test_scan_no_valid_hashes(mock_comic_class, sample_files, caplog):
+    """Pages that can't be hashed are left out; with none left there are no duplicates."""
     mock_comic = Mock()
     mock_comic.is_writable.return_value = True
     mock_comic.can_remove_pages.return_value = True
-    mock_comic.get_number_of_pages.return_value = 1
+    mock_comic.get_number_of_pages.return_value = 2
     mock_comic.get_page.return_value = b"image_data"
     mock_comic_class.return_value = mock_comic
 
@@ -284,104 +298,46 @@ def test_build_dataframe_no_valid_hashes(mock_comic_class, sample_files):
         patch.object(duplicates, "_calculate_image_hash", return_value=None),
         patch("metrontagger.duplicates.tqdm", side_effect=lambda x, **kwargs: x),
     ):
-        df = duplicates._build_dataframe()
-        assert df.empty
+        assert duplicates.get_distinct_hashes() == []
+        assert duplicates.get_statistics()["total_pages"] == 0
+
+    assert "No valid page hashes found" in caplog.text
 
 
-def test_build_dataframe_caching(sample_files):
-    """Test that DataFrame is cached after first build."""
-    duplicates = Duplicates(sample_files)
-    mock_df = pd.DataFrame({"test": [1, 2, 3]})
-    duplicates._data_frame = mock_df
+def test_get_distinct_hashes_only_repeated_hashes_sorted():
+    duplicates = Duplicates([Path("test.cbz")])
 
-    # Should return cached DataFrame without processing
-    result = duplicates._build_dataframe()
-    assert result is mock_df
+    with _scan_returns(duplicates, SCANNED_PAGES):
+        assert duplicates.get_distinct_hashes() == ["hash_a", "hash_b"]
 
 
-# Duplicate detection tests
-def test_get_duplicate_pages_dataframe():
-    """Test getting DataFrame with only duplicate pages."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
+def test_get_comic_list_from_hash_in_scan_order():
+    duplicates = Duplicates([Path("test.cbz")])
 
-    # Mock DataFrame with duplicates
-    test_data = pd.DataFrame(
-        {
-            "path": ["comic1.cbz", "comic2.cbz", "comic3.cbz"],
-            "index": [0, 1, 0],
-            "hash": ["hash1", "hash1", "hash2"],
-        }
-    )
-    duplicates._data_frame = test_data
+    with _scan_returns(duplicates, SCANNED_PAGES):
+        comics = duplicates.get_comic_list_from_hash("hash_b")
 
-    duplicate_df = duplicates.get_duplicate_pages_dataframe()
-
-    # Should only contain rows with hash1 (the duplicate)
-    assert len(duplicate_df) == 2
-    assert all(duplicate_df["hash"] == "hash1")
-
-
-def test_get_duplicate_pages_dataframe_empty():
-    """Test getting duplicate pages when no data exists."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-    duplicates._data_frame = pd.DataFrame()
-
-    result = duplicates.get_duplicate_pages_dataframe()
-    assert result.empty
-
-
-def test_get_distinct_hashes():
-    """Test getting distinct hash values."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-
-    with patch.object(duplicates, "get_duplicate_pages_dataframe") as mock_get_dupes:
-        mock_df = pd.DataFrame({"hash": ["hash1", "hash1", "hash2", "hash2"]})
-        mock_get_dupes.return_value = mock_df
-
-        hashes = duplicates.get_distinct_hashes()
-        assert len(hashes) == 2
-        assert "hash1" in hashes
-        assert "hash2" in hashes
-
-
-def test_get_distinct_hashes_empty():
-    """Test getting distinct hashes when no duplicates exist."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-
-    with patch.object(duplicates, "get_duplicate_pages_dataframe") as mock_get_dupes:
-        mock_get_dupes.return_value = pd.DataFrame()
-
-        hashes = duplicates.get_distinct_hashes()
-        assert hashes == []
-
-
-def test_get_comic_list_from_hash():
-    """Test getting list of comics from hash."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-    duplicates._hash_cache["hash1"] = [
-        {"path": "comic1.cbz", "index": 0},
-        {"path": "comic2.cbz", "index": 1},
-    ]
-
-    result = duplicates.get_comic_list_from_hash("hash1")
-
-    assert len(result) == 2
-    assert result[0].path_ == "comic1.cbz"
-    assert result[1].path_ == "comic2.cbz"
+    assert [(c.path_, c.pages_index) for c in comics] == [("a.cbz", [1]), ("b.cbz", [2])]
 
 
 def test_get_comic_list_from_hash_not_found():
-    """Test getting comic list for non-existing hash."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
+    duplicates = Duplicates([Path("test.cbz")])
 
-    result = duplicates.get_comic_list_from_hash("nonexistent_hash")
-    assert result == []
+    with _scan_returns(duplicates, SCANNED_PAGES):
+        assert duplicates.get_comic_list_from_hash("nonexistent_hash") == []
+
+
+@pytest.mark.parametrize("pages", [SCANNED_PAGES, []], ids=["found", "nothing_found"])
+def test_scan_runs_once(pages):
+    """Every lookup shares one scan, even when the scan found nothing."""
+    duplicates = Duplicates([Path("test.cbz")])
+
+    with _scan_returns(duplicates, pages) as mock_generate:
+        duplicates.get_distinct_hashes()
+        duplicates.get_comic_list_from_hash("hash_a")
+        duplicates.get_statistics()
+
+    mock_generate.assert_called_once()
 
 
 # Page deletion tests
@@ -460,96 +416,48 @@ def test_show_image_no_pages():
 # Statistics tests
 def test_get_statistics():
     """Test getting statistics about duplicate detection."""
-    sample_files = [Path("test1.cbz"), Path("test2.cbz")]
-    duplicates = Duplicates(sample_files)
+    duplicates = Duplicates([Path("test1.cbz"), Path("test2.cbz")])
 
-    # Mock the data
-    test_data = pd.DataFrame(
-        {
-            "path": ["comic1.cbz", "comic2.cbz", "comic3.cbz", "comic4.cbz"],
-            "index": [0, 1, 0, 1],
-            "hash": ["hash1", "hash1", "hash2", "hash3"],
-        }
-    )
-    duplicates._data_frame = test_data
-
-    with patch.object(duplicates, "get_distinct_hashes", return_value=["hash1"]):
+    with _scan_returns(duplicates, SCANNED_PAGES):
         stats = duplicates.get_statistics()
 
-    assert stats["total_pages"] == 4
-    assert stats["duplicate_pages"] == 2  # Only hash1 pages
-    assert stats["unique_duplicate_hashes"] == 1
-    assert stats["comics_processed"] == 2
+    assert stats == {
+        "total_pages": 5,
+        "duplicate_pages": 4,  # hash_a and hash_b pages, not "unique"
+        "unique_duplicate_hashes": 2,
+        "comics_processed": 2,
+    }
 
 
 def test_get_statistics_empty():
     """Test getting statistics with no data."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-    duplicates._data_frame = pd.DataFrame()
+    duplicates = Duplicates([Path("test.cbz")])
 
-    with patch.object(duplicates, "get_distinct_hashes", return_value=[]):
+    with _scan_returns(duplicates, []):
         stats = duplicates.get_statistics()
 
-    assert stats["total_pages"] == 0
-    assert stats["duplicate_pages"] == 0
-    assert stats["unique_duplicate_hashes"] == 0
-    assert stats["comics_processed"] == 1
+    assert stats == {
+        "total_pages": 0,
+        "duplicate_pages": 0,
+        "unique_duplicate_hashes": 0,
+        "comics_processed": 1,
+    }
 
 
 # Cache management tests
-def test_clear_cache(sample_files):
-    """Test cache clearing functionality."""
+def test_clear_cache_forces_rescan(sample_files):
+    """After the cache is cleared, the next lookup scans the comics again."""
     duplicates = Duplicates(sample_files)
 
-    # Set some cached data
-    duplicates._data_frame = pd.DataFrame({"test": [1, 2, 3]})
-    duplicates._hash_cache["test"] = [{"path": "test.cbz", "index": 0}]
+    with _scan_returns(duplicates, SCANNED_PAGES) as mock_generate:
+        duplicates.get_distinct_hashes()
+        duplicates._clear_cache()
+        assert duplicates._hash_cache is None
 
-    duplicates._clear_cache()
+        mock_generate.return_value = iter([])
+        assert duplicates.get_distinct_hashes() == []
 
-    assert duplicates._data_frame is None
-    assert len(duplicates._hash_cache) == 0
-
-
-def test_build_hash_cache():
-    """Test hash cache building."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-
-    test_data = pd.DataFrame(
-        {"path": ["comic1.cbz", "comic2.cbz"], "index": [0, 1], "hash": ["hash1", "hash2"]}
-    )
-    duplicates._data_frame = test_data
-
-    duplicates._build_hash_cache()
-
-    assert "hash1" in duplicates._hash_cache
-    assert "hash2" in duplicates._hash_cache
-    assert duplicates._hash_cache["hash1"][0]["path"] == "comic1.cbz"
-    assert duplicates._hash_cache["hash1"][0]["index"] == 0
-
-
-def test_build_hash_cache_empty():
-    """Test hash cache building with empty DataFrame."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-    duplicates._data_frame = pd.DataFrame()
-
-    duplicates._build_hash_cache()
-
-    assert len(duplicates._hash_cache) == 0
-
-
-def test_build_hash_cache_none():
-    """Test hash cache building with None DataFrame."""
-    sample_files = [Path("test.cbz")]
-    duplicates = Duplicates(sample_files)
-    duplicates._data_frame = None
-
-    duplicates._build_hash_cache()
-
-    assert len(duplicates._hash_cache) == 0
+    assert mock_generate.call_count == 2
 
 
 # Integration-style tests
@@ -572,14 +480,6 @@ def test_full_duplicate_detection_workflow(mock_comic_class, mock_image_data):
         patch.object(duplicates, "_calculate_image_hash", return_value="identical_hash"),
         patch("metrontagger.duplicates.tqdm", side_effect=lambda x, **kwargs: x),
     ):
-        # Build the dataframe
-        df = duplicates._build_dataframe()
-        assert len(df) == 2
-
-        # Get duplicates
-        duplicate_df = duplicates.get_duplicate_pages_dataframe()
-        assert len(duplicate_df) == 2  # Both pages are duplicates of each other
-
         # Get distinct hashes
         hashes = duplicates.get_distinct_hashes()
         assert len(hashes) == 1

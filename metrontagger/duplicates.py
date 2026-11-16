@@ -13,9 +13,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from logging import getLogger
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
-import pandas as pd
 from darkseid.comic import Comic, ComicArchiveError
 from imagehash import average_hash
 from PIL import Image, UnidentifiedImageError
@@ -41,7 +40,12 @@ DEFAULT_MAX_WORKERS = 8
 # average_hash shrinks pages to 8x8, so JPEGs can be decoded at a much smaller scale.
 HASH_DRAFT_SIZE = (64, 64)
 
-"""Enhanced DuplicateIssue class with file size tracking."""
+
+class PageLocation(TypedDict):
+    """Where a hashed page is: the comic's path and the page's index in it."""
+
+    path: str
+    index: int
 
 
 @dataclass
@@ -216,8 +220,9 @@ class Duplicates:
         self._file_lst = file_lst
         self._quick = quick
         self._max_workers = min(max_workers, len(file_lst))
-        self._data_frame: pd.DataFrame | None = None
-        self._hash_cache: dict[str, list[dict[str, str | int]]] = defaultdict(list)
+        # Page locations grouped by image hash, filled in by the first scan.
+        self._hash_cache: dict[str, list[PageLocation]] | None = None
+        self._total_pages = 0
 
     def __enter__(self):
         return self
@@ -227,8 +232,8 @@ class Duplicates:
 
     def _clear_cache(self) -> None:
         """Clear internal caches to free memory."""
-        self._data_frame = None
-        self._hash_cache.clear()
+        self._hash_cache = None
+        self._total_pages = 0
 
     def _generate_page_hashes(self) -> Generator[dict[str, str | int], None, None]:
         """Generator to yield page hash information for each comic page.
@@ -357,58 +362,41 @@ class Duplicates:
             LOGGER.debug("Unable to calculate hash for image: %s", e)
             return None
 
-    def _build_dataframe(self) -> pd.DataFrame:
-        """Build a DataFrame from page hashes and cache duplicates.
+    def _scan(self) -> dict[str, list[PageLocation]]:
+        """Hash every page once, grouping page locations by image hash.
 
-        Returns:
-            pd.DataFrame: DataFrame containing comics with duplicate pages.
+        The result is cached, so later calls don't rescan the comics.
         """
-        if self._data_frame is not None:
-            return self._data_frame
+        if self._hash_cache is not None:
+            return self._hash_cache
 
-        # Convert generator to list for DataFrame creation
-        hash_data = list(self._generate_page_hashes())
+        hash_cache: dict[str, list[PageLocation]] = defaultdict(list)
+        total_pages = 0
+        for page in self._generate_page_hashes():
+            hash_cache[page["hash"]].append({"path": page["path"], "index": page["index"]})
+            total_pages += 1
 
-        if not hash_data:
+        if not total_pages:
             LOGGER.warning("No valid page hashes found")
-            return pd.DataFrame()
+        self._hash_cache = dict(hash_cache)
+        self._total_pages = total_pages
+        return self._hash_cache
 
-        self._data_frame = pd.DataFrame(hash_data)
-
-        # Build hash cache for faster lookups
-        self._build_hash_cache()
-
-        return self._data_frame
-
-    def _build_hash_cache(self) -> None:
-        """Build a cache of hash values for faster duplicate lookups."""
-        if self._data_frame is None or self._data_frame.empty:
-            return
-
-        for _, row in self._data_frame.iterrows():
-            hash_value = row["hash"]
-            self._hash_cache[hash_value].append({"path": row["path"], "index": row["index"]})
-
-    def get_duplicate_pages_dataframe(self) -> pd.DataFrame:
-        """Get a DataFrame containing only duplicate pages.
-
-        Returns:
-            pd.DataFrame: DataFrame containing comics with duplicate pages.
-        """
-        df = self._build_dataframe()
-        if df.empty:
-            return df
-
-        return df[df["hash"].duplicated(keep=False)].sort_values("hash")
+    def _duplicate_groups(self) -> dict[str, list[PageLocation]]:
+        """Return the hashes found on more than one page, in hash order."""
+        return {
+            img_hash: locations
+            for img_hash, locations in sorted(self._scan().items())
+            if len(locations) > 1
+        }
 
     def get_distinct_hashes(self) -> list[str]:
-        """Get distinct hash values for duplicate pages.
+        """Get the distinct hashes of images that appear on more than one page.
 
         Returns:
-            list[str]: A list of distinct hash values that appear in multiple pages.
+            list[str]: The hashes, in sorted order.
         """
-        duplicate_df = self.get_duplicate_pages_dataframe()
-        return [] if duplicate_df.empty else list(duplicate_df["hash"].unique())
+        return list(self._duplicate_groups())
 
     def get_comic_list_from_hash(self, img_hash: str) -> list[DuplicateIssue]:
         """Get a list of DuplicateIssue objects from a hash value.
@@ -419,12 +407,9 @@ class Duplicates:
         Returns:
             list[DuplicateIssue]: A list of DuplicateIssue objects representing comics with the specified hash value.
         """
-        if img_hash not in self._hash_cache:
-            return []
-
         return [
             DuplicateIssue(entry["path"], [entry["index"]])
-            for entry in self._hash_cache[img_hash]
+            for entry in self._scan().get(img_hash, [])
         ]
 
     @staticmethod
@@ -525,13 +510,11 @@ class Duplicates:
         Returns:
             dict[str, int]: Dictionary containing various statistics.
         """
-        df = self._build_dataframe()
-        duplicate_df = self.get_duplicate_pages_dataframe()
-
+        duplicate_groups = self._duplicate_groups()
         return {
-            "total_pages": len(df),
-            "duplicate_pages": len(duplicate_df),
-            "unique_duplicate_hashes": len(self.get_distinct_hashes()),
+            "total_pages": self._total_pages,
+            "duplicate_pages": sum(len(locations) for locations in duplicate_groups.values()),
+            "unique_duplicate_hashes": len(duplicate_groups),
             "comics_processed": len(self._file_lst),
         }
 
