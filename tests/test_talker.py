@@ -778,16 +778,13 @@ def test_talker_process_file_ignore_modified_drops_date(mock_print, talker):  # 
 
     modified = datetime(2023, 6, 15, tzinfo=tzinfo)
 
-    with (
-        patch("metrontagger.talker.open_comic", return_value=mock_comic),
-        patch.object(
-            talker,
-            "_get_existing_metadata_id",
-            return_value=(InfoSource.METRON, 123, modified),
-        ),
+    with patch.object(
+        talker,
+        "_get_existing_metadata_id",
+        return_value=(InfoSource.METRON, 123, modified),
     ):
         config = ProcessingConfig(ignore_modified=True)
-        result = talker._process_file(Path("test.cbz"), config)
+        result = talker._process_file(Path("test.cbz"), config, mock_comic)
 
     assert result.issue_id == 123
     assert result.modified is None
@@ -802,16 +799,13 @@ def test_talker_process_file_keeps_modified_by_default(mock_print, talker):  # n
 
     modified = datetime(2023, 6, 15, tzinfo=tzinfo)
 
-    with (
-        patch("metrontagger.talker.open_comic", return_value=mock_comic),
-        patch.object(
-            talker,
-            "_get_existing_metadata_id",
-            return_value=(InfoSource.METRON, 123, modified),
-        ),
+    with patch.object(
+        talker,
+        "_get_existing_metadata_id",
+        return_value=(InfoSource.METRON, 123, modified),
     ):
         config = ProcessingConfig()
-        result = talker._process_file(Path("test.cbz"), config)
+        result = talker._process_file(Path("test.cbz"), config, mock_comic)
 
     assert result.issue_id == 123
     assert result.modified == modified
@@ -1024,16 +1018,14 @@ def test_talker_search_by_filename_parse_error(
     assert search_result.has_multiple_matches is False
 
 
-@patch("metrontagger.comics.Comic")
-def test_talker_process_file_not_writable(mock_comic_class, talker):
+def test_talker_process_file_not_writable(talker):
     """Test processing file that's not writable."""
     mock_comic = Mock()
     mock_comic.is_writable.return_value = False
     mock_comic.seems_to_be_a_comic_archive.return_value = False
-    mock_comic_class.return_value = mock_comic
 
     config = ProcessingConfig()
-    search_result = talker._process_file(Path("readonly.cbz"), config)
+    search_result = talker._process_file(Path("readonly.cbz"), config, mock_comic)
     assert search_result.issue_id is None
     assert search_result.has_multiple_matches is False
 
@@ -1220,12 +1212,13 @@ def make_writable_comic():
 def process_file(talker, cover, config=None):
     """Run _process_file with the cover search returning `cover`."""
     with (
-        patch("metrontagger.talker.open_comic", return_value=make_writable_comic()),
         patch.object(talker, "_get_existing_metadata_id", return_value=None),
         patch.object(talker, "_search_by_cover", return_value=cover),
         patch.object(talker, "_search_by_filename") as by_filename,
     ):
-        result = talker._process_file(BOBA_FETT, config or ProcessingConfig())
+        result = talker._process_file(
+            BOBA_FETT, config or ProcessingConfig(), make_writable_comic()
+        )
     return result, by_filename
 
 
@@ -1309,13 +1302,12 @@ def test_process_file_parses_filename_once(talker):
     """The filename is parsed once and shared by the cover and filename searches."""
     parsed = {"series": "Test", "issue": "1", "year": "2026"}
     with (
-        patch("metrontagger.talker.open_comic", return_value=make_writable_comic()),
         patch.object(talker, "_get_existing_metadata_id", return_value=None),
         patch("metrontagger.talker.comicfn2dict", return_value=parsed) as parse,
         patch.object(talker, "_search_by_cover", return_value=CoverMatches()) as by_cover,
         patch.object(talker, "_search_by_filename") as by_filename,
     ):
-        talker._process_file(BOBA_FETT, ProcessingConfig())
+        talker._process_file(BOBA_FETT, ProcessingConfig(), make_writable_comic())
 
     parse.assert_called_once()
     assert by_cover.call_args.args[3] is parsed
@@ -1672,3 +1664,46 @@ def test_write_issue_md_failed_call_is_not_reported_as_not_modified(talker, samp
         talker._write_issue_md(sample_path, 123, modified=datetime(2024, 1, 1, tzinfo=UTC))
 
     assert not any("not been modified" in str(c.args[0]) for c in mock_info.call_args_list)
+
+
+def test_identify_comics_opens_each_file_once(talker):
+    """The comic opened by identify_comics is reused for the search and the write."""
+    comic = make_writable_comic()
+    comic.has_metadata.return_value = False
+
+    with (
+        patch("metrontagger.talker.open_comic", return_value=comic) as mock_open,
+        patch.object(
+            talker,
+            "_process_file",
+            return_value=SearchResult(issue_id=123, has_multiple_matches=False),
+        ) as mock_process,
+        patch.object(talker, "_write_issue_md") as mock_write,
+        patch.object(talker, "_post_process_matches"),
+        patch.object(talker, "_print_rate_limit_status"),
+    ):
+        talker.identify_comics([BOBA_FETT], ProcessingConfig())
+
+    mock_open.assert_called_once_with(BOBA_FETT)
+    assert mock_process.call_args.args[2] is comic
+    mock_write.assert_called_once_with(BOBA_FETT, 123, None, comic)
+
+
+def test_write_issue_md_uses_given_comic(talker, sample_path):
+    """An already-open comic is written to without opening the file again."""
+    comic = Mock()
+    comic.get_number_of_pages.return_value = 20
+    comic.write_metadata.return_value = True
+
+    with (
+        patch.object(talker.client, "call", return_value=Mock()),
+        patch.object(
+            talker.metadata_mapper, "map_response_to_metadata", return_value=Metadata()
+        ),
+        patch.object(talker.ui, "print_metadata_write_success"),
+        patch("metrontagger.talker.open_comic") as mock_open,
+    ):
+        talker._write_issue_md(sample_path, 123, comic=comic)
+
+    mock_open.assert_not_called()
+    comic.write_metadata.assert_called()
