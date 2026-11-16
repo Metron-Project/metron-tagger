@@ -613,12 +613,9 @@ class Talker:
         self,
         fn: Path,
         config: ProcessingConfig,
+        comic: Comic,
     ) -> SearchResult:
-        """Process a comic file for metadata."""
-        comic = open_comic(fn)
-        if comic is None:
-            return SearchResult(issue_id=None, has_multiple_matches=False)
-
+        """Find the Metron issue for an opened comic file."""
         if not comic.is_writable() or not comic.seems_to_be_a_comic_archive():
             LOGGER.warning("Comic appears not to be a comic or writable: %s", fn)
             self.ui.print_error(f"{fn.name} appears not to be a comic or writable.")
@@ -684,9 +681,17 @@ class Talker:
         return written_formats
 
     def _write_issue_md(
-        self, filename: Path, issue_id: int, modified: datetime | None = None
+        self,
+        filename: Path,
+        issue_id: int,
+        modified: datetime | None = None,
+        comic: Comic | None = None,
     ) -> None:
-        """Write metadata for a comic issue."""
+        """Write metadata for a comic issue.
+
+        Pass `comic` if the file is already open, so it isn't opened again: opening
+        is slow for formats like CBR, CB7 and PDF.
+        """
         resp = self.client.call(
             lambda: self.api.issue(issue_id, if_modified_since=modified),
             "Failed to retrieve data",
@@ -700,8 +705,7 @@ class Talker:
                 )
             return
 
-        comic = open_comic(filename)
-        if comic is None:
+        if comic is None and (comic := open_comic(filename)) is None:
             return
 
         meta_data = Metadata()
@@ -764,10 +768,10 @@ class Talker:
                 self.ui.print_warning(f"{fn.name} has metadata. Skipping...")
                 continue
 
-            result = self._process_file(fn, config)
+            result = self._process_file(fn, config, comic)
 
             if result.issue_id:
-                self._write_issue_md(fn, result.issue_id, result.modified)
+                self._write_issue_md(fn, result.issue_id, result.modified, comic)
             elif not result.has_multiple_matches:
                 self.ui.print_error(f"No Match for '{fn.name}'.")
 

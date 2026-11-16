@@ -337,13 +337,8 @@ class Runner:
     ) -> None:
         """Delete the selected pages and print before/after summaries."""
         DuplicatesPresenter.print_pre_processing_summary(duplicates_lst)
+        # Records each successfully processed comic's new size.
         results = dup_objs.delete_comic_pages(duplicates_lst)
-
-        # Only update sizes of files that were processed successfully.
-        for duplicate_issue in duplicates_lst:
-            if results.get(duplicate_issue.path_, False):
-                duplicate_issue.update_ending_size()
-
         DuplicatesPresenter.print_post_processing_summary(duplicates_lst, results)
         DuplicatesPresenter.print_statistics(dup_objs.get_statistics())
 
