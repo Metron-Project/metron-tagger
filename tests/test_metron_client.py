@@ -9,7 +9,7 @@ from mokkari.exceptions import ApiError, RateLimitError
 from mokkari.rate_limit import HeaderPacedRateLimiter
 
 from metrontagger import __version__
-from metrontagger.metron_client import REDIS_SOCKET_TIMEOUT, MetronClient
+from metrontagger.metron_client import MAX_API_ATTEMPTS, REDIS_SOCKET_TIMEOUT, MetronClient
 
 
 @pytest.fixture
@@ -406,55 +406,99 @@ def test_get_http_status_code_without_cause_returns_none(client):
     assert client._get_http_status_code(error) is None
 
 
-def test_retry_api_call_success(client):
-    """Test successful retry."""
-    mock_call = Mock(return_value="retry success")
-    result = client._retry_api_call(mock_call)
-    assert result == "retry success"
-    mock_call.assert_called_once()
-
-
-def test_retry_api_call_rate_limit_error(client):
-    """Test retry that fails with RateLimitError."""
-    error = RateLimitError("Still rate limited")
-    mock_call = Mock(side_effect=error)
-
-    result = client._retry_api_call(mock_call)
-    assert result is None
-    mock_call.assert_called_once()
-
-
-def test_retry_api_call_api_error(client):
-    """Test retry that fails with ApiError."""
-    error = ApiError("API error")
-    mock_call = Mock(side_effect=error)
-
-    result = client._retry_api_call(mock_call)
-    assert result is None
-    mock_call.assert_called_once()
-    assert client.stop_processing is False
-
-
-def test_retry_api_call_fatal_http_error_stops_processing(client):
-    """A 401 hit during a retry should also stop further processing."""
-    error = create_http_api_error(401)
-    mock_call = Mock(side_effect=error)
-
-    result = client._retry_api_call(mock_call)
-    assert result is None
-    assert client.stop_processing is True
+# Retries: each test starts with a short rate limit, so the call is retried once.
+SHORT_RATE_LIMIT = RateLimitError("Rate limit exceeded", retry_after=10)
 
 
 @patch("metrontagger.metron_client.time.sleep")
-def test_retry_api_call_fatal_http_error_after_short_rate_limit_wait(mock_sleep, client):
-    """A fatal error hit on the second attempt (after a short rate-limit wait) also stops."""
-    rate_limit_error = RateLimitError("Rate limit exceeded", retry_after=10)
-    fatal_error = create_http_api_error(400)
-    mock_call = Mock(side_effect=[rate_limit_error, fatal_error])
+def test_call_retry_success(mock_sleep, client):
+    """A call that succeeds on the retry returns its result."""
+    mock_call = Mock(side_effect=[SHORT_RATE_LIMIT, "retry success"])
 
-    result = client._retry_api_call(mock_call)
-
-    assert result is None
-    assert client.stop_processing is True
+    assert client.call(mock_call) == "retry success"
     assert mock_call.call_count == 2
     mock_sleep.assert_called_once_with(12)
+
+
+@patch("metrontagger.ui.UIPresenter.print_error")
+@patch("metrontagger.metron_client.time.sleep")
+def test_call_retry_rate_limit_without_retry_after(mock_sleep, mock_error, client):
+    """A rate limit on the retry with no usable retry_after isn't retried again."""
+    mock_call = Mock(side_effect=[SHORT_RATE_LIMIT, RateLimitError("Still rate limited")])
+
+    assert client.call(mock_call) is None
+    assert mock_call.call_count == 2
+    mock_sleep.assert_called_once_with(12)
+    assert mock_error.call_args.args[0] == "Retry failed: Still rate limited"
+    assert client.stop_processing is False
+
+
+@patch("metrontagger.metron_client.questionary.confirm")
+@patch("metrontagger.metron_client.time.sleep")
+def test_call_retry_long_rate_limit_does_not_prompt(mock_sleep, mock_confirm, client):
+    """Only the first rate limit can prompt; a long one on the retry just fails."""
+    long_limit = RateLimitError("Rate limit exceeded", retry_after=300)
+    mock_call = Mock(side_effect=[SHORT_RATE_LIMIT, long_limit])
+
+    assert client.call(mock_call) is None
+    assert mock_call.call_count == 2
+    mock_sleep.assert_called_once_with(12)
+    mock_confirm.assert_not_called()
+    assert client.stop_processing is False
+
+
+@patch("metrontagger.ui.UIPresenter.print_error")
+@patch("metrontagger.metron_client.time.sleep")
+def test_call_gives_up_after_max_attempts(mock_sleep, mock_error, client):
+    """Short rate limits are retried at most MAX_API_ATTEMPTS times in total."""
+    mock_call = Mock(side_effect=[SHORT_RATE_LIMIT] * (MAX_API_ATTEMPTS + 1))
+
+    assert client.call(mock_call) is None
+    assert mock_call.call_count == MAX_API_ATTEMPTS
+    assert mock_sleep.call_count == MAX_API_ATTEMPTS - 1
+    assert mock_error.call_args.args[0].startswith("Retry failed:")
+
+
+@patch("metrontagger.ui.UIPresenter.print_error")
+@patch("metrontagger.metron_client.time.sleep")
+def test_call_retry_api_error(mock_sleep, mock_error, client):
+    """A non-fatal ApiError on the retry is reported as a failed retry."""
+    mock_call = Mock(side_effect=[SHORT_RATE_LIMIT, ApiError("API error")])
+
+    assert client.call(mock_call, error_context="Failed to retrieve data") is None
+    assert mock_call.call_count == 2
+    mock_sleep.assert_called_once_with(12)
+    assert mock_error.call_args.args[0] == "Retry failed: API error"
+    assert client.stop_processing is False
+
+
+@patch("metrontagger.ui.UIPresenter.print_error")
+def test_call_api_error_message(mock_error, client):
+    """An ApiError on the first attempt is reported with the call's context."""
+    mock_call = Mock(side_effect=ApiError("API error"))
+
+    assert client.call(mock_call, error_context="Failed to retrieve data") is None
+    assert mock_error.call_args.args[0] == "Failed to retrieve data: API error"
+
+
+@patch("metrontagger.metron_client.time.sleep")
+def test_call_retry_fatal_http_error_stops_processing(mock_sleep, client):
+    """A 401 hit during a retry should also stop further processing."""
+    mock_call = Mock(side_effect=[SHORT_RATE_LIMIT, create_http_api_error(401)])
+
+    assert client.call(mock_call) is None
+    assert client.stop_processing is True
+    mock_sleep.assert_called_once_with(12)
+
+
+@patch("metrontagger.metron_client.time.sleep")
+def test_call_fatal_http_error_after_second_short_rate_limit(mock_sleep, client):
+    """A fatal error on the last attempt (after two short rate-limit waits) also stops."""
+    mock_call = Mock(
+        side_effect=[SHORT_RATE_LIMIT, SHORT_RATE_LIMIT, create_http_api_error(400)]
+    )
+
+    assert client.call(mock_call) is None
+    assert client.stop_processing is True
+    assert mock_call.call_count == 3
+    assert mock_sleep.call_count == 2

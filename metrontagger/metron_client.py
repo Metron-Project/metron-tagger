@@ -29,6 +29,9 @@ LOGGER = getLogger(__name__)
 
 RATE_LIMIT_AUTO_RETRY_THRESHOLD = 60  # seconds
 RATE_LIMIT_RETRY_BUFFER = 2  # seconds added to retry_after to account for clock skew
+# The first try plus up to two retries: one after the first rate limit, and one more if
+# the retry hits a short rate limit too.
+MAX_API_ATTEMPTS = 3
 # Bound Redis connects/reads so an unreachable or stalled server raises a RedisError
 # instead of hanging; redis-py waits indefinitely by default.
 REDIS_SOCKET_TIMEOUT = 5  # seconds
@@ -205,117 +208,92 @@ class MetronClient:
         )
         self.stop_processing = True
 
-    def _retry_after_short_rate_limit(
-        self, api_call: Callable[[], T], retry_error: RateLimitError
-    ) -> T | None:
-        """Wait out a short rate-limit window hit during a retry, then try once more."""
-        LOGGER.debug("Rate limit hit on retry, waiting %s seconds", retry_error.retry_after)
-        time.sleep(retry_error.retry_after + RATE_LIMIT_RETRY_BUFFER)
-        try:
-            return api_call()
-        except (RateLimitError, ApiError) as final_error:
-            if isinstance(final_error, ApiError) and self._handle_fatal_api_error(
-                final_error, "Retry failed"
-            ):
-                return None
-            LOGGER.exception("Retry failed after second wait")
-            self.ui.print_error(f"Retry failed: {final_error!s}")
-            return None
-        except self._redis_errors as final_error:
-            self._handle_redis_error(final_error, "Retry failed")
-            return None
+    def _report_api_error(self, error: ApiError, context: str) -> None:
+        """Report an ApiError, stopping further processing if it's unrecoverable."""
+        if self._handle_fatal_api_error(error, context):
+            return
+        LOGGER.exception(context)
+        self.ui.print_error(f"{context}: {error}")
 
-    def _retry_api_call(self, api_call: Callable[[], T]) -> T | None:
-        """Retry an API call after a rate limit delay.
-
-        Args:
-            api_call: A callable that makes the API call
+    def _ask_to_wait(self, error: RateLimitError, retry_after: float) -> float | None:
+        """Ask whether to wait out a long rate limit.
 
         Returns:
-            The result of the API call, or None if an error occurred
+            How long to sleep before retrying, or None (and stop processing) if the
+            user declines.
         """
-        try:
-            return api_call()
-        except RateLimitError as retry_error:
-            # If we hit another short rate limit, wait and try once more silently
-            if (
-                hasattr(retry_error, "retry_after")
-                and 0 < retry_error.retry_after < RATE_LIMIT_AUTO_RETRY_THRESHOLD
-            ):
-                return self._retry_after_short_rate_limit(api_call, retry_error)
-            LOGGER.debug("Rate limit hit on retry: %s", retry_error)
-            self.ui.print_error(f"Retry failed: {retry_error!s}")
-            return None
-        except ApiError as retry_error:
-            if self._handle_fatal_api_error(retry_error, "Retry failed"):
-                return None
-            LOGGER.exception("Retry failed")
-            self.ui.print_error(f"Retry failed: {retry_error!s}")
-            return None
-        except self._redis_errors as retry_error:
-            self._handle_redis_error(retry_error, "Retry failed")
-            return None
-
-    def _handle_rate_limit_error(
-        self, api_call: Callable[[], T], error: RateLimitError
-    ) -> T | None:
-        """Handle a RateLimitError raised by an API call, retrying when appropriate."""
-        LOGGER.debug("Rate limit exceeded: %s", error)
-
-        # Check if retry_after is available
-        if not hasattr(error, "retry_after") or error.retry_after <= 0:
-            self.ui.print_warning(f"{error!s}")
-            return None
-
-        retry_after = error.retry_after
-
-        # For short delays (< RATE_LIMIT_AUTO_RETRY_THRESHOLD), automatically retry
-        if retry_after < RATE_LIMIT_AUTO_RETRY_THRESHOLD:
-            time.sleep(retry_after + RATE_LIMIT_RETRY_BUFFER)
-            return self._retry_api_call(api_call)
-
-        # For long delays (>= RATE_LIMIT_AUTO_RETRY_THRESHOLD), ask user
         self.ui.print_warning(f"{error!s}")
         wait_start = time.monotonic()
+        if not questionary.confirm("Do you want to wait and retry?", default=False).ask():
+            self.stop_processing = True
+            return None
 
-        should_wait = questionary.confirm(
-            "Do you want to wait and retry?",
-            default=False,
-        ).ask()
+        # Deduct time already spent waiting on the user's answer so the
+        # total delay matches retry_after instead of stacking on top of it.
+        elapsed = time.monotonic() - wait_start
+        self.ui.print_info("Waiting to retry...")
+        return max(0.0, retry_after - elapsed) + RATE_LIMIT_RETRY_BUFFER
 
-        if should_wait:
-            # Deduct time already spent waiting on the user's answer so the
-            # total delay matches retry_after instead of stacking on top of it.
-            elapsed = time.monotonic() - wait_start
-            remaining = max(0.0, retry_after - elapsed) + RATE_LIMIT_RETRY_BUFFER
-            self.ui.print_info("Waiting to retry...")
-            time.sleep(remaining)
-            return self._retry_api_call(api_call)
+    def _rate_limit_wait(self, error: RateLimitError, attempt: int) -> float | None:
+        """Decide how long to wait before retrying after a rate limit.
 
-        # User declined to wait - stop processing remaining files
-        self.stop_processing = True
+        On the first attempt a short limit is waited out automatically and the user is
+        asked about a long one. A retry only waits again for a short limit, and the last
+        attempt never does.
+
+        Returns:
+            How long to sleep before retrying, or None to give up.
+        """
+        retry_after = getattr(error, "retry_after", 0) or 0
+        is_short = 0 < retry_after < RATE_LIMIT_AUTO_RETRY_THRESHOLD
+
+        if attempt == 0:
+            LOGGER.debug("Rate limit exceeded: %s", error)
+            if retry_after <= 0:
+                self.ui.print_warning(f"{error!s}")
+                return None
+            if is_short:
+                return retry_after + RATE_LIMIT_RETRY_BUFFER
+            return self._ask_to_wait(error, retry_after)
+
+        if is_short and attempt < MAX_API_ATTEMPTS - 1:
+            LOGGER.debug("Rate limit hit on retry, waiting %s seconds", retry_after)
+            return retry_after + RATE_LIMIT_RETRY_BUFFER
+
+        LOGGER.debug("Rate limit hit on retry: %s", error)
+        self.ui.print_error(f"Retry failed: {error!s}")
         return None
 
     def call(self, api_call: Callable[[], T], error_context: str = "API call") -> T | None:
-        """Centralized API error handling with automatic retry for rate limits.
+        """Make an API call, retrying after rate limits and reporting any errors.
+
+        A call is attempted up to MAX_API_ATTEMPTS times; see `_rate_limit_wait` for
+        when a rate limit leads to another attempt. Any other error is reported and
+        ends the call.
 
         Args:
-            api_call: A callable that makes the API call
-            error_context: Context description for error messages
+            api_call: A callable that makes the API call.
+            error_context: Describes the call in error messages. Errors on a retry are
+                reported as "Retry failed".
 
         Returns:
-            The result of the API call, or None if an error occurred
+            The result of the API call, or None if it didn't succeed.
         """
-        try:
-            return api_call()
-        except RateLimitError as e:
-            return self._handle_rate_limit_error(api_call, e)
-        except ApiError as e:
-            if self._handle_fatal_api_error(e, error_context):
+        context = error_context
+        for attempt in range(MAX_API_ATTEMPTS):
+            try:
+                return api_call()
+            except RateLimitError as e:
+                delay = self._rate_limit_wait(e, attempt)
+            except ApiError as e:
+                self._report_api_error(e, context)
                 return None
-            LOGGER.exception(error_context)
-            self.ui.print_error(f"{error_context}: {e!r}")
-            return None
-        except self._redis_errors as e:
-            self._handle_redis_error(e, error_context)
-            return None
+            except self._redis_errors as e:
+                self._handle_redis_error(e, context)
+                return None
+
+            if delay is None:
+                return None
+            time.sleep(delay)
+            context = "Retry failed"
+        return None  # pragma: no cover - the last attempt never asks to wait
