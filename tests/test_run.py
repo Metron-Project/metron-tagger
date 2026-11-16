@@ -224,8 +224,8 @@ def test_delete_metadata_reports_failure(
     runner._delete_metadata([fake_comic])
 
     out = "\n".join(output)
-    assert "Failed to remove ComicInfo.xml" in out
-    assert "no metadata in" in out
+    assert "Failed to remove 'ComicInfo.xml'" in out
+    assert "no metadata in" not in out
 
 
 # --- Export to CBZ -----------------------------------------------------------
@@ -522,7 +522,8 @@ def test_remove_duplicates_groups_pages_per_comic(
 ) -> None:
     """Each comic gets a single DuplicateIssue holding every page picked for removal."""
     hashes = {
-        "hash_a": [_dup("a.cbz", 1), _dup("b.cbz", 4)],
+        # "a.cbz" is a substring of "ba.cbz"; they must stay separate.
+        "hash_a": [_dup("ba.cbz", 3), _dup("a.cbz", 1), _dup("b.cbz", 4)],
         "hash_b": [_dup("a.cbz", 7), _dup("c.cbz", 2)],
         "hash_c": [_dup("b.cbz", 9)],  # declined below
     }
@@ -550,6 +551,7 @@ def test_remove_duplicates_groups_pages_per_comic(
     duplicates_cls.assert_called_once_with([fake_comic], quick=False)
     written = dup_objs.delete_comic_pages.call_args.args[0]
     assert {d.path_: d.pages_index for d in written} == {
+        "ba.cbz": [3],
         "a.cbz": [1, 7],
         "b.cbz": [4],
         "c.cbz": [2],
@@ -577,13 +579,6 @@ def test_remove_duplicates_declined_review(
 
     dup_objs.get_comic_list_from_hash.assert_not_called()
     dup_objs.delete_comic_pages.assert_not_called()
-
-
-def test_get_duplicate_entry_index() -> None:
-    dups = [_dup("a.cbz", 1), _dup("b.cbz", 2)]
-
-    assert Runner._get_duplicate_entry_index("b.cbz", dups) == 1
-    assert Runner._get_duplicate_entry_index("z.cbz", dups) is None
 
 
 def test_create_duplicate_statistics_msg() -> None:
@@ -618,38 +613,6 @@ def test_run_exits_when_no_files(
 
     assert exc.value.code == 0
     assert "No files to process" in "\n".join(output)
-
-
-@pytest.mark.parametrize(
-    ("flag", "method"),
-    [
-        ("--missing", "_comics_with_no_metadata"),
-        ("--delete", "_delete_metadata"),
-        ("--online", "identify_comics"),
-        ("--validate", "_validate_comic_info"),
-    ],
-)
-def test_run_requires_metadata_format(
-    parser: ArgumentParser,
-    settings: MetronTaggerSettings,
-    fake_comic: Path,
-    output: list[str],
-    monkeypatch: pytest.MonkeyPatch,
-    flag: str,
-    method: str,
-) -> None:
-    called = Mock()
-    monkeypatch.setattr(Runner, method, called, raising=False)
-    talker_cls = MagicMock()
-    monkeypatch.setattr("metrontagger.run.Talker", talker_cls)
-    runner = _make_runner(parser, settings, str(fake_comic), flag)
-
-    with pytest.raises(SystemExit):
-        runner.run()
-
-    assert "No metadata format was given" in "\n".join(output)
-    called.assert_not_called()
-    talker_cls.assert_not_called()
 
 
 def test_run_dispatch_order(

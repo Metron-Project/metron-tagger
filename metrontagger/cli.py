@@ -6,7 +6,7 @@ from logging import getLogger
 import questionary
 
 from metrontagger import __version__, init_logging
-from metrontagger.options import make_parser
+from metrontagger.options import check_args, make_parser
 from metrontagger.run import Runner
 from metrontagger.settings import MetronTaggerSettings
 from metrontagger.styles import Styles
@@ -25,7 +25,9 @@ def get_args() -> Namespace:
     """
 
     parser = make_parser()
-    return parser.parse_args()
+    args = parser.parse_args()
+    check_args(parser, args)
+    return args
 
 
 def _metron_credentials(settings: MetronTaggerSettings) -> None:
