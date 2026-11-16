@@ -186,12 +186,6 @@ class Duplicates:
 
     This class provides methods for identifying duplicate pages in a list of comic book files and performing actions
     on them.
-
-    Args:
-        file_lst: list[Path]: A list of file paths to the comic book files.
-
-    Returns:
-        None
     """
 
     def __init__(
@@ -203,7 +197,7 @@ class Duplicates:
     ) -> None:
         """Initialize the Duplicates class with a list of file paths.
 
-        This method sets the list of file paths and initializes the data frame to None.
+        The pages aren't hashed until a duplicate lookup first needs them.
 
         Args:
             file_lst: list[Path]: A list of file paths to be processed.
@@ -212,8 +206,8 @@ class Duplicates:
             max_workers: int | None: Maximum number of comics to scan concurrently. Defaults
                 to the CPU count (capped at 8). A value of 1 scans serially.
 
-        Returns:
-            None
+        Raises:
+            ValueError: If `file_lst` is empty or `max_workers` is less than 1.
         """
         if not file_lst:
             msg = "File list cannot be empty"

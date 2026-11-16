@@ -82,9 +82,6 @@ def main() -> None:
 
     This function parses command line arguments, creates MetronTaggerSettings based on the arguments, initializes a
     Runner with the settings, and runs the main operations of the application.
-
-    Returns:
-        None
     """
     init_logging()
     settings = MetronTaggerSettings()

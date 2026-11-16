@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from metrontagger.cli import _metron_credentials, _set_sort_directory
+from metrontagger.cli import _metron_credentials, _set_sort_directory, main
 from metrontagger.settings import MetronTaggerSettings
 
 
@@ -125,3 +125,62 @@ def test__set_sort_directory_empty_answer_not_saved(
     _set_sort_directory(settings)
 
     assert settings["sort.directory"] == ""
+
+
+@pytest.mark.parametrize(
+    ("flags", "expect_token_prompt", "expect_sort_prompt"),
+    [
+        (["-r"], False, False),
+        (["-o", "-c"], True, False),
+        (["--id", "5", "-m"], True, False),
+        (["-s"], False, True),
+        (["-o", "-s", "-m"], True, True),
+    ],
+    ids=["rename_only", "online", "id", "sort", "online_and_sort"],
+)
+def test_main_prompts_then_runs(
+    monkeypatch: pytest.MonkeyPatch,
+    settings: MetronTaggerSettings,
+    flags: list[str],
+    expect_token_prompt: bool,
+    expect_sort_prompt: bool,
+) -> None:
+    """main() asks only for the settings the requested operations need, then runs them."""
+    monkeypatch.setattr("sys.argv", ["metron-tagger", "comic.cbz", *flags])
+    monkeypatch.setattr("metrontagger.cli.init_logging", MagicMock())
+    monkeypatch.setattr("metrontagger.cli.MetronTaggerSettings", lambda: settings)
+    token_prompt = MagicMock()
+    sort_prompt = MagicMock()
+    runner_cls = MagicMock()
+    monkeypatch.setattr("metrontagger.cli._metron_credentials", token_prompt)
+    monkeypatch.setattr("metrontagger.cli._set_sort_directory", sort_prompt)
+    monkeypatch.setattr("metrontagger.cli.Runner", runner_cls)
+
+    main()
+
+    assert token_prompt.called is expect_token_prompt
+    assert sort_prompt.called is expect_sort_prompt
+    args, runner_settings = runner_cls.call_args.args
+    assert args.path == ["comic.cbz"]
+    assert runner_settings is settings
+    runner_cls.return_value.run.assert_called_once_with()
+
+
+def test_main_rejects_invalid_args_before_prompting(
+    monkeypatch: pytest.MonkeyPatch, settings: MetronTaggerSettings
+) -> None:
+    """Invalid options exit with a usage error before any prompt or operation."""
+    monkeypatch.setattr("sys.argv", ["metron-tagger", "comic.cbz", "--online"])
+    monkeypatch.setattr("metrontagger.cli.init_logging", MagicMock())
+    monkeypatch.setattr("metrontagger.cli.MetronTaggerSettings", lambda: settings)
+    token_prompt = MagicMock()
+    runner_cls = MagicMock()
+    monkeypatch.setattr("metrontagger.cli._metron_credentials", token_prompt)
+    monkeypatch.setattr("metrontagger.cli.Runner", runner_cls)
+
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert exc.value.code == 2
+    token_prompt.assert_not_called()
+    runner_cls.assert_not_called()

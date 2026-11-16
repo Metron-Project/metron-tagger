@@ -51,7 +51,7 @@ class Runner:
     removing duplicates, validating ComicInfo, and more based on the provided settings.
     """
 
-    def __init__(self: Runner, args: Namespace, config: MetronTaggerSettings) -> None:
+    def __init__(self, args: Namespace, config: MetronTaggerSettings) -> None:
         """Initialize the Runner with the parsed arguments and MetronTaggerSettings."""
         self.args = args
         self.config = config
@@ -132,7 +132,7 @@ class Runner:
         UIPresenter.print_success(f"renamed '{path.name}' -> '{new_path.name}'")
         return new_path
 
-    def rename_comics(self: Runner, file_list: list[Path]) -> list[Path]:
+    def rename_comics(self, file_list: list[Path]) -> list[Path]:
         """Rename comic archives based on metadata.
 
         Args:
@@ -145,7 +145,7 @@ class Runner:
         renamer = self._create_file_renamer()
         return [self._rename_comic(renamer, path) or path for path in file_list]
 
-    def _export_to_zip(self: Runner, file_list: list[Path]) -> None:
+    def _export_to_zip(self, file_list: list[Path]) -> None:
         """Export comic archives to cbz format.
 
         Optionally deletes the original archives when --delete-original is given.
@@ -210,7 +210,7 @@ class Runner:
         if remove_metadata and comic.remove_metadata([fmt]):
             UIPresenter.print_warning(f"Removed non-valid metadata from '{comic.path.name}'.")
 
-    def _sort_comic_list(self: Runner, file_list: list[Path]) -> None:
+    def _sort_comic_list(self, file_list: list[Path]) -> None:
         """Move comic archives into the configured sort directory.
 
         Args:
@@ -228,7 +228,7 @@ class Runner:
             if not file_sorter.sort_comics(path):
                 UIPresenter.print_error(f"Unable to move '{path.name}'.")
 
-    def _comics_with_no_metadata(self: Runner, file_list: list[Path]) -> None:
+    def _comics_with_no_metadata(self, file_list: list[Path]) -> None:
         """Print the files missing any of the requested metadata formats.
 
         Args:
@@ -244,7 +244,7 @@ class Runner:
             if not all(comic.has_metadata(fmt) for fmt in formats):
                 UIPresenter.print_success(f"{path}")
 
-    def _delete_metadata(self: Runner, file_list: list[Path]) -> None:
+    def _delete_metadata(self, file_list: list[Path]) -> None:
         """Remove the requested metadata formats from comic archives.
 
         Args:
@@ -370,7 +370,7 @@ class Runner:
         ):
             self._update_ci_xml(duplicates_lst)
 
-    def _processing_config(self: Runner) -> ProcessingConfig:
+    def _processing_config(self) -> ProcessingConfig:
         """Build the online search options from the parsed arguments."""
         return ProcessingConfig(
             accept_only=self.args.accept_only,
@@ -380,7 +380,7 @@ class Runner:
             ignore_modified=self.args.ignore_modified,
         )
 
-    def _tag_online(self: Runner, file_list: list[Path]) -> None:
+    def _tag_online(self, file_list: list[Path]) -> None:
         """Tag comics from Metron, by issue ID for a single file or by searching otherwise."""
         with Talker(
             self.config.get_str("metron.auth_token"),
@@ -394,7 +394,7 @@ class Runner:
             else:
                 t.identify_comics(file_list, self._processing_config())
 
-    def run(self: Runner) -> None:
+    def run(self) -> None:
         """Run the requested operations, in a fixed order, on every file under the given paths.
 
         Commands that need --comicinfo and/or --metroninfo are checked when the arguments are
