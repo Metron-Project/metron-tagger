@@ -101,17 +101,19 @@ class Runner:
     def _create_file_renamer(self) -> FileRenamer:
         """Set options for file renaming."""
         renamer = FileRenamer()
-        if rename_template := self.config["rename.rename_template"]:
+        if rename_template := self.config.get_str("rename.rename_template"):
             try:
                 renamer.set_template(rename_template)
             except ValueError:
                 LOGGER.exception("Failed to set rename template.")
-        if number_padding := self.config["rename.rename_issue_number_padding"]:
+        if number_padding := self.config.get_int("rename.rename_issue_number_padding"):
             try:
                 renamer.set_issue_zero_padding(number_padding)
             except ValueError:
                 LOGGER.exception("Failed to set issue number padding.")
-        renamer.set_smart_cleanup(self.config["rename.rename_use_smart_string_cleanup"])
+        renamer.set_smart_cleanup(
+            self.config.get_bool("rename.rename_use_smart_string_cleanup")
+        )
         return renamer
 
     def _rename_comic(self, renamer: FileRenamer, path: Path) -> Path | None:
@@ -214,7 +216,7 @@ class Runner:
         Args:
             file_list: The comic archive file paths to sort.
         """
-        if not (sort_dir := self.config["sort.directory"]):
+        if not (sort_dir := self.config.get_str("sort.directory")):
             UIPresenter.print_error(
                 "\nUnable to sort files. No destination directory was provided."
             )
@@ -381,10 +383,10 @@ class Runner:
     def _tag_online(self: Runner, file_list: list[Path]) -> None:
         """Tag comics from Metron, by issue ID for a single file or by searching otherwise."""
         with Talker(
-            self.config["metron.auth_token"],
+            self.config.get_str("metron.auth_token"),
             self._selected_formats(),
-            username=self.config["metron.user"] or None,
-            redis_url=self.config["metron.redis_url"] or None,
+            username=self.config.get_str("metron.user") or None,
+            redis_url=self.config.get_str("metron.redis_url") or None,
         ) as t:
             if self.args.id and len(file_list) == 1:
                 # Single file with --id: interpret as issue ID

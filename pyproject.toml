@@ -273,6 +273,8 @@ exclude = [
   "test-results",
   "typings",
   "uv.lock",
+  # Vulture whitelists use an undefined `_` by design; the file is never imported.
+  "vulture_whitelist.py",
 ]
 useLibraryCodeForTypes = true
 reportMissingImports = true

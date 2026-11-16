@@ -1,3 +1,6 @@
+import pytest
+
+
 def test_settings(settings) -> None:
     user = "test"
     dummy = "dummy_value"
@@ -99,3 +102,40 @@ def test_settings_invalid_typed_value_reads_as_none(tmp_path) -> None:
     assert (
         MetronTaggerSettings(config_dir=tmp_path)["rename.rename_issue_number_padding"] is None
     )
+
+
+def test_settings_typed_getters(settings) -> None:
+    settings["rename.rename_issue_number_padding"] = 4
+    settings["rename.rename_use_smart_string_cleanup"] = False
+    settings["sort.directory"] = "/comics"
+
+    assert settings.get_int("rename.rename_issue_number_padding") == 4
+    assert settings.get_bool("rename.rename_use_smart_string_cleanup") is False
+    assert settings.get_str("sort.directory") == "/comics"
+
+
+def test_settings_typed_getter_falls_back_to_default(tmp_path) -> None:
+    """An unconvertible value reads as the option's default, not None."""
+    from metrontagger.settings import MetronTaggerSettings  # noqa: PLC0415
+
+    (tmp_path / "settings.ini").write_text(
+        "[rename]\nrename_issue_number_padding = lots\nrename_use_smart_string_cleanup = maybe\n",
+        encoding="utf-8",
+    )
+    config = MetronTaggerSettings(config_dir=tmp_path)
+
+    assert config.get_int("rename.rename_issue_number_padding") == 3
+    assert config.get_bool("rename.rename_use_smart_string_cleanup") is True
+
+
+@pytest.mark.parametrize(
+    ("getter", "key"),
+    [
+        ("get_int", "metron.auth_token"),  # a str option
+        ("get_int", "rename.rename_use_smart_string_cleanup"),  # bool is not an int
+        ("get_str", "metron.no_such_option"),
+    ],
+)
+def test_settings_typed_getter_wrong_type_or_unknown_key(settings, getter, key) -> None:
+    with pytest.raises(KeyError):
+        getattr(settings, getter)(key)

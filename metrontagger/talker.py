@@ -258,7 +258,8 @@ class MetadataExtractor:
         try:
             id_ = int(res["id"])
         except ValueError:
-            LOGGER.exception("Comic has invalid id: %s #%s", md.series.name, md.issue)
+            series_name = md.series.name if md.series else "Unknown series"
+            LOGGER.exception("Comic has invalid id: %s #%s", series_name, md.issue)
             return None
 
         return src, id_
@@ -699,11 +700,11 @@ class Talker:
         md.overlay(meta_data)
 
         if written_formats := self._write_metadata_formats(comic, md):
-            collection = (
-                md.series.format.lower() in ["trade paperback", "hard cover"]
-                if md.series
-                else False
-            )
+            series_format = md.series.format if md.series else None
+            collection = bool(series_format) and series_format.lower() in {
+                "trade paperback",
+                "hard cover",
+            }
             self.ui.print_metadata_write_success(
                 formats=written_formats,
                 series_name=md.series.name if md.series else "Unknown",

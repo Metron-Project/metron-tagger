@@ -167,7 +167,7 @@ def test_read_preferred_metadata(
 
     md = read_preferred_metadata(comic)
 
-    assert (md.series.name if md else None) == expected_series
+    assert (md.series.name if md and md.series else None) == expected_series
 
 
 def test_read_preferred_metadata_real_archive(
@@ -181,6 +181,8 @@ def test_read_preferred_metadata_real_archive(
     md = read_preferred_metadata(Comic(fake_comic))
 
     assert md is not None
+    assert md.series is not None
+    assert fake_metadata.series is not None
     assert md.series.name == fake_metadata.series.name
 
 
@@ -198,6 +200,9 @@ def test_iter_metadata_reads_each_format_fresh(fake_comic: Path) -> None:
     # Writing ComicInfo also updates MetronInfo, so put MetronInfo's own data back.
     assert Comic(fake_comic).write_metadata(mi, MI)
 
-    read = {fmt: md.series.name for fmt, md in iter_metadata(Comic(fake_comic))}
+    read = {
+        fmt: md.series.name if md.series else None
+        for fmt, md in iter_metadata(Comic(fake_comic))
+    }
 
     assert read == {MI: "From MetronInfo", CI: "From ComicInfo"}

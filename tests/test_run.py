@@ -801,5 +801,6 @@ def test_add_migration_note(
     with patch("metrontagger.run.migration_note", return_value="MIGRATED"):
         _add_migration_note(md)
 
+    assert md.notes is not None
     assert md.notes.metron_info == expected_metron_info
     assert md.notes.comic_rack == expected_comic_rack

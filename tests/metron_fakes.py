@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Any
 from unittest.mock import Mock
 
 from imagehash import hex_to_hash
@@ -9,8 +10,10 @@ from imagehash import hex_to_hash
 tzinfo = timezone(timedelta(hours=-5))
 
 
-def create_mock_base_issue(issue_id=123, cover_hash="abcdef123456", series_name="Test Comic"):
-    """Create a mock BaseIssue object."""
+def create_mock_base_issue(
+    issue_id: int = 123, cover_hash: str = "abcdef123456", series_name: str = "Test Comic"
+) -> Any:
+    """Create a mock BaseIssue object (typed Any, as it stands in for a BaseIssue)."""
     issue = Mock()
     issue.id = issue_id
     issue.issue_name = f"{series_name} #1"
@@ -21,15 +24,15 @@ def create_mock_base_issue(issue_id=123, cover_hash="abcdef123456", series_name=
 
 
 def create_mock_issue_response(  # noqa: PLR0913, PLR0917 - mirrors the Issue fields tests vary
-    isbn=None,
-    upc=None,
-    average_rating=Decimal("4.25"),
-    rating_count=8,
-    alt_number=None,
-    alt_names=None,
-    language="en",
-):
-    """Create a mock Issue response object."""
+    isbn: str | None = None,
+    upc: str | None = None,
+    average_rating: Decimal | None = Decimal("4.25"),
+    rating_count: int = 8,
+    alt_number: str | None = None,
+    alt_names: list[str] | None = None,
+    language: str | None = "en",
+) -> Any:
+    """Create a mock Issue response object (typed Any, as it stands in for an Issue)."""
 
     issue = Mock()
     issue.id = 123

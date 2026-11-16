@@ -391,6 +391,17 @@ def test_delete_comic_pages_empty_list():
     assert results == {}
 
 
+@patch("metrontagger.comics.Comic")
+def test_show_image_missing_page_data(mock_comic_class):
+    """A page with no image data isn't shown."""
+    mock_comic_class.return_value.get_page.return_value = None
+
+    with patch("metrontagger.duplicates.Image.open") as mock_open:
+        assert Duplicates.show_image(DuplicateIssue("comic1.cbz", [3])) is False
+
+    mock_open.assert_not_called()
+
+
 def test_show_image_no_pages():
     """Test image display with no page indices."""
     duplicate_issue = DuplicateIssue("comic1.cbz", [])

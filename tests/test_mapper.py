@@ -43,8 +43,10 @@ def test_metadata_mapper_map_response_to_metadata():
     result = MetadataMapper.map_response_to_metadata(resp)
 
     assert isinstance(result, Metadata)
+    assert result.series is not None
     assert result.series.name == "Test Series"
     assert result.issue == "1"
+    assert result.info_source is not None
     assert len(result.info_source) >= 1
     assert result.info_source[0].name == "Metron"
     # Verify price is mapped
@@ -109,6 +111,7 @@ def test_metadata_mapper_set_series_info_with_alt_names():
     md = Metadata()
     MetadataMapper._set_series_info(md, resp)
 
+    assert md.series is not None
     assert [n.name for n in md.series.alternative_names] == [
         "Alt Name One",
         "Alt Name Two",
@@ -121,6 +124,7 @@ def test_metadata_mapper_set_series_info_without_alt_names():
     md = Metadata()
     MetadataMapper._set_series_info(md, resp)
 
+    assert md.series is not None
     assert md.series.alternative_names == []
 
 
@@ -130,6 +134,7 @@ def test_metadata_mapper_set_series_info_with_language():
     md = Metadata()
     MetadataMapper._set_series_info(md, resp)
 
+    assert md.series is not None
     assert md.series.language == "en"
 
 
@@ -139,6 +144,7 @@ def test_metadata_mapper_set_series_info_without_language():
     md = Metadata()
     MetadataMapper._set_series_info(md, resp)
 
+    assert md.series is not None
     assert md.series.language is None
 
 

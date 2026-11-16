@@ -196,7 +196,9 @@ def series_words(text: str) -> set[str]:
     return set(words) | {first + second for first, second in pairwise(words)}
 
 
-def create_query_params(metadata: dict[str, str | tuple[str, ...]]) -> dict[str, str] | None:
+def create_query_params(
+    metadata: dict[str, str | tuple[str, ...]],
+) -> dict[str, str | int] | None:
     """Generate query parameters for searching based on provided metadata.
 
     This function creates a dictionary of query parameters using series and issue information from the metadata.

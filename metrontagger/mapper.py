@@ -125,7 +125,7 @@ class MetadataMapper:
                 md.publisher.imprint = Basic(resp.imprint.name, resp.imprint.id)
 
     @staticmethod
-    def _convert_gtin_to_int(value: str) -> int | None:
+    def _convert_gtin_to_int(value: str | None) -> int | None:
         """Convert a GTIN string to an integer, returning None if invalid.
 
         Args:
@@ -134,7 +134,9 @@ class MetadataMapper:
         Returns:
             The GTIN as an integer, or None if conversion fails.
         """
-        with suppress(ValueError, TypeError):
+        if value is None:
+            return None
+        with suppress(ValueError):
             return int(value)
         return None
 

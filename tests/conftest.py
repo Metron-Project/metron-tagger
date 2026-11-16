@@ -71,7 +71,7 @@ def fake_metadata() -> Metadata:
 
 
 @pytest.fixture()
-def fake_comic(tmp_path_factory: Path) -> zipfile.ZipFile:
+def fake_comic(tmp_path_factory: pytest.TempPathFactory) -> Path:
     z_file = tmp_path_factory.mktemp("comic") / "Aquaman v1 #001 (of 08) (1994).cbz"
     image_data = create_cover_page()
     with zipfile.ZipFile(z_file, mode="w") as zf:
@@ -81,7 +81,7 @@ def fake_comic(tmp_path_factory: Path) -> zipfile.ZipFile:
 
 
 @pytest.fixture()
-def fake_tpb(tmp_path_factory: Path) -> zipfile.ZipFile:
+def fake_tpb(tmp_path_factory: pytest.TempPathFactory) -> Path:
     z_file = (
         tmp_path_factory.mktemp("comic")
         / "Batman - The Adventures Continue Season One (2021) "

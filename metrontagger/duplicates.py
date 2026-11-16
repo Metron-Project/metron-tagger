@@ -50,6 +50,12 @@ class PageLocation(TypedDict):
     index: int
 
 
+class PageHash(PageLocation):
+    """A hashed page: where it is, and its image hash."""
+
+    hash: str
+
+
 @dataclass
 class DuplicateIssue:
     """A data class representing a duplicate issue with file size tracking.
@@ -237,14 +243,14 @@ class Duplicates:
         self._hash_cache = None
         self._total_pages = 0
 
-    def _generate_page_hashes(self) -> Generator[dict[str, str | int], None, None]:
+    def _generate_page_hashes(self) -> Generator[PageHash, None, None]:
         """Generator to yield page hash information for each comic page.
 
         Comics are scanned concurrently, one comic per worker thread, with results yielded in
         the same order as the file list.
 
         Yields:
-            dict[str, str | int]: Dictionary containing file path, page index, and page hash.
+            PageHash: The page's comic path, index and hash.
         """
         UIPresenter.print_info("Getting page hashes.")
         if self._max_workers == 1:
@@ -259,13 +265,13 @@ class Duplicates:
             executor.shutdown(wait=False, cancel_futures=True)
 
     def _collect_hashes(
-        self, results: Iterable[list[dict[str, str | int]]]
-    ) -> Generator[dict[str, str | int], None, None]:
+        self, results: Iterable[list[PageHash]]
+    ) -> Generator[PageHash, None, None]:
         """Yield page hashes from per-comic results, showing scan progress."""
         for page_hashes in tqdm(results, total=len(self._file_lst), desc="Processing comics"):
             yield from page_hashes
 
-    def _hash_comic(self, item: Path) -> list[dict[str, str | int]]:
+    def _hash_comic(self, item: Path) -> list[PageHash]:
         """Hash the pages of a single comic.
 
         Each call opens its own Comic, so it is safe to run from multiple threads.
@@ -274,7 +280,7 @@ class Duplicates:
             item: Path: The comic archive to scan.
 
         Returns:
-            list[dict[str, str | int]]: Page hash information, empty if the comic was skipped.
+            list[PageHash]: The comic's page hashes, empty if the comic was skipped.
         """
         # Runs in worker threads under a progress bar, so only log invalid comics.
         if (comic := open_comic(item, report=False)) is None:
@@ -311,9 +317,7 @@ class Duplicates:
             indices.add(i)
         return sorted(indices)
 
-    def _process_comic_pages(
-        self, comic: Comic
-    ) -> Generator[dict[str, str | int], None, None]:
+    def _process_comic_pages(self, comic: Comic) -> Generator[PageHash, None, None]:
         """Process pages in a comic and yield hash information.
 
         In quick mode, only the first 3 interior pages and last 3 pages are
@@ -323,7 +327,7 @@ class Duplicates:
             comic: Comic object to process
 
         Yields:
-            dict[str, str | int]: Dictionary containing file path, page index, and page hash.
+            PageHash: The page's comic path, index and hash.
         """
         num_pages = comic.get_number_of_pages()
         for page_idx in self._get_page_indices(num_pages):
@@ -479,6 +483,11 @@ class Duplicates:
             img_data = comic.get_page(page_index)
         except (ValueError, OSError):
             LOGGER.exception("Unable to retrieve page")
+            img_data = None
+        if img_data is None:
+            LOGGER.warning(
+                "No image data for page %d of %s", page_index, duplicate_issue.path_
+            )
             return False
 
         try:

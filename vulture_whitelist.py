@@ -26,3 +26,6 @@ _.prices  # unused attribute (metrontagger/mapper.py)
 # Read-only counterparts of FileRenamer's setters, kept as part of its public API.
 _.smart_cleanup  # unused property (metrontagger/filerenamer.py)
 _.issue_zero_padding  # unused property (metrontagger/filerenamer.py)
+
+# TypedDict fields, read by string key (page["hash"]), which vulture can't see.
+_.hash  # unused variable (metrontagger/duplicates.py)

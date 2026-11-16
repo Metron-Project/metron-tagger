@@ -220,6 +220,11 @@ class FileSorter:
         Returns:
             The constructed destination path.
         """
+        if not (cleaned.publisher and cleaned.series and cleaned.volume):
+            # sort_comics validates the metadata before building the path.
+            msg = "Can't build a destination path from incomplete metadata"
+            raise ValueError(msg)
+
         is_trade_paperback = (
             metadata.series is not None and metadata.series.format == "Trade Paperback"
         )

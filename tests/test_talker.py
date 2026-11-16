@@ -7,7 +7,7 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 from comicfn2dict import comicfn2dict
 from darkseid.comic import MetadataFormat
-from darkseid.metadata import Metadata
+from darkseid.metadata import Metadata, Series
 from imagehash import hex_to_hash
 from mokkari.exceptions import ApiError
 from mokkari.rate_limit import HeaderPacedRateLimiter
@@ -1581,3 +1581,36 @@ def test_should_skip_existing_metadata_checks_only_written_formats(
     )
 
     assert result is expected
+
+
+def test_metadata_extractor_invalid_id_without_series():
+    """An invalid ID on metadata with no series is logged without crashing."""
+    md = create_mock_metadata()
+    md.series = None
+
+    with patch("metrontagger.talker.get_issue_id_from_note") as mock_get_id:
+        mock_get_id.return_value = {"source": "Metron", "id": "invalid"}
+        assert MetadataExtractor.get_id_from_comic_info(md) is None
+
+
+@pytest.mark.parametrize(
+    ("series_format", "expected_collection"),
+    [("Trade Paperback", True), ("Hard Cover", True), ("Single Issue", False), (None, False)],
+)
+@patch("metrontagger.comics.Comic")
+def test_write_issue_md_collection_flag(
+    mock_comic_class, talker, sample_path, series_format, expected_collection
+):
+    """A series with no format is written as a non-collection, not a crash."""
+    mock_comic_class.return_value.get_number_of_pages.return_value = 20
+    mock_comic_class.return_value.write_metadata.return_value = True
+    md = Metadata()
+    md.series = Series("Aquaman", format=series_format)
+
+    with (
+        patch.object(talker.metadata_mapper, "map_response_to_metadata", return_value=md),
+        patch.object(talker.ui, "print_metadata_write_success") as mock_success,
+    ):
+        talker._write_issue_md(sample_path, 123)
+
+    assert mock_success.call_args.kwargs["is_collection"] is expected_collection

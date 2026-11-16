@@ -5,7 +5,7 @@ __all__ = ["MetronTaggerSettings"]
 import configparser
 from logging import getLogger
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, TypeVar, cast
 
 from metrontagger.utils import get_settings_folder
 
@@ -13,6 +13,9 @@ LOGGER = getLogger(__name__)
 
 # Constant
 KEY_PARTS = 2
+
+# The types a setting can have; see MetronTaggerSettings.DEFAULT_CONFIG.
+_SettingT = TypeVar("_SettingT", str, int, bool)
 
 
 class MetronTaggerSettings:
@@ -248,3 +251,34 @@ class MetronTaggerSettings:
         except Exception:
             LOGGER.exception("Failed to set configuration")
             raise
+
+    def _get_typed(self, key: str, kind: type[_SettingT]) -> _SettingT:
+        """Get a setting as `kind`, using its default if unset or not a valid `kind`.
+
+        Raises:
+            KeyError: If the option has no default of type `kind`.
+            ValueError: If the key format is invalid.
+        """
+        value = self[key]
+        # `type() is`, not isinstance: bool is a subclass of int.
+        if type(value) is kind:
+            return cast("_SettingT", value)
+
+        section, option = self._parse_key(key)
+        default = self.DEFAULT_CONFIG.get(section, {}).get(option)
+        if type(default) is kind:
+            return cast("_SettingT", default)
+        msg = f"Setting '{key}' has no {kind.__name__} default"
+        raise KeyError(msg)
+
+    def get_str(self, key: str) -> str:
+        """Get a string setting, e.g. ``settings.get_str("metron.auth_token")``."""
+        return self._get_typed(key, str)
+
+    def get_int(self, key: str) -> int:
+        """Get an integer setting."""
+        return self._get_typed(key, int)
+
+    def get_bool(self, key: str) -> bool:
+        """Get a boolean setting."""
+        return self._get_typed(key, bool)

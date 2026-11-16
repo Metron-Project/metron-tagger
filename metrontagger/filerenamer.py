@@ -7,7 +7,7 @@ __all__ = ["FileRenamer"]
 
 import contextlib
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
@@ -49,21 +49,15 @@ class TokenType(Enum):
 class FormatMapping:
     """Immutable mapping for format conversions."""
 
-    MAPPING: dict[str, str] = None
-
-    def __post_init__(self):
-        if self.MAPPING is None:
-            object.__setattr__(
-                self,
-                "MAPPING",
-                {
-                    "Hard Cover": "HC",  # Old Metron Value
-                    "Hardcover": "HC",
-                    "Trade Paperback": "TPB",
-                    "Digital Chapters": "Digital Chapter",  # Old Metron Value
-                    "Digital Chapter": "Digital Chapter",
-                },
-            )
+    MAPPING: dict[str, str] = field(
+        default_factory=lambda: {
+            "Hard Cover": "HC",  # Old Metron Value
+            "Hardcover": "HC",
+            "Trade Paperback": "TPB",
+            "Digital Chapters": "Digital Chapter",  # Old Metron Value
+            "Digital Chapter": "Digital Chapter",
+        }
+    )
 
     def get(self, key: str, default: str = "") -> str:
         """Get format mapping with default value."""
@@ -310,7 +304,7 @@ class FileRenamer:
             values[TokenType.SERIES] = md.series.name
             values[TokenType.VOLUME] = md.series.volume
             values[TokenType.ISSUE_COUNT] = md.series.issue_count
-            values[TokenType.FORMAT] = self._format_mapping.get(md.series.format)
+            values[TokenType.FORMAT] = self._format_mapping.get(md.series.format or "")
         else:
             values[TokenType.SERIES] = "Unknown"
             values[TokenType.VOLUME] = 0
