@@ -2,15 +2,15 @@ import io
 import tarfile
 from argparse import ArgumentParser
 from pathlib import Path
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from darkseid.comic import Comic, ComicArchiveError, MetadataFormat
-from darkseid.metadata import Metadata
+from darkseid.metadata import Metadata, Notes
 from darkseid.validate import SchemaVersion
 
 from metrontagger.duplicates import DuplicateIssue
-from metrontagger.run import Runner
+from metrontagger.run import Runner, _add_migration_note
 from metrontagger.settings import MetronTaggerSettings
 from metrontagger.talker import ProcessingConfig
 from tests.conftest import create_cover_page
@@ -778,3 +778,28 @@ def test_tag_online_passes_selected_formats(
     runner._tag_online([fake_comic])
 
     assert talker_cls.call_args.args[1] == expected_formats
+
+
+# --- Migration note -----------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("notes", "expected_metron_info", "expected_comic_rack"),
+    [
+        (None, "MIGRATED", ""),
+        (Notes(comic_rack="keep me"), "MIGRATED", "keep me"),
+        (Notes(metron_info="existing"), "existing", ""),
+    ],
+    ids=["no_notes", "empty_metron_info", "existing_metron_info_kept"],
+)
+def test_add_migration_note(
+    notes: Notes | None, expected_metron_info: str, expected_comic_rack: str
+) -> None:
+    md = Metadata()
+    md.notes = notes
+
+    with patch("metrontagger.run.migration_note", return_value="MIGRATED"):
+        _add_migration_note(md)
+
+    assert md.notes.metron_info == expected_metron_info
+    assert md.notes.comic_rack == expected_comic_rack

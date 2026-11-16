@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from logging import getLogger
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -12,11 +11,11 @@ from darkseid.utils import get_recursive_filelist
 from darkseid.validate import SchemaVersion
 from tqdm import tqdm
 
-from metrontagger import __version__
 from metrontagger.comics import FORMAT_NAMES, format_list, open_comic, read_preferred_metadata
 from metrontagger.duplicates import DuplicateIssue, Duplicates, DuplicatesPresenter
 from metrontagger.filerenamer import FileRenamer
 from metrontagger.filesorter import FileSorter
+from metrontagger.notes import migration_note
 from metrontagger.talker import ProcessingConfig, Talker
 from metrontagger.ui import UIPresenter
 
@@ -35,6 +34,14 @@ VALID_SCHEMA_NAMES = {
     SchemaVersion.METRON_INFO_V1_1: "MetronInfo Version 1.1",
     SchemaVersion.METRON_INFO_V1_2: "MetronInfo Version 1.2",
 }
+
+
+def _add_migration_note(md: Metadata) -> None:
+    """Record the migration in `md`'s MetronInfo note, unless it already has one."""
+    if md.notes is None:
+        md.notes = Notes(metron_info=migration_note())
+    elif not md.notes.metron_info:
+        md.notes.metron_info = migration_note()
 
 
 class Runner:
@@ -71,15 +78,6 @@ class Runner:
             file_list: The comic files to process.
         """
 
-        def create_mi_note(md: Metadata) -> Metadata:
-            now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # noqa: DTZ005
-            note_txt = f"Data migrated from 'ComicInfo.xml' using MetronTagger-{__version__} on {now_date}."
-            if md.notes is None:
-                md.notes = Notes(metron_info=note_txt)
-            elif not md.notes.metron_info:
-                md.notes.metron_info = note_txt
-            return md
-
         UIPresenter.print_title("Migrating ComicInfo.xml to MetronInfo.xml:")
 
         for item in file_list:
@@ -90,7 +88,7 @@ class Runner:
                 MetadataFormat.METRON_INFO
             ):
                 md = comic.read_metadata(MetadataFormat.COMIC_INFO)
-                md = create_mi_note(md)
+                _add_migration_note(md)
                 if comic.write_metadata(md, MetadataFormat.METRON_INFO):
                     UIPresenter.print_success(
                         f"Migrated information to new MetronInfo.xml for '{comic}'"

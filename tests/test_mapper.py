@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 from decimal import Decimal
 from unittest.mock import Mock
 
-from darkseid.metadata import Basic, Metadata, MetronInfo, Notes
+from darkseid.metadata import Basic, Metadata, MetronInfo
 
 from metrontagger.mapper import MetadataMapper
 from tests.metron_fakes import (
@@ -18,15 +18,6 @@ def test_metadata_mapper_create_resource_list():
     result = MetadataMapper.create_resource_list(resources)
     assert len(result) == 2
     assert all(isinstance(item, Basic) for item in result)
-
-
-def test_metadata_mapper_create_notes():
-    """Test creating notes."""
-    issue_id = 123
-    result = MetadataMapper.create_notes(issue_id)
-    assert isinstance(result, Notes)
-    assert "MetronTagger" in result.metron_info
-    assert f"issue_id:{issue_id}" in result.comic_rack
 
 
 def test_metadata_mapper_map_ratings():

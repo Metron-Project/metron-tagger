@@ -5,7 +5,6 @@ from __future__ import annotations
 __all__ = ["MetadataMapper"]
 
 from contextlib import suppress
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from darkseid.issue_string import IssueString
@@ -19,7 +18,6 @@ from darkseid.metadata import (
     InfoSources,
     Links,
     Metadata,
-    Notes,
     Price,
     Publisher,
     Role,
@@ -27,7 +25,7 @@ from darkseid.metadata import (
     Universe,
 )
 
-from metrontagger import __version__
+from metrontagger.notes import tagging_notes
 
 if TYPE_CHECKING:
     from mokkari.schemas.generic import GenericItem
@@ -54,16 +52,6 @@ class MetadataMapper:
     def create_arc_list(resource) -> list[Arc]:
         """Create a list of Arc objects from a given resource."""
         return [Arc(item.name, item.id) for item in resource]
-
-    @staticmethod
-    def create_notes(issue_id: int) -> Notes:
-        """Create a note for an issue."""
-        now_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # noqa: DTZ005
-        metron_info_note = (
-            f"Tagged with MetronTagger-{__version__} using info from Metron on {now_date}."
-        )
-        comic_rack_note = f"{metron_info_note} [issue_id:{issue_id}]"
-        return Notes(metron_info=metron_info_note, comic_rack=comic_rack_note)
 
     @staticmethod
     def create_role_list(roles: list[GenericItem]) -> list[Role]:
@@ -125,7 +113,7 @@ class MetadataMapper:
         md.cover_date = resp.cover_date
         md.store_date = resp.store_date
         md.comments = resp.desc
-        md.notes = cls.create_notes(resp.id)
+        md.notes = tagging_notes(resp.id)
         md.modified = resp.modified
 
     @staticmethod
