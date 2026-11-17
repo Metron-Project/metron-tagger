@@ -38,6 +38,15 @@
       "ignorePath": ".gitignore"
     }
   },
+  "overrides": {
+    "@npmcli/map-workspaces": {
+      "minimatch": "^11.0.9"
+    },
+    "eslint-plugin-sonarjs": {
+      "minimatch": "^11.0.9"
+    },
+    "glob": "^14.0.6"
+  },
   "devDependencies": {
     "@eslint-community/eslint-plugin-eslint-comments": "^4.4.1",
     "@eslint/json": "^0.13.0",
