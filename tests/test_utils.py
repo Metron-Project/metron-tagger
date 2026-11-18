@@ -1,6 +1,8 @@
 import pytest
+from comicfn2dict import comicfn2dict
 
 from metrontagger.utils import (
+    _clean_series_name,
     _normalize_issue_number,
     cleanup_string,
     create_query_params,
@@ -217,40 +219,81 @@ def test_search_issue_number(metadata, expected):
 
 
 @pytest.mark.parametrize(
-    ("metadata", "expected"),
+    ("filename", "expected"),
     [
         pytest.param(
-            {"series": "Star Wars", "title": "The Fall of Kylo Ren", "issue": "004"},
+            "Star Wars - The Fall of Kylo Ren 004 (2026) (Digital).cbz",
             {"series_q": "Star Wars The Fall of Kylo Ren", "number": "4"},
             id="series-and-title",
         ),
         pytest.param(
-            {"series": "Star Wars", "title": "Agent of the Empire - Hard Targets"},
-            {"series_q": "Star Wars Agent of the Empire Hard Targets", "number": "1"},
-            id="standalone-dash-dropped",
-        ),
-        pytest.param(
-            {"series": "Star Wars", "title": "Boba Fett \u2013 Black, White & Red"},
+            "Star Wars - Boba Fett \u2013 Black, White & Red 001.cbz",
             {"series_q": "Star Wars Boba Fett Black White Red", "number": "1"},
             id="title-cleaned-like-series",
         ),
         pytest.param(
-            {"series": "Spider-Man", "title": "Blue"},
+            "Spider-Man - Blue 001.cbz",
             {"series_q": "Spider-Man Blue", "number": "1"},
             id="hyphenated-word-kept",
         ),
-        pytest.param({"series": "Star Wars", "issue": "4"}, None, id="no-title"),
-        pytest.param({"series": "Star Wars", "title": "  "}, None, id="blank-title"),
-        pytest.param({"series": "Star Wars", "title": "TPB"}, None, id="title-cleans-away"),
-        pytest.param({"series": "Star Wars", "title": " - "}, None, id="title-only-dash"),
         pytest.param(
-            {"series_id": "16447", "series": "Star Wars", "title": "The Fall of Kylo Ren"},
-            None,
-            id="series-id",
+            "Star Wars - The Fall of Kylo Ren (2026).cbz",
+            {"series_q": "Star Wars The Fall of Kylo Ren", "number": "1"},
+            id="no-issue-number",
         ),
-        pytest.param({"title": "The Fall of Kylo Ren"}, None, id="no-series"),
+        pytest.param("Batman v3 050 - The Wedding.cbz", None, id="story-title"),
+        pytest.param("Amazing Spider-Man 001 (2018) - Venom.cbz", None, id="title-after-year"),
+        pytest.param("Star Wars 004.cbz", None, id="no-title"),
     ],
 )
-def test_create_title_query_params(metadata, expected, mocker):
-    mocker.patch("metrontagger.utils.LOGGER")
-    assert create_title_query_params(metadata) == expected
+def test_create_title_query_params(filename, expected):
+    """The title is added to the search only when it comes before the issue number."""
+    metadata = comicfn2dict(filename, verbose=0)
+    params = create_query_params(metadata)
+    assert params is not None
+    assert create_title_query_params(metadata, params, filename) == expected
+
+
+@pytest.mark.parametrize(
+    ("metadata", "params"),
+    [
+        pytest.param(
+            {"series": "Star Wars", "title": "  ", "issue": "4"},
+            {"series_q": "Star Wars", "number": "4"},
+            id="blank-title",
+        ),
+        pytest.param(
+            {"series": "Star Wars", "title": "TPB", "issue": "4"},
+            {"series_q": "Star Wars", "number": "4"},
+            id="title-cleans-away",
+        ),
+        pytest.param(
+            {"series": "Star Wars", "title": " - ", "issue": "4"},
+            {"series_q": "Star Wars", "number": "4"},
+            id="title-only-dash",
+        ),
+        pytest.param(
+            {"series_id": "16447", "series": "Star Wars", "title": "The Fall of Kylo Ren"},
+            {"series_id": "16447", "number": "4"},
+            id="series-id",
+        ),
+    ],
+)
+def test_create_title_query_params_nothing_to_add(metadata, params):
+    """Without a title to add, or with the series known, there's no title search."""
+    filename = "Star Wars - The Fall of Kylo Ren 004.cbz"
+    assert create_title_query_params(metadata, params, filename) is None
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        pytest.param("Batman HC", "Batman", id="hc-word"),
+        pytest.param("Batman TPB", "Batman", id="tpb-word"),
+        pytest.param("TECHCORPS", "TECHCORPS", id="inside-word-kept"),
+        pytest.param("TPBS Tales", "TPBS Tales", id="word-start-kept"),
+    ],
+)
+def test_clean_series_name_format_words(name, expected):
+    """HC and TPB are dropped only as whole words."""
+    assert _clean_series_name(name) == expected

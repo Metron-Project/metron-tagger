@@ -1833,3 +1833,18 @@ def test_search_by_filename_accepts_unique_title_cover_match(talker):
 
     assert result == SearchResult(issue_id=7, has_multiple_matches=False)
     talker.api.issues_list.assert_called_once_with(params=SERIES_AND_TITLE_PARAMS)
+
+
+def test_search_by_filename_story_title_searches_series_only(talker):
+    """A title after the issue number is a story title: only the series is searched."""
+    filename = Path("Batman v3 050 - The Wedding.cbz")
+    talker.api.issues_list.return_value = [create_mock_base_issue(50)]
+    with patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=True):
+        result = talker._search_by_filename(
+            filename, Mock(), ProcessingConfig(), comicfn2dict(filename, verbose=0)
+        )
+
+    assert result == SearchResult(issue_id=50, has_multiple_matches=False)
+    talker.api.issues_list.assert_called_once_with(
+        params={"series_q": "Batman", "number": "50"}
+    )

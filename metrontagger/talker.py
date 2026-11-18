@@ -413,10 +413,10 @@ class Talker:
         # search when the filename parser split the series name in two. Their results
         # are accepted only on a cover match: a story title can also match the words
         # of a different series (a Batman story titled "Superman" finding
-        # Batman/Superman). Otherwise the series alone is searched as well, and both searches' results
-        # are offered.
+        # Batman/Superman). Otherwise the series alone is searched as well, and both
+        # searches' results are offered.
         title_issues: list[BaseIssue] | None = []
-        if (title_params := create_title_query_params(metadata)) is not None:
+        if (title_params := create_title_query_params(metadata, params, filename)) is not None:
             title_issues = self._list_issues(title_params)
             if title_issues and (accepted := self._match_cover(comic, title_issues)):
                 return self._resolve_search(filename, accepted, [], config)

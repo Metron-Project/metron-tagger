@@ -94,6 +94,8 @@ def cleanup_string(path_name: float | str | None) -> str | None:
 
 # Dashes standing alone between words, as in "Star Wars - The Fall of Kylo Ren".
 _STANDALONE_DASHES = frozenset({"-", "\u2013", "\u2014"})
+# Format words dropped from a series name.
+_FORMAT_WORDS = re.compile(r"\b(?:HC|TPB)\b")
 
 
 def _clean_series_name(name: str) -> str:
@@ -120,14 +122,14 @@ def _clean_series_name(name: str) -> str:
     replacements = {
         ",": "",
         " & ": " ",
-        "HC": "",
-        "TPB": "",
         "Digital Chapter": "",
     }
 
     cleaned = name
     for old, new in replacements.items():
         cleaned = cleaned.replace(old, new)
+    # Only as whole words, so a word like "TECHCORPS" isn't changed.
+    cleaned = _FORMAT_WORDS.sub("", cleaned)
 
     return " ".join(w for w in cleaned.split() if w not in _STANDALONE_DASHES)
 
@@ -252,7 +254,9 @@ def create_query_params(
     return params
 
 
-def create_title_query_params(metadata: ParsedFilename) -> dict[str, str | int] | None:
+def create_title_query_params(
+    metadata: ParsedFilename, params: dict[str, str | int], filename: str | PurePath
+) -> dict[str, str | int] | None:
     """Build query parameters that search on the series name and title together.
 
     comicfn2dict splits a filename like "Star Wars - The Fall of Kylo Ren 004" into
@@ -261,21 +265,40 @@ def create_title_query_params(metadata: ParsedFilename) -> dict[str, str | int] 
     finds every Star Wars #4. Metron's series_q matches each word of the query
     separately, so the two are joined with a space.
 
+    This only applies when the title comes before the issue number in the filename.
+    A title after the number ("Batman 050 - The Wedding") is a story title, which
+    would only narrow the search to the wrong series, if any.
+
     Args:
         metadata: The parsed filename.
+        params: The create_query_params parameters for the filename.
+        filename: The comic's filename.
 
     Returns:
-        The create_query_params parameters with the title added to series_q, or
-        None if there's a series ID (the series is already known), no usable series
-        name, or no title that adds anything to the search.
+        `params` with the title added to series_q, or None if there's a series ID
+        (the series is already known), no title that adds anything to the search, or
+        the title comes after the issue number.
     """
     title = metadata.get("title")
-    if metadata.get("series_id") or not isinstance(title, str) or not title.strip():
+    if "series_q" not in params or not isinstance(title, str):
         return None
-    params = create_query_params(metadata)
-    if params is None or "series_q" not in params:
-        return None
-    cleaned_title = _clean_series_name(title)
-    if not cleaned_title:
+    cleaned_title = _clean_series_name(title) if title.strip() else ""
+    if not cleaned_title or not _title_before_issue(metadata, title, filename):
         return None
     return params | {"series_q": f"{params['series_q']} {cleaned_title}"}
+
+
+def _title_before_issue(
+    metadata: ParsedFilename, title: str, filename: str | PurePath
+) -> bool:
+    """Whether the parsed title comes before the issue number in the filename.
+
+    True too if the filename has no issue number, or the title can't be found in it
+    as parsed: the title may then be part of the series name.
+    """
+    issue = metadata.get("issue")
+    stem = PurePath(filename).stem
+    title_at = stem.find(title)
+    if not isinstance(issue, str) or title_at < 0:
+        return True
+    return issue in stem[title_at + len(title) :]
