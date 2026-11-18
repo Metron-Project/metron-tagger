@@ -28,6 +28,7 @@ from metrontagger.ui import UIPresenter
 from metrontagger.utils import (
     ParsedFilename,
     create_query_params,
+    create_title_query_params,
     search_issue_number,
     series_words,
 )
@@ -408,9 +409,7 @@ class Talker:
             self.ui.print_error(f"Unable to correctly parse filename: {filename.name}")
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
-        i_list = self.client.call(
-            lambda: self.api.issues_list(params=params), "Failed to retrieve data"
-        )
+        i_list = self._search_issues(metadata, params)
         if not i_list:
             # Nothing found, or an API error (already reported by MetronClient.call).
             if cover_candidates and not self.client.stop_processing:
@@ -442,6 +441,31 @@ class Talker:
         by_date = sorted(i_list, key=lambda m: m.cover_date)
         candidates = cover_candidates + [i for i in by_date if i.id not in listed]
         return self._resolve_search(filename, None, candidates, config)
+
+    def _search_issues(
+        self, metadata: ParsedFilename, params: dict[str, str | int]
+    ) -> list[BaseIssue] | None:
+        """Search Metron for the filename's issue, on its series name and title first.
+
+        The series and title together (see create_title_query_params) narrow the
+        search when the filename parser split the series name in two. If that finds
+        nothing, the title is probably a story title rather than part of the series
+        name, so the search is run again with `params`, on the series alone.
+
+        Returns:
+            The issues found, or None after an API error (already reported by
+            MetronClient.call).
+        """
+        title_params = create_title_query_params(metadata)
+        if title_params is not None:
+            i_list = self.client.call(
+                lambda: self.api.issues_list(params=title_params), "Failed to retrieve data"
+            )
+            if i_list is None or i_list:
+                return i_list
+        return self.client.call(
+            lambda: self.api.issues_list(params=params), "Failed to retrieve data"
+        )
 
     @staticmethod
     def _cover_search_params(

@@ -4,6 +4,7 @@ from metrontagger.utils import (
     _normalize_issue_number,
     cleanup_string,
     create_query_params,
+    create_title_query_params,
     search_issue_number,
     series_words,
 )
@@ -207,3 +208,43 @@ def test_series_words_stop_words(text, expected):
 def test_search_issue_number(metadata, expected):
     """The searched number is normalized, or "1" when the filename has none."""
     assert search_issue_number(metadata) == expected
+
+
+@pytest.mark.parametrize(
+    ("metadata", "expected"),
+    [
+        pytest.param(
+            {"series": "Star Wars", "title": "The Fall of Kylo Ren", "issue": "004"},
+            {"series_q": "Star Wars The Fall of Kylo Ren", "number": "4"},
+            id="series-and-title",
+        ),
+        pytest.param(
+            {"series": "Star Wars", "title": "Agent of the Empire - Hard Targets"},
+            {"series_q": "Star Wars Agent of the Empire Hard Targets", "number": "1"},
+            id="standalone-dash-dropped",
+        ),
+        pytest.param(
+            {"series": "Star Wars", "title": "Boba Fett \u2013 Black, White & Red"},
+            {"series_q": "Star Wars Boba Fett Black White Red", "number": "1"},
+            id="title-cleaned-like-series",
+        ),
+        pytest.param(
+            {"series": "Spider-Man", "title": "Blue"},
+            {"series_q": "Spider-Man Blue", "number": "1"},
+            id="hyphenated-word-kept",
+        ),
+        pytest.param({"series": "Star Wars", "issue": "4"}, None, id="no-title"),
+        pytest.param({"series": "Star Wars", "title": "  "}, None, id="blank-title"),
+        pytest.param({"series": "Star Wars", "title": "TPB"}, None, id="title-cleans-away"),
+        pytest.param({"series": "Star Wars", "title": " - "}, None, id="title-only-dash"),
+        pytest.param(
+            {"series_id": "16447", "series": "Star Wars", "title": "The Fall of Kylo Ren"},
+            None,
+            id="series-id",
+        ),
+        pytest.param({"title": "The Fall of Kylo Ren"}, None, id="no-series"),
+    ],
+)
+def test_create_title_query_params(metadata, expected, mocker):
+    mocker.patch("metrontagger.utils.LOGGER")
+    assert create_title_query_params(metadata) == expected

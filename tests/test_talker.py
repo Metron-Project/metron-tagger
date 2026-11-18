@@ -1707,3 +1707,66 @@ def test_write_issue_md_uses_given_comic(talker, sample_path):
 
     mock_open.assert_not_called()
     comic.write_metadata.assert_called()
+
+
+KYLO_REN = Path("Star Wars - The Fall of Kylo Ren 004 (2026) (Digital) (Kileko-Empire).cbz")
+SERIES_ONLY_PARAMS = {"series_q": "Star Wars", "number": "4"}
+SERIES_AND_TITLE_PARAMS = {"series_q": "Star Wars The Fall of Kylo Ren", "number": "4"}
+
+
+def search_kylo_ren(talker, responses):
+    """Run _search_by_filename on KYLO_REN, the API returning each of `responses` in turn.
+
+    Returns the search result and the params of each API call.
+    """
+    talker.api.issues_list.side_effect = responses
+    with patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=True):
+        result = talker._search_by_filename(
+            KYLO_REN, Mock(), ProcessingConfig(), comicfn2dict(KYLO_REN, verbose=0)
+        )
+    calls = [c.kwargs["params"] for c in talker.api.issues_list.call_args_list]
+    return result, calls
+
+
+def test_search_by_filename_uses_series_and_title(talker):
+    """A filename split into series and title is searched on both together."""
+    result, calls = search_kylo_ren(talker, [[create_mock_base_issue(185517)]])
+
+    assert result == SearchResult(issue_id=185517, has_multiple_matches=False)
+    assert calls == [SERIES_AND_TITLE_PARAMS]
+
+
+def test_search_by_filename_falls_back_to_series_only(talker):
+    """If the series and title together find nothing, the series alone is searched."""
+    result, calls = search_kylo_ren(talker, [[], [create_mock_base_issue(1)]])
+
+    assert result == SearchResult(issue_id=1, has_multiple_matches=False)
+    assert calls == [SERIES_AND_TITLE_PARAMS, SERIES_ONLY_PARAMS]
+
+
+def test_search_by_filename_no_fallback_after_api_error(talker):
+    """An API error on the series and title search doesn't run the series-only search."""
+    with patch.object(talker.client, "call", return_value=None) as call:
+        result = talker._search_by_filename(
+            KYLO_REN, Mock(), ProcessingConfig(), comicfn2dict(KYLO_REN, verbose=0)
+        )
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=False)
+    call.assert_called_once()
+    assert not talker.match_results.no_matches
+
+
+def test_search_by_filename_with_series_id_ignores_title(talker):
+    """With --id the series is known, so the title isn't added to the search."""
+    talker.api.issues_list.return_value = [create_mock_base_issue(185517)]
+    with patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=True):
+        talker._search_by_filename(
+            KYLO_REN,
+            Mock(),
+            ProcessingConfig(series_id=16447),
+            comicfn2dict(KYLO_REN, verbose=0),
+        )
+
+    talker.api.issues_list.assert_called_once_with(
+        params={"series_id": "16447", "number": "4"}
+    )
