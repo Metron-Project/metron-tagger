@@ -280,9 +280,9 @@ def create_title_query_params(
         the title comes after the issue number.
     """
     title = metadata.get("title")
-    if "series_q" not in params or not isinstance(title, str):
+    if "series_q" not in params or not isinstance(title, str) or not title:
         return None
-    cleaned_title = _clean_series_name(title) if title.strip() else ""
+    cleaned_title = _clean_series_name(title)
     if not cleaned_title or not _title_before_issue(metadata, title, filename):
         return None
     return params | {"series_q": f"{params['series_q']} {cleaned_title}"}
@@ -293,12 +293,22 @@ def _title_before_issue(
 ) -> bool:
     """Whether the parsed title comes before the issue number in the filename.
 
+    That is, the issue number isn't between the series name and the title, as in
+    "Batman 050 (2018) - The Wedding". The title is looked for after the series name,
+    so a title that repeats it ("Batman 050 - Batman") is found in the right place,
+    and the issue number only counts as a whole word, not inside a year.
+
     True too if the filename has no issue number, or the title can't be found in it
     as parsed: the title may then be part of the series name.
     """
     issue = metadata.get("issue")
+    series = metadata.get("series")
     stem = PurePath(filename).stem
-    title_at = stem.find(title)
-    if not isinstance(issue, str) or title_at < 0:
+    after_series = 0
+    if isinstance(series, str) and series and (series_at := stem.find(series)) >= 0:
+        after_series = series_at + len(series)
+    title_at = stem.find(title, after_series)
+    if not isinstance(issue, str) or not issue or title_at < 0:
         return True
-    return issue in stem[title_at + len(title) :]
+    between = stem[after_series:title_at]
+    return re.search(rf"(?<!\w){re.escape(issue)}(?!\w)", between) is None

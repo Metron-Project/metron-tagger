@@ -243,6 +243,13 @@ def test_search_issue_number(metadata, expected):
         ),
         pytest.param("Batman v3 050 - The Wedding.cbz", None, id="story-title"),
         pytest.param("Amazing Spider-Man 001 (2018) - Venom.cbz", None, id="title-after-year"),
+        pytest.param("Batman 050 (2018) - Batman.cbz", None, id="title-repeats-series"),
+        pytest.param("Batman #001 - Superman.cbz", None, id="hash-issue-number"),
+        pytest.param(
+            "Star Wars (2001) - Tales 001.cbz",
+            {"series_q": "Star Wars Tales", "number": "1"},
+            id="issue-digits-in-year",
+        ),
         pytest.param("Star Wars 004.cbz", None, id="no-title"),
     ],
 )

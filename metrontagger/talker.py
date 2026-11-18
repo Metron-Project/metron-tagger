@@ -414,16 +414,16 @@ class Talker:
         # are accepted only on a cover match: a story title can also match the words
         # of a different series (a Batman story titled "Superman" finding
         # Batman/Superman). Otherwise the series alone is searched as well, and both
-        # searches' results are offered.
-        title_issues: list[BaseIssue] | None = []
+        # searches' results are offered, the series and title ones first.
+        title_issues: list[BaseIssue] = []
         if (title_params := create_title_query_params(metadata, params, filename)) is not None:
-            title_issues = self._list_issues(title_params)
+            # An API error here (already reported) still leaves the series-only search.
+            title_issues = self._list_issues(title_params) or []
             if title_issues and (accepted := self._match_cover(comic, title_issues)):
                 return self._resolve_search(filename, accepted, [], config)
 
-        # After an API error on the first search, the series-only search isn't run.
-        i_list = self._list_issues(params) if title_issues is not None else None
-        if i_list is None or title_issues is None or not (i_list or title_issues):
+        i_list = None if self.client.stop_processing else self._list_issues(params)
+        if not (i_list or title_issues):
             return self._resolve_no_filename_match(
                 filename, cover_candidates, config, api_error=i_list is None
             )
@@ -433,11 +433,15 @@ class Talker:
         ):
             return self._resolve_search(filename, accepted, [], config)
         # For the prompt: the cover search's candidates (closest cover first), then
-        # this search's results in cover-date order.
-        listed = {issue.id for issue in cover_candidates}
-        found = {issue.id: issue for issue in [*title_issues, *i_list]}
-        by_date = sorted(found.values(), key=lambda m: m.cover_date)
-        candidates = cover_candidates + [i for i in by_date if i.id not in listed]
+        # the series and title search's results, then the series-only search's, each
+        # search's in cover-date order and each issue once.
+        candidates = list(cover_candidates)
+        listed = {issue.id for issue in candidates}
+        for results in (title_issues, i_list or []):
+            for issue in sorted(results, key=lambda m: m.cover_date):
+                if issue.id not in listed:
+                    listed.add(issue.id)
+                    candidates.append(issue)
         return self._resolve_search(filename, None, candidates, config)
 
     def _resolve_no_filename_match(
