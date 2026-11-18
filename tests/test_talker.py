@@ -1886,3 +1886,36 @@ def test_search_by_filename_story_title_searches_series_only(talker):
     talker.api.issues_list.assert_called_once_with(
         params={"series_q": "Batman", "number": "50"}
     )
+
+
+def test_search_by_filename_no_prompt_after_fatal_series_error(talker):
+    """A fatal API error on the series-only search doesn't offer the title matches."""
+    responses = iter([[create_mock_base_issue(9)], None])
+
+    def call(*_args):
+        result = next(responses)
+        if result is None:
+            talker.client.stop_processing = True
+        return result
+
+    with (
+        patch.object(talker.client, "call", side_effect=call),
+        patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=False),
+    ):
+        result = talker._search_by_filename(
+            KYLO_REN, Mock(), ProcessingConfig(), comicfn2dict(KYLO_REN, verbose=0)
+        )
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=False)
+    assert not talker.match_results.multiple_matches
+    assert not talker.match_results.no_matches
+
+
+def test_search_by_filename_title_search_error_not_no_match(talker):
+    """After an API error on the series and title search, an empty series-only search
+    isn't recorded as no match: the issue may just not have been found."""
+    result, calls = search_kylo_ren(talker, [None, []])
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=False)
+    assert calls == [SERIES_AND_TITLE_PARAMS, SERIES_ONLY_PARAMS]
+    assert not talker.match_results.no_matches

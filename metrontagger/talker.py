@@ -368,9 +368,7 @@ class Talker:
         if source == InfoSource.METRON:
             return id_
         if source == InfoSource.COMIC_VINE:
-            issues = self.client.call(
-                lambda: self.api.issues_list(params={"cv_id": id_}), "Failed to retrieve data"
-            )
+            issues = self._list_issues({"cv_id": id_})
             if issues is None:
                 return None
 
@@ -416,16 +414,22 @@ class Talker:
         # Batman/Superman). Otherwise the series alone is searched as well, and both
         # searches' results are offered, the series and title ones first.
         title_issues: list[BaseIssue] = []
+        title_error = False
         if (title_params := create_title_query_params(metadata, params, filename)) is not None:
-            # An API error here (already reported) still leaves the series-only search.
-            title_issues = self._list_issues(title_params) or []
+            # An API error here (already reported) still leaves the series-only search,
+            # unless it stopped processing.
+            found = self._list_issues(title_params)
+            title_error = found is None
+            title_issues = found or []
             if title_issues and (accepted := self._match_cover(comic, title_issues)):
                 return self._resolve_search(filename, accepted, [], config)
 
         i_list = None if self.client.stop_processing else self._list_issues(params)
-        if not (i_list or title_issues):
+        if self.client.stop_processing or not (i_list or title_issues):
+            # Nothing found, an API error on the series-only search, or a fatal one on
+            # either. After an error on either search, it may just not have been found.
             return self._resolve_no_filename_match(
-                filename, cover_candidates, config, api_error=i_list is None
+                filename, cover_candidates, config, api_error=i_list is None or title_error
             )
 
         if i_list and (
@@ -551,9 +555,7 @@ class Talker:
         closest: dict[int, tuple[int, BaseIssue]] = {}
         for search_hash, accept_distance in self.cover_matcher.get_search_hashes(comic):
             params = base_params | {"cover_hash_near": str(search_hash)}
-            i_list = self.client.call(
-                lambda p=params: self.api.issues_list(params=p), "Failed to retrieve data"
-            )
+            i_list = self._list_issues(params)
             if i_list is None:
                 # API error, already reported by MetronClient.call.
                 break

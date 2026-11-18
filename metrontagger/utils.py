@@ -94,8 +94,9 @@ def cleanup_string(path_name: float | str | None) -> str | None:
 
 # Dashes standing alone between words, as in "Star Wars - The Fall of Kylo Ren".
 _STANDALONE_DASHES = frozenset({"-", "\u2013", "\u2014"})
-# Format words dropped from a series name.
-_FORMAT_WORDS = re.compile(r"\b(?:HC|TPB)\b")
+# Format words dropped from a series name, as whole words: not inside a hyphenated
+# word either.
+_FORMAT_WORDS = re.compile(r"(?<![\w-])(?:HC|TPB)(?![\w-])")
 
 
 def _clean_series_name(name: str) -> str:
@@ -245,6 +246,10 @@ def create_query_params(
         except ValueError:
             LOGGER.exception("Invalid series name in metadata")
             return None
+        if not params["series_q"]:
+            # Nothing left after cleanup, as with a series of just "TPB".
+            LOGGER.error("Bad filename parsing - empty series name: %s", metadata)
+            return None
     else:
         LOGGER.error("Bad filename parsing - missing series info: %s", metadata)
         return None
@@ -298,8 +303,9 @@ def _title_before_issue(
     so a title that repeats it ("Batman 050 - Batman") is found in the right place,
     and the issue number only counts as a whole word, not inside a year.
 
-    True too if the filename has no issue number, or the title can't be found in it
-    as parsed: the title may then be part of the series name.
+    True too if the filename has no issue number: the title may then be part of the
+    series name. False if the title can't be found in the filename as parsed: its
+    position is then unknown, and leaving it out of the search is the safe choice.
     """
     issue = metadata.get("issue")
     series = metadata.get("series")
@@ -308,7 +314,9 @@ def _title_before_issue(
     if isinstance(series, str) and series and (series_at := stem.find(series)) >= 0:
         after_series = series_at + len(series)
     title_at = stem.find(title, after_series)
-    if not isinstance(issue, str) or not issue or title_at < 0:
+    if title_at < 0:
+        return False
+    if not isinstance(issue, str) or not issue:
         return True
     between = stem[after_series:title_at]
     return re.search(rf"(?<!\w){re.escape(issue)}(?!\w)", between) is None

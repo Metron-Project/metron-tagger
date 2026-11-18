@@ -284,10 +284,16 @@ def test_create_title_query_params(filename, expected):
             {"series_id": "16447", "number": "4"},
             id="series-id",
         ),
+        pytest.param(
+            {"series": "Star Wars", "title": "The Fall Of Kylo Ren", "issue": "004"},
+            {"series_q": "Star Wars", "number": "4"},
+            id="title-not-in-filename",
+        ),
     ],
 )
 def test_create_title_query_params_nothing_to_add(metadata, params):
-    """Without a title to add, or with the series known, there's no title search."""
+    """No title search without a title to add, with the series known, or with a title
+    that can't be found in the filename."""
     filename = "Star Wars - The Fall of Kylo Ren 004.cbz"
     assert create_title_query_params(metadata, params, filename) is None
 
@@ -299,8 +305,20 @@ def test_create_title_query_params_nothing_to_add(metadata, params):
         pytest.param("Batman TPB", "Batman", id="tpb-word"),
         pytest.param("TECHCORPS", "TECHCORPS", id="inside-word-kept"),
         pytest.param("TPBS Tales", "TPBS Tales", id="word-start-kept"),
+        pytest.param("X-HC", "X-HC", id="hyphenated-end-kept"),
+        pytest.param("TPB-Force", "TPB-Force", id="hyphenated-start-kept"),
     ],
 )
 def test_clean_series_name_format_words(name, expected):
     """HC and TPB are dropped only as whole words."""
     assert _clean_series_name(name) == expected
+
+
+@pytest.mark.parametrize(
+    "series",
+    [pytest.param("TPB", id="format-word"), pytest.param(" - ", id="dash")],
+)
+def test_create_query_params_empty_series_after_cleanup(series, mocker):
+    """A series name with nothing left after cleanup is a bad parse, not a search."""
+    mocker.patch("metrontagger.utils.LOGGER")
+    assert create_query_params({"series": series, "issue": "1"}) is None
