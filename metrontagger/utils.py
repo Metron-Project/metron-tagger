@@ -92,10 +92,16 @@ def cleanup_string(path_name: float | str | None) -> str | None:
     )
 
 
+# Dashes standing alone between words, as in "Star Wars - The Fall of Kylo Ren".
+_STANDALONE_DASHES = frozenset({"-", "\u2013", "\u2014"})
+
+
 def _clean_series_name(name: str) -> str:
     """Clean and normalize a series name for use in search queries.
 
     This function removes certain punctuation and keywords from the series name to improve search accuracy.
+    Dashes standing alone between words are dropped too: Metron's series_q matches
+    each word of the query separately, and Metron's name may not have the dash.
 
     Args:
         name: The original series name string.
@@ -123,7 +129,7 @@ def _clean_series_name(name: str) -> str:
     for old, new in replacements.items():
         cleaned = cleaned.replace(old, new)
 
-    return cleaned.strip()
+    return " ".join(w for w in cleaned.split() if w not in _STANDALONE_DASHES)
 
 
 def _normalize_issue_number(number: Any) -> str:
@@ -246,10 +252,6 @@ def create_query_params(
     return params
 
 
-# Dashes standing alone between words, as in "Star Wars - The Fall of Kylo Ren".
-_STANDALONE_DASHES = frozenset({"-", "\u2013", "\u2014"})
-
-
 def create_title_query_params(metadata: ParsedFilename) -> dict[str, str | int] | None:
     """Build query parameters that search on the series name and title together.
 
@@ -257,8 +259,7 @@ def create_title_query_params(metadata: ParsedFilename) -> dict[str, str | int] 
     the series "Star Wars" and the title "The Fall of Kylo Ren", where Metron names
     the series "Star Wars: The Fall of Kylo Ren". Searching on the series alone then
     finds every Star Wars #4. Metron's series_q matches each word of the query
-    separately, so the two are joined with a space, and dashes standing alone are
-    dropped: Metron's name may not have one.
+    separately, so the two are joined with a space.
 
     Args:
         metadata: The parsed filename.
@@ -274,9 +275,7 @@ def create_title_query_params(metadata: ParsedFilename) -> dict[str, str | int] 
     params = create_query_params(metadata)
     if params is None or "series_q" not in params:
         return None
-    series_q = str(params["series_q"])
-    combined = f"{series_q} {_clean_series_name(title)}"
-    query = " ".join(w for w in combined.split() if w not in _STANDALONE_DASHES)
-    if query == series_q:
+    cleaned_title = _clean_series_name(title)
+    if not cleaned_title:
         return None
-    return params | {"series_q": query}
+    return params | {"series_q": f"{params['series_q']} {cleaned_title}"}

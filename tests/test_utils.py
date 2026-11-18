@@ -36,6 +36,11 @@ from metrontagger.utils import (
             {"series_id": "203", "issue": "101 / 102"},
             {"series_id": "203", "number": "101 / 102"},
         ),
+        # Happy path: dashes standing alone are dropped, hyphenated words kept
+        (
+            {"series": "Star Wars - Darth Vader \u2013 X-Men", "issue": "1"},
+            {"series_q": "Star Wars Darth Vader X-Men", "number": "1"},
+        ),
         # Edge case: series name only, no issue
         ({"series": "X-Men"}, {"series_q": "X-Men", "number": "1"}),
         # Edge case: issue is "0" (should become "0")
@@ -60,6 +65,7 @@ from metrontagger.utils import (
         "issue_leading_zeros",
         "unicode_issue_number",
         "issue_number_with_space_and_slash",
+        "standalone_dashes_dropped",
         "series_name_only",
         "issue_zero",
         "issue_all_zeros",

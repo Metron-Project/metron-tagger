@@ -409,63 +409,80 @@ class Talker:
             self.ui.print_error(f"Unable to correctly parse filename: {filename.name}")
             return SearchResult(issue_id=None, has_multiple_matches=False)
 
-        i_list = self._search_issues(metadata, params)
-        if not i_list:
-            # Nothing found, or an API error (already reported by MetronClient.call).
-            if cover_candidates and not self.client.stop_processing:
-                return self._resolve_search(filename, None, cover_candidates, config)
-            if i_list is not None:
-                self.match_results.add_no_match(filename)
-            return SearchResult(issue_id=None, has_multiple_matches=False)
+        # The series and title together (see create_title_query_params) narrow the
+        # search when the filename parser split the series name in two. Their results
+        # are accepted only on a cover match: a story title can also match the words
+        # of a different series (a Batman story titled "Superman" finding
+        # Batman/Superman). Otherwise the series alone is searched as well, and both searches' results
+        # are offered.
+        title_issues: list[BaseIssue] | None = []
+        if (title_params := create_title_query_params(metadata)) is not None:
+            title_issues = self._list_issues(title_params)
+            if title_issues and (accepted := self._match_cover(comic, title_issues)):
+                return self._resolve_search(filename, accepted, [], config)
 
-        accepted: BaseIssue | None = None
-        if len(i_list) == 1:
-            # A single match is accepted if its cover matches, or with --accept-only.
-            match = i_list[0]
-            if config.accept_only or self.cover_matcher.is_within_hamming_distance(
-                comic, match.cover_hash
-            ):
-                accepted = match
-        else:
-            # Of several matches, accept the only one whose cover matches, if any.
-            LOGGER.debug("Check Hamming for '%s'", comic)
-            hamming_lst = self.cover_matcher.filter_by_hamming_distance(comic, i_list)
-            if len(hamming_lst) == 1:
-                accepted = hamming_lst[0]
+        # After an API error on the first search, the series-only search isn't run.
+        i_list = self._list_issues(params) if title_issues is not None else None
+        if i_list is None or title_issues is None or not (i_list or title_issues):
+            return self._resolve_no_filename_match(
+                filename, cover_candidates, config, api_error=i_list is None
+            )
 
-        if accepted is not None:
+        if i_list and (
+            accepted := self._match_cover(comic, i_list, accept_only=config.accept_only)
+        ):
             return self._resolve_search(filename, accepted, [], config)
         # For the prompt: the cover search's candidates (closest cover first), then
         # this search's results in cover-date order.
         listed = {issue.id for issue in cover_candidates}
-        by_date = sorted(i_list, key=lambda m: m.cover_date)
+        found = {issue.id: issue for issue in [*title_issues, *i_list]}
+        by_date = sorted(found.values(), key=lambda m: m.cover_date)
         candidates = cover_candidates + [i for i in by_date if i.id not in listed]
         return self._resolve_search(filename, None, candidates, config)
 
-    def _search_issues(
-        self, metadata: ParsedFilename, params: dict[str, str | int]
-    ) -> list[BaseIssue] | None:
-        """Search Metron for the filename's issue, on its series name and title first.
+    def _resolve_no_filename_match(
+        self,
+        filename: Path,
+        cover_candidates: list[BaseIssue],
+        config: ProcessingConfig,
+        *,
+        api_error: bool,
+    ) -> SearchResult:
+        """End a filename search that found nothing, or hit an API error.
 
-        The series and title together (see create_title_query_params) narrow the
-        search when the filename parser split the series name in two. If that finds
-        nothing, the title is probably a story title rather than part of the series
-        name, so the search is run again with `params`, on the series alone.
-
-        Returns:
-            The issues found, or None after an API error (already reported by
-            MetronClient.call).
+        The cover search's candidates are offered, if there are any. An API error was
+        already reported by MetronClient.call, so it isn't recorded as no match.
         """
-        title_params = create_title_query_params(metadata)
-        if title_params is not None:
-            i_list = self.client.call(
-                lambda: self.api.issues_list(params=title_params), "Failed to retrieve data"
-            )
-            if i_list is None or i_list:
-                return i_list
+        if cover_candidates and not self.client.stop_processing:
+            return self._resolve_search(filename, None, cover_candidates, config)
+        if not api_error:
+            self.match_results.add_no_match(filename)
+        return SearchResult(issue_id=None, has_multiple_matches=False)
+
+    def _list_issues(self, params: dict[str, str | int]) -> list[BaseIssue] | None:
+        """Search Metron's issues, or None after an API error (already reported)."""
         return self.client.call(
             lambda: self.api.issues_list(params=params), "Failed to retrieve data"
         )
+
+    def _match_cover(
+        self, comic: Comic, issues: list[BaseIssue], *, accept_only: bool = False
+    ) -> BaseIssue | None:
+        """Pick the issue matching the comic's cover from a filename search's results.
+
+        A single result is picked if its cover matches, or always with `accept_only`.
+        Of several, the only one whose cover matches is picked, if there's one.
+        """
+        if len(issues) == 1:
+            match = issues[0]
+            if accept_only or self.cover_matcher.is_within_hamming_distance(
+                comic, match.cover_hash
+            ):
+                return match
+            return None
+        LOGGER.debug("Check Hamming for '%s'", comic)
+        hamming_lst = self.cover_matcher.filter_by_hamming_distance(comic, issues)
+        return hamming_lst[0] if len(hamming_lst) == 1 else None
 
     @staticmethod
     def _cover_search_params(
