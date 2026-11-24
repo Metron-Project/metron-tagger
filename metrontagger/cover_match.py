@@ -10,8 +10,8 @@ from functools import lru_cache
 from logging import getLogger
 from typing import TYPE_CHECKING
 
-from imagehash import ImageHash, hex_to_hash, phash
-from mokkari.utils import MAX_COVER_HASH_DISTANCE
+from imagehash import ImageHash, phash
+from mokkari.utils import MAX_COVER_HASH_DISTANCE, hamming_distance
 from PIL import ExifTags, Image, ImageOps
 
 from metrontagger.ui import UIPresenter
@@ -150,15 +150,13 @@ class CoverHashMatcher:
     def distance(comic_hash: ImageHash, metron_hash: str | None) -> int | None:
         """Return the Hamming distance between a comic's hash and a Metron cover hash.
 
-        Returns None if the Metron hash is missing, malformed, or a different size,
-        so it can't be compared.
+        This uses mokkari's hamming_distance, as issues_by_cover_hash does for the
+        cover search, so every check measures distance the same way. Returns None if
+        either hash isn't 16 hex digits, so it can't be compared.
         """
         if not metron_hash:
             return None
-        try:
-            return int(comic_hash - hex_to_hash(metron_hash))
-        except (TypeError, ValueError):
-            return None
+        return hamming_distance(str(comic_hash), metron_hash)
 
     @classmethod
     def get_search_hashes(cls, comic: Comic) -> tuple[tuple[ImageHash, int], ...]:

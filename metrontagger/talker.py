@@ -13,6 +13,7 @@ from comicfn2dict import comicfn2dict
 from darkseid.comic import MetadataFormat
 from darkseid.metadata import Metadata
 from darkseid.utils import get_issue_id_from_note
+from mokkari.utils import is_cover_hash
 
 from metrontagger.comics import format_list, iter_metadata, open_comic
 from metrontagger.cover_match import (
@@ -477,10 +478,20 @@ class Talker:
     def _search_cover_hash(
         self, search_hash: ImageHash, params: dict[str, str | int]
     ) -> list[CoverMatch] | None:
-        """Search Metron's covers near search_hash, or None after an API error (reported)."""
+        """Search Metron's covers near search_hash, or None after an error (reported).
+
+        A hash Metron can't search by (not 16 hex digits) is reported rather than
+        sent, since mokkari would raise ValueError for it.
+        """
+        cover_hash = str(search_hash)
+        if not is_cover_hash(cover_hash):
+            self.ui.print_error(
+                f"Can't search by cover hash {cover_hash!r}: not 16 hex digits."
+            )
+            return None
         return self.client.call(
             lambda: self.api.issues_by_cover_hash(
-                str(search_hash), max_distance=COVER_SEARCH_MAX_DISTANCE, params=params
+                cover_hash, max_distance=COVER_SEARCH_MAX_DISTANCE, params=params
             ),
             "Failed to retrieve data",
         )
