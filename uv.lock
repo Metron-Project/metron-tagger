@@ -886,8 +886,8 @@ requires-dist = [
     { name = "comicfn2dict", specifier = ">=0.3.1" },
     { name = "darkseid", specifier = ">=10.0.0" },
     { name = "imagehash", specifier = ">=4.3.2" },
-    { name = "mokkari", specifier = ">=5.1.0" },
-    { name = "mokkari", extras = ["redis"], marker = "extra == 'redis'", specifier = ">=5.0.0" },
+    { name = "mokkari", specifier = ">=5.2.0" },
+    { name = "mokkari", extras = ["redis"], marker = "extra == 'redis'", specifier = ">=5.2.0" },
     { name = "pillow-jxl-plugin", marker = "extra == 'jxl'", specifier = ">=1.3.8" },
     { name = "py7zr", marker = "extra == '7zip'", specifier = ">=1.0.0" },
     { name = "pymupdf", marker = "extra == 'pdf'", specifier = ">=1.26.6" },
@@ -921,15 +921,15 @@ test = [
 
 [[package]]
 name = "mokkari"
-version = "5.1.0"
+version = "5.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/64/74/b7aec28e3f8855fbe19c566a9c4890b62e765d8a60c47b8165b837898929/mokkari-5.1.0.tar.gz", hash = "sha256:cbb0d5f60bc005e1237dae979d69e636eb3380a70011ed3872bc921783b56999", size = 145365, upload-time = "2026-11-10T17:27:32.48Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/55/61/feccf762c2cb112eead59d777768ac55bb162d4277c358471b22673cdc48/mokkari-5.2.0.tar.gz", hash = "sha256:9b30aacd0768ba2fd26b363f990b6e8e98b13588181990823eec3b1423e4c66e", size = 156118, upload-time = "2026-11-21T16:11:15.34Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d8/0b/92b4c6ee45eece36e22bf7b71314f9b0c7b06cf41d33c012590df1e235f8/mokkari-5.1.0-py3-none-any.whl", hash = "sha256:898e8ff49fdf1a780226020116024e9c9886ba5d4c5e0dd52e642afe0e4a24b1", size = 96565, upload-time = "2026-11-10T17:27:31.307Z" },
+    { url = "https://files.pythonhosted.org/packages/90/e4/ce3d99662d0277edb79cfe78c56bb8fff6b52f8f2ce7b457b85de4cb16bc/mokkari-5.2.0-py3-none-any.whl", hash = "sha256:40940c980f6fe16230bdb5e3b98dfe076fc575e6eb7bda02deb541d8f935b500", size = 109572, upload-time = "2026-11-21T16:11:14.418Z" },
 ]
 
 [package.optional-dependencies]

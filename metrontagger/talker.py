@@ -13,6 +13,7 @@ from comicfn2dict import comicfn2dict
 from darkseid.comic import MetadataFormat
 from darkseid.metadata import Metadata
 from darkseid.utils import get_issue_id_from_note
+from mokkari.utils import is_cover_hash
 
 from metrontagger.comics import format_list, iter_metadata, open_comic
 from metrontagger.cover_match import (
@@ -38,7 +39,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from darkseid.comic import Comic
-    from mokkari.schemas.issue import BaseIssue
+    from mokkari.schemas.issue import BaseIssue, CoverMatch
     from mokkari.session import Session
 
 LOGGER = getLogger(__name__)
@@ -473,6 +474,17 @@ class Talker:
             lambda: self.api.issues_list(params=params), "Failed to retrieve data"
         )
 
+    def _search_cover_hash(
+        self, cover_hash: str, params: dict[str, str | int]
+    ) -> list[CoverMatch] | None:
+        """Search Metron's covers near cover_hash, or None after an API error (reported)."""
+        return self.client.call(
+            lambda: self.api.issues_by_cover_hash(
+                cover_hash, max_distance=COVER_SEARCH_MAX_DISTANCE, params=params
+            ),
+            "Failed to retrieve data",
+        )
+
     def _match_cover(
         self, comic: Comic, issues: list[BaseIssue], *, accept_only: bool = False
     ) -> BaseIssue | None:
@@ -507,7 +519,6 @@ class Talker:
         """
         params: dict[str, str | int] = {
             "number": search_issue_number(metadata),
-            "cover_hash_max_distance": COVER_SEARCH_MAX_DISTANCE,
         }
         if series_id is not None:
             params["series_id"] = series_id
@@ -550,17 +561,23 @@ class Talker:
             return CoverMatches()
 
         # Results from every hash tried, for the prompt if none is accepted, at each
-        # issue's closest distance. (Metron only returns issues with a valid cover
-        # hash for cover_hash_near, so every result can be ranked.)
+        # issue's closest distance.
         closest: dict[int, tuple[int, BaseIssue]] = {}
         for search_hash, accept_distance in self.cover_matcher.get_search_hashes(comic):
-            params = base_params | {"cover_hash_near": str(search_hash)}
-            i_list = self._list_issues(params)
-            if i_list is None:
+            cover_hash = str(search_hash)
+            if not is_cover_hash(cover_hash):
+                # mokkari raises ValueError for a hash that isn't 16 hex digits. Skip
+                # it: the other hashes, and the filename search, may still match.
+                self.ui.print_warning(
+                    f"Skipping cover hash {cover_hash!r}: not 16 hex digits."
+                )
+                continue
+            matches = self._search_cover_hash(cover_hash, base_params)
+            if matches is None:
                 # API error, already reported by MetronClient.call.
                 break
 
-            ranked = self.cover_matcher.rank_by_distance(search_hash, i_list)
+            ranked = self.cover_matcher.rank_by_distance(matches)
             LOGGER.debug(
                 "Cover search for '%s': distances %s",
                 filename,

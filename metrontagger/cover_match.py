@@ -10,14 +10,15 @@ from functools import lru_cache
 from logging import getLogger
 from typing import TYPE_CHECKING
 
-from imagehash import ImageHash, hex_to_hash, phash
+from imagehash import ImageHash, phash
+from mokkari.utils import hamming_distance
 from PIL import ExifTags, Image, ImageOps
 
 from metrontagger.ui import UIPresenter
 
 if TYPE_CHECKING:
     from darkseid.comic import Comic
-    from mokkari.schemas.issue import BaseIssue
+    from mokkari.schemas.issue import BaseIssue, CoverMatch
 
 LOGGER = getLogger(__name__)
 
@@ -46,7 +47,9 @@ DOUBLE_SPREAD_ASPECT_RATIO = 1.2
 # title: on 802 comics this was the only check that caught a wrong match (a CGC-slab
 # photo whose closest cover was another publisher's issue with the same number), and it
 # cost no correct ones.
-COVER_SEARCH_MAX_DISTANCE = 20  # Metron's maximum cover_hash_max_distance
+# Kept at the tuned value, not mokkari's MAX_COVER_HASH_DISTANCE, so a wider Metron
+# limit doesn't change the search without retuning.
+COVER_SEARCH_MAX_DISTANCE = 20
 COVER_ACCEPT_DISTANCE = 18
 COVER_ACCEPT_MARGIN = 2
 # Filename years are often the release year, which can differ from the cover year.
@@ -149,15 +152,13 @@ class CoverHashMatcher:
     def distance(comic_hash: ImageHash, metron_hash: str | None) -> int | None:
         """Return the Hamming distance between a comic's hash and a Metron cover hash.
 
-        Returns None if the Metron hash is missing, malformed, or a different size,
-        so it can't be compared.
+        This uses mokkari's hamming_distance, as issues_by_cover_hash does for the
+        cover search, so every check measures distance the same way. Returns None if
+        either hash isn't 16 hex digits, so it can't be compared.
         """
         if not metron_hash:
             return None
-        try:
-            return int(comic_hash - hex_to_hash(metron_hash))
-        except (TypeError, ValueError):
-            return None
+        return hamming_distance(str(comic_hash), metron_hash)
 
     @classmethod
     def get_search_hashes(cls, comic: Comic) -> tuple[tuple[ImageHash, int], ...]:
@@ -180,21 +181,18 @@ class CoverHashMatcher:
             (full, COVER_ACCEPT_DISTANCE),
         )
 
-    @classmethod
-    def rank_by_distance(
-        cls, search_hash: ImageHash, issues: list[BaseIssue]
-    ) -> list[tuple[int, BaseIssue]]:
-        """Pair each issue with its cover's distance from search_hash, closest first.
+    @staticmethod
+    def rank_by_distance(matches: list[CoverMatch]) -> list[tuple[int, BaseIssue]]:
+        """Pair each cover search match's issue with its distance, closest first.
 
-        Issues whose cover hash is missing, malformed, or a different size are dropped.
+        Matches whose issue's cover hash couldn't be compared (no distance) are dropped.
         """
         ranked = []
-        for issue in issues:
-            distance = cls.distance(search_hash, issue.cover_hash)
-            if distance is None:
-                LOGGER.debug("Skipping issue %s with invalid cover hash", issue.id)
+        for match in matches:
+            if match.distance is None:
+                LOGGER.debug("Skipping issue %s with invalid cover hash", match.issue.id)
             else:
-                ranked.append((distance, issue))
+                ranked.append((match.distance, match.issue))
         return sorted(ranked, key=lambda pair: pair[0])
 
     @classmethod

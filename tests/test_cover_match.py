@@ -5,11 +5,14 @@ import random
 from unittest.mock import Mock, patch
 
 import pytest
-from imagehash import phash
+from imagehash import hex_to_hash, phash
+from mokkari.schemas.issue import CoverMatch
+from mokkari.utils import MAX_COVER_HASH_DISTANCE
 from PIL import ExifTags, Image, ImageDraw
 
 from metrontagger.cover_match import (
     COVER_ACCEPT_DISTANCE,
+    COVER_SEARCH_MAX_DISTANCE,
     HALF_COVER_HAMMING_DISTANCE,
     HAMMING_DISTANCE,
     CoverHashMatcher,
@@ -165,36 +168,14 @@ def test_cover_hash_matcher_get_comic_cover_hash_failure(_):  # noqa: PT019
         assert result == ()
 
 
-def test_cover_hash_matcher_is_within_hamming_distance_success():
-    """Test successful hamming distance check."""
-    mock_comic = Mock()
-    mock_hash = Mock()
-    mock_hash.__sub__ = Mock(return_value=5)  # Within distance
-
-    with (
-        patch.object(
-            CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=(mock_hash,)
-        ),
-        patch("metrontagger.cover_match.hex_to_hash", return_value=mock_hash),
+@pytest.mark.parametrize(("bits", "expected"), [(5, True), (15, False)])
+def test_cover_hash_matcher_is_within_hamming_distance(bits, expected):
+    """A Metron hash matches if it's within HAMMING_DISTANCE of the cover."""
+    with patch.object(
+        CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=(SEARCH_HASH,)
     ):
-        result = CoverHashMatcher.is_within_hamming_distance(mock_comic, "abcdef")
-        assert result is True
-
-
-def test_cover_hash_matcher_is_within_hamming_distance_failure():
-    """Test failed hamming distance check."""
-    mock_comic = Mock()
-    mock_hash = Mock()
-    mock_hash.__sub__ = Mock(return_value=15)  # Outside distance
-
-    with (
-        patch.object(
-            CoverHashMatcher, "get_comic_cover_hashes_cached", return_value=(mock_hash,)
-        ),
-        patch("metrontagger.cover_match.hex_to_hash", return_value=mock_hash),
-    ):
-        result = CoverHashMatcher.is_within_hamming_distance(mock_comic, "abcdef")
-        assert result is False
+        result = CoverHashMatcher.is_within_hamming_distance(Mock(), hash_at_distance(bits))
+    assert result is expected
 
 
 def test_cover_hash_matcher_is_within_hamming_distance_no_hashes():
@@ -206,29 +187,28 @@ def test_cover_hash_matcher_is_within_hamming_distance_no_hashes():
 @pytest.mark.parametrize(
     ("full_distance", "half_distance", "expected"),
     [
-        (HAMMING_DISTANCE, 99, True),  # Full cover within its limit
-        (HAMMING_DISTANCE + 1, 99, False),  # Full cover just over its limit
-        (99, HALF_COVER_HAMMING_DISTANCE, True),  # Half within its limit
-        (99, HALF_COVER_HAMMING_DISTANCE + 1, False),  # Half just over its limit
+        (HAMMING_DISTANCE, 40, True),  # Full cover within its limit
+        (HAMMING_DISTANCE + 1, 40, False),  # Full cover just over its limit
+        (40, HALF_COVER_HAMMING_DISTANCE, True),  # Half within its limit
+        (40, HALF_COVER_HAMMING_DISTANCE + 1, False),  # Half just over its limit
     ],
 )
 def test_cover_hash_matcher_half_cover_uses_own_distance(
     full_distance, half_distance, expected
 ):
     """The full cover and the half-cover crops are each checked against their own limit."""
-    full_hash, half_hash = Mock(), Mock()
-    full_hash.__sub__ = Mock(return_value=full_distance)
-    half_hash.__sub__ = Mock(return_value=half_distance)
+    # The cover hashes are the given distances from an all-zero Metron hash.
+    full_hash = hex_to_hash(hash_at_distance(full_distance))
+    half_hash = hex_to_hash(hash_at_distance(half_distance))
 
-    with (
-        patch.object(
-            CoverHashMatcher,
-            "get_comic_cover_hashes_cached",
-            return_value=(full_hash, half_hash, half_hash),
-        ),
-        patch("metrontagger.cover_match.hex_to_hash"),
+    with patch.object(
+        CoverHashMatcher,
+        "get_comic_cover_hashes_cached",
+        return_value=(full_hash, half_hash, half_hash),
     ):
-        assert CoverHashMatcher.is_within_hamming_distance(Mock(), "abcdef") is expected
+        assert (
+            CoverHashMatcher.is_within_hamming_distance(Mock(), str(SEARCH_HASH)) is expected
+        )
 
 
 @pytest.mark.usefixtures("_clear_cover_hash_cache")
@@ -310,17 +290,16 @@ def test_get_search_hashes_no_cover():
 
 
 def test_rank_by_distance():
-    """Issues are ranked closest first; ones without a valid hash are dropped."""
+    """Matches are ranked closest first; ones without a distance are dropped."""
     far = create_mock_base_issue(1, hash_at_distance(12))
     near = create_mock_base_issue(2, hash_at_distance(2))
-    invalid = [
-        create_mock_base_issue(3, ""),
-        create_mock_base_issue(4, "zzzzzzzzzzzzzzzz"),
-        # Valid hex of another size raises TypeError rather than ValueError.
-        create_mock_base_issue(5, "abcd"),
-        create_mock_base_issue(6, "0" * 64),
+    invalid = create_mock_base_issue(3, "abcd")
+    matches = [
+        CoverMatch.model_construct(issue=far, distance=12),
+        CoverMatch.model_construct(issue=invalid, distance=None),
+        CoverMatch.model_construct(issue=near, distance=2),
     ]
-    ranked = CoverHashMatcher.rank_by_distance(SEARCH_HASH, [far, *invalid, near])
+    ranked = CoverHashMatcher.rank_by_distance(matches)
     assert [(d, i.id) for d, i in ranked] == [(2, 2), (12, 1)]
 
 
@@ -331,11 +310,17 @@ def test_rank_by_distance():
         (None, None),
         ("", None),
         ("zzzzzzzzzzzzzzzz", None),
-        ("abcd", None),  # a different size raises TypeError
+        ("abcd", None),
+        ("0" * 64, None),
+        (f" {hash_at_distance(5)}", None),
     ],
 )
 def test_cover_hash_distance(metron_hash, expected):
-    """The distance is None when the Metron hash can't be compared."""
+    """The distance is None when the Metron hash can't be compared.
+
+    The cover search ranks by the distance mokkari's issues_by_cover_hash works out
+    with the same hamming_distance, so these cases cover it too.
+    """
     assert CoverHashMatcher.distance(SEARCH_HASH, metron_hash) == expected
 
 
@@ -367,3 +352,8 @@ def test_hash_cover_image_hashes_cover_as_displayed():
         hashes = CoverHashMatcher.hash_cover_image(img)
 
     assert hashes == (phash(portrait.convert("L")),)
+
+
+def test_cover_search_max_distance_within_metron_limit():
+    """The tuned search distance is one Metron accepts; wider gets a 400 from Metron."""
+    assert COVER_SEARCH_MAX_DISTANCE <= MAX_COVER_HASH_DISTANCE
