@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from imagehash import phash
+from mokkari.schemas.issue import CoverMatch
 from PIL import ExifTags, Image, ImageDraw
 
 from metrontagger.cover_match import (
@@ -310,17 +311,16 @@ def test_get_search_hashes_no_cover():
 
 
 def test_rank_by_distance():
-    """Issues are ranked closest first; ones without a valid hash are dropped."""
+    """Matches are ranked closest first; ones without a distance are dropped."""
     far = create_mock_base_issue(1, hash_at_distance(12))
     near = create_mock_base_issue(2, hash_at_distance(2))
-    invalid = [
-        create_mock_base_issue(3, ""),
-        create_mock_base_issue(4, "zzzzzzzzzzzzzzzz"),
-        # Valid hex of another size raises TypeError rather than ValueError.
-        create_mock_base_issue(5, "abcd"),
-        create_mock_base_issue(6, "0" * 64),
+    invalid = create_mock_base_issue(3, "abcd")
+    matches = [
+        CoverMatch.model_construct(issue=far, distance=12),
+        CoverMatch.model_construct(issue=invalid, distance=None),
+        CoverMatch.model_construct(issue=near, distance=2),
     ]
-    ranked = CoverHashMatcher.rank_by_distance(SEARCH_HASH, [far, *invalid, near])
+    ranked = CoverHashMatcher.rank_by_distance(matches)
     assert [(d, i.id) for d, i in ranked] == [(2, 2), (12, 1)]
 
 

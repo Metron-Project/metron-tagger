@@ -11,6 +11,8 @@ from darkseid.metadata import Metadata, Series
 from imagehash import hex_to_hash
 from mokkari.exceptions import ApiError
 from mokkari.rate_limit import HeaderPacedRateLimiter
+from mokkari.schemas.issue import CoverMatch
+from mokkari.utils import hamming_distance
 
 from metrontagger import __version__
 from metrontagger.cover_match import (
@@ -1056,18 +1058,13 @@ def test_cover_search_params():
         "number": "5",
         "cover_date_range_after": "2026-01-01",
         "cover_date_range_before": "2028-12-31",
-        "cover_hash_max_distance": COVER_SEARCH_MAX_DISTANCE,
     }
 
 
 @pytest.mark.parametrize("metadata", [{"issue": "150", "year": "2016"}, {"issue": "150"}])
 def test_cover_search_params_series_id(metadata):
     """A given series id replaces the year range, which may be the series' start year."""
-    assert Talker._cover_search_params(metadata, 42) == {
-        "number": "150",
-        "series_id": 42,
-        "cover_hash_max_distance": COVER_SEARCH_MAX_DISTANCE,
-    }
+    assert Talker._cover_search_params(metadata, 42) == {"number": "150", "series_id": 42}
 
 
 @pytest.mark.parametrize(
@@ -1094,8 +1091,19 @@ def search_by_cover(talker, results, config=None, hashes=(SEARCH_HASH,), filenam
     """Run _search_by_cover with the API returning `results` (a list per request).
 
     Each of `hashes` is a hash (searched as a whole cover) or a (hash, limit) pair.
+    Like mokkari, each result's distance is worked out from the hash searched.
     """
-    talker.api.issues_list.side_effect = results
+    responses = iter(results)
+
+    def issues_by_cover_hash(cover_hash, **_kwargs):
+        return [
+            CoverMatch.model_construct(
+                issue=issue, distance=hamming_distance(cover_hash, issue.cover_hash)
+            )
+            for issue in next(responses)
+        ]
+
+    talker.api.issues_by_cover_hash.side_effect = issues_by_cover_hash
     parsed = comicfn2dict(filename, verbose=0)
     search_hashes = tuple(
         h if isinstance(h, tuple) else (h, COVER_ACCEPT_DISTANCE) for h in hashes
@@ -1117,14 +1125,14 @@ def test_search_by_cover_accepts_clear_closest_match(talker):
     assert results.no_matches == []
     assert results.multiple_matches == []
     assert results.skipped_matches == []
-    talker.api.issues_list.assert_called_once_with(
+    talker.api.issues_by_cover_hash.assert_called_once_with(
+        str(SEARCH_HASH),
+        max_distance=COVER_SEARCH_MAX_DISTANCE,
         params={
             "number": "5",
             "cover_date_range_after": "2026-01-01",
             "cover_date_range_before": "2028-12-31",
-            "cover_hash_max_distance": COVER_SEARCH_MAX_DISTANCE,
-            "cover_hash_near": str(SEARCH_HASH),
-        }
+        },
     )
 
 
@@ -1172,7 +1180,7 @@ def test_search_by_cover_tries_left_half_of_spread(talker):
     result = search_by_cover(talker, [[], [issue]], hashes=(SEARCH_HASH, left))
 
     assert result == CoverMatches(accepted=issue)
-    assert talker.api.issues_list.call_count == 2
+    assert talker.api.issues_by_cover_hash.call_count == 2
 
 
 def test_search_by_cover_no_results(talker):
@@ -1184,7 +1192,8 @@ def test_search_by_cover_api_error_keeps_earlier_candidates(talker):
     """An API error ends the search but keeps what earlier hashes found."""
     far = cover_issue(1, COVER_ACCEPT_DISTANCE + 2)
     left = hex_to_hash(hash_at_distance(1))
-    with patch.object(talker.client, "call", side_effect=[[far], None]):
+    far_match = CoverMatch.model_construct(issue=far, distance=COVER_ACCEPT_DISTANCE + 2)
+    with patch.object(talker.client, "call", side_effect=[[far_match], None]):
         result = search_by_cover(talker, [], hashes=(SEARCH_HASH, left))
     assert result == CoverMatches(candidates=[far])
 
@@ -1199,7 +1208,7 @@ def test_search_by_cover_api_error_keeps_earlier_candidates(talker):
 def test_search_by_cover_skipped(talker, filename, hashes):
     """Without a year or a cover hash, no cover search request is made."""
     assert search_by_cover(talker, [], hashes=hashes, filename=filename) == CoverMatches()
-    talker.api.issues_list.assert_not_called()
+    talker.api.issues_by_cover_hash.assert_not_called()
 
 
 def make_writable_comic():
@@ -1385,7 +1394,7 @@ def test_search_by_cover_tries_left_half_after_unaccepted_right_half(talker):
     result = search_by_cover(talker, [[unrelated], [issue]], hashes=(SEARCH_HASH, left))
 
     assert result == CoverMatches(accepted=issue)
-    assert talker.api.issues_list.call_count == 2
+    assert talker.api.issues_by_cover_hash.call_count == 2
 
 
 def test_search_by_cover_candidates_from_every_hash(talker):
@@ -1521,7 +1530,7 @@ def test_search_by_cover_after_fatal_error(talker):
     """No cover search request is made after a fatal error for this comic."""
     talker.client.stop_processing = True
     assert search_by_cover(talker, [[cover_issue(1, 0)]]) == CoverMatches()
-    talker.api.issues_list.assert_not_called()
+    talker.api.issues_by_cover_hash.assert_not_called()
 
 
 @pytest.mark.parametrize(

@@ -38,7 +38,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from darkseid.comic import Comic
-    from mokkari.schemas.issue import BaseIssue
+    from imagehash import ImageHash
+    from mokkari.schemas.issue import BaseIssue, CoverMatch
     from mokkari.session import Session
 
 LOGGER = getLogger(__name__)
@@ -473,6 +474,17 @@ class Talker:
             lambda: self.api.issues_list(params=params), "Failed to retrieve data"
         )
 
+    def _search_cover_hash(
+        self, search_hash: ImageHash, params: dict[str, str | int]
+    ) -> list[CoverMatch] | None:
+        """Search Metron's covers near search_hash, or None after an API error (reported)."""
+        return self.client.call(
+            lambda: self.api.issues_by_cover_hash(
+                str(search_hash), max_distance=COVER_SEARCH_MAX_DISTANCE, params=params
+            ),
+            "Failed to retrieve data",
+        )
+
     def _match_cover(
         self, comic: Comic, issues: list[BaseIssue], *, accept_only: bool = False
     ) -> BaseIssue | None:
@@ -507,7 +519,6 @@ class Talker:
         """
         params: dict[str, str | int] = {
             "number": search_issue_number(metadata),
-            "cover_hash_max_distance": COVER_SEARCH_MAX_DISTANCE,
         }
         if series_id is not None:
             params["series_id"] = series_id
@@ -550,17 +561,15 @@ class Talker:
             return CoverMatches()
 
         # Results from every hash tried, for the prompt if none is accepted, at each
-        # issue's closest distance. (Metron only returns issues with a valid cover
-        # hash for cover_hash_near, so every result can be ranked.)
+        # issue's closest distance.
         closest: dict[int, tuple[int, BaseIssue]] = {}
         for search_hash, accept_distance in self.cover_matcher.get_search_hashes(comic):
-            params = base_params | {"cover_hash_near": str(search_hash)}
-            i_list = self._list_issues(params)
-            if i_list is None:
+            matches = self._search_cover_hash(search_hash, base_params)
+            if matches is None:
                 # API error, already reported by MetronClient.call.
                 break
 
-            ranked = self.cover_matcher.rank_by_distance(search_hash, i_list)
+            ranked = self.cover_matcher.rank_by_distance(matches)
             LOGGER.debug(
                 "Cover search for '%s': distances %s",
                 filename,
