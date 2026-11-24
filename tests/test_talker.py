@@ -1707,3 +1707,215 @@ def test_write_issue_md_uses_given_comic(talker, sample_path):
 
     mock_open.assert_not_called()
     comic.write_metadata.assert_called()
+
+
+KYLO_REN = Path("Star Wars - The Fall of Kylo Ren 004 (2026) (Digital) (Kileko-Empire).cbz")
+SERIES_ONLY_PARAMS = {"series_q": "Star Wars", "number": "4"}
+SERIES_AND_TITLE_PARAMS = {"series_q": "Star Wars The Fall of Kylo Ren", "number": "4"}
+
+
+def search_kylo_ren(talker, responses, *, cover_matches=True, config=None):
+    """Run _search_by_filename on KYLO_REN, the API returning each of `responses` in turn.
+
+    Every cover matches if `cover_matches`, otherwise none does.
+    Returns the search result and the params of each API call.
+    """
+    talker.api.issues_list.side_effect = responses
+    with (
+        patch.object(
+            talker.cover_matcher, "is_within_hamming_distance", return_value=cover_matches
+        ),
+        patch.object(
+            talker.cover_matcher,
+            "filter_by_hamming_distance",
+            side_effect=lambda _comic, issues: issues if cover_matches else [],
+        ),
+    ):
+        result = talker._search_by_filename(
+            KYLO_REN,
+            Mock(),
+            config or ProcessingConfig(),
+            comicfn2dict(KYLO_REN, verbose=0),
+        )
+    calls = [c.kwargs["params"] for c in talker.api.issues_list.call_args_list]
+    return result, calls
+
+
+def test_search_by_filename_uses_series_and_title(talker):
+    """A filename split into series and title is searched on both together."""
+    result, calls = search_kylo_ren(talker, [[create_mock_base_issue(185517)]])
+
+    assert result == SearchResult(issue_id=185517, has_multiple_matches=False)
+    assert calls == [SERIES_AND_TITLE_PARAMS]
+
+
+def test_search_by_filename_falls_back_to_series_only(talker):
+    """If the series and title together find nothing, the series alone is searched."""
+    result, calls = search_kylo_ren(talker, [[], [create_mock_base_issue(1)]])
+
+    assert result == SearchResult(issue_id=1, has_multiple_matches=False)
+    assert calls == [SERIES_AND_TITLE_PARAMS, SERIES_ONLY_PARAMS]
+
+
+def test_search_by_filename_series_only_after_title_search_api_error(talker):
+    """An API error on the series and title search still runs the series-only search."""
+    result, calls = search_kylo_ren(talker, [None, [create_mock_base_issue(1)]])
+
+    assert result == SearchResult(issue_id=1, has_multiple_matches=False)
+    assert calls == [SERIES_AND_TITLE_PARAMS, SERIES_ONLY_PARAMS]
+
+
+def test_search_by_filename_api_errors_not_no_match(talker):
+    """API errors on both searches aren't recorded as no match."""
+    with patch.object(talker.client, "call", return_value=None) as call:
+        result = talker._search_by_filename(
+            KYLO_REN, Mock(), ProcessingConfig(), comicfn2dict(KYLO_REN, verbose=0)
+        )
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=False)
+    assert call.call_count == 2
+    assert not talker.match_results.no_matches
+
+
+def test_search_by_filename_no_series_search_after_stop(talker):
+    """A fatal API error on the series and title search stops the series-only search."""
+
+    def stop(*_args):
+        talker.client.stop_processing = True
+
+    with patch.object(talker.client, "call", side_effect=stop) as call:
+        result = talker._search_by_filename(
+            KYLO_REN, Mock(), ProcessingConfig(), comicfn2dict(KYLO_REN, verbose=0)
+        )
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=False)
+    call.assert_called_once()
+    assert not talker.match_results.no_matches
+
+
+def test_search_by_filename_offers_title_matches_after_series_api_error(talker):
+    """An API error on the series-only search still offers the series and title matches."""
+    match = create_mock_base_issue(9)
+    result, _ = search_kylo_ren(talker, [[match], None], cover_matches=False)
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
+    assert talker.match_results.multiple_matches == [MultipleMatch(KYLO_REN, [match])]
+
+
+def test_search_by_filename_with_series_id_ignores_title(talker):
+    """With --id the series is known, so the title isn't added to the search."""
+    talker.api.issues_list.return_value = [create_mock_base_issue(185517)]
+    with patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=True):
+        talker._search_by_filename(
+            KYLO_REN,
+            Mock(),
+            ProcessingConfig(series_id=16447),
+            comicfn2dict(KYLO_REN, verbose=0),
+        )
+
+    talker.api.issues_list.assert_called_once_with(
+        params={"series_id": "16447", "number": "4"}
+    )
+
+
+def test_search_by_filename_title_match_needs_cover_with_accept_only(talker):
+    """--accept-only doesn't accept a lone series and title match: the series is searched."""
+    result, calls = search_kylo_ren(
+        talker,
+        [[create_mock_base_issue(9)], [create_mock_base_issue(1)]],
+        cover_matches=False,
+        config=ProcessingConfig(accept_only=True),
+    )
+
+    assert result == SearchResult(issue_id=1, has_multiple_matches=False)
+    assert calls == [SERIES_AND_TITLE_PARAMS, SERIES_ONLY_PARAMS]
+
+
+def test_search_by_filename_offers_both_searches_without_cover_match(talker):
+    """Without a cover match, both searches' results are offered, each issue once.
+
+    The series and title matches come first, then the series-only ones, each in
+    cover-date order.
+    """
+    a, b, c, d = (create_mock_base_issue(i) for i in (1, 2, 3, 4))
+    a.cover_date = datetime(2020, 1, 1, tzinfo=UTC).date()
+    b.cover_date = datetime(2022, 1, 1, tzinfo=UTC).date()
+    c.cover_date = datetime(2021, 1, 1, tzinfo=UTC).date()
+    d.cover_date = datetime(2019, 1, 1, tzinfo=UTC).date()
+    result, calls = search_kylo_ren(talker, [[b, a], [c, b, d]], cover_matches=False)
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
+    assert calls == [SERIES_AND_TITLE_PARAMS, SERIES_ONLY_PARAMS]
+    assert talker.match_results.multiple_matches == [MultipleMatch(KYLO_REN, [a, b, d, c])]
+
+
+def test_search_by_filename_offers_title_matches_if_series_finds_nothing(talker):
+    """Series and title matches without a cover match are still offered."""
+    match = create_mock_base_issue(9)
+    result, _ = search_kylo_ren(talker, [[match], []], cover_matches=False)
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=True)
+    assert talker.match_results.multiple_matches == [MultipleMatch(KYLO_REN, [match])]
+
+
+def test_search_by_filename_accepts_unique_title_cover_match(talker):
+    """Of several series and title matches, the only cover match is accepted."""
+    match = create_mock_base_issue(7)
+    talker.api.issues_list.return_value = [create_mock_base_issue(6), match]
+    with patch.object(
+        talker.cover_matcher, "filter_by_hamming_distance", return_value=[match]
+    ):
+        result = talker._search_by_filename(
+            KYLO_REN, Mock(), ProcessingConfig(), comicfn2dict(KYLO_REN, verbose=0)
+        )
+
+    assert result == SearchResult(issue_id=7, has_multiple_matches=False)
+    talker.api.issues_list.assert_called_once_with(params=SERIES_AND_TITLE_PARAMS)
+
+
+def test_search_by_filename_story_title_searches_series_only(talker):
+    """A title after the issue number is a story title: only the series is searched."""
+    filename = Path("Batman v3 050 - The Wedding.cbz")
+    talker.api.issues_list.return_value = [create_mock_base_issue(50)]
+    with patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=True):
+        result = talker._search_by_filename(
+            filename, Mock(), ProcessingConfig(), comicfn2dict(filename, verbose=0)
+        )
+
+    assert result == SearchResult(issue_id=50, has_multiple_matches=False)
+    talker.api.issues_list.assert_called_once_with(
+        params={"series_q": "Batman", "number": "50"}
+    )
+
+
+def test_search_by_filename_no_prompt_after_fatal_series_error(talker):
+    """A fatal API error on the series-only search doesn't offer the title matches."""
+    responses = iter([[create_mock_base_issue(9)], None])
+
+    def call(*_args):
+        result = next(responses)
+        if result is None:
+            talker.client.stop_processing = True
+        return result
+
+    with (
+        patch.object(talker.client, "call", side_effect=call),
+        patch.object(talker.cover_matcher, "is_within_hamming_distance", return_value=False),
+    ):
+        result = talker._search_by_filename(
+            KYLO_REN, Mock(), ProcessingConfig(), comicfn2dict(KYLO_REN, verbose=0)
+        )
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=False)
+    assert not talker.match_results.multiple_matches
+    assert not talker.match_results.no_matches
+
+
+def test_search_by_filename_title_search_error_not_no_match(talker):
+    """After an API error on the series and title search, an empty series-only search
+    isn't recorded as no match: the issue may just not have been found."""
+    result, calls = search_kylo_ren(talker, [None, []])
+
+    assert result == SearchResult(issue_id=None, has_multiple_matches=False)
+    assert calls == [SERIES_AND_TITLE_PARAMS, SERIES_ONLY_PARAMS]
+    assert not talker.match_results.no_matches
