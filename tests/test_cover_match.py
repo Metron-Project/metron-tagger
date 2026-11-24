@@ -7,10 +7,12 @@ from unittest.mock import Mock, patch
 import pytest
 from imagehash import hex_to_hash, phash
 from mokkari.schemas.issue import CoverMatch
+from mokkari.utils import MAX_COVER_HASH_DISTANCE
 from PIL import ExifTags, Image, ImageDraw
 
 from metrontagger.cover_match import (
     COVER_ACCEPT_DISTANCE,
+    COVER_SEARCH_MAX_DISTANCE,
     HALF_COVER_HAMMING_DISTANCE,
     HAMMING_DISTANCE,
     CoverHashMatcher,
@@ -350,3 +352,8 @@ def test_hash_cover_image_hashes_cover_as_displayed():
         hashes = CoverHashMatcher.hash_cover_image(img)
 
     assert hashes == (phash(portrait.convert("L")),)
+
+
+def test_cover_search_max_distance_within_metron_limit():
+    """The tuned search distance is one Metron accepts; wider gets a 400 from Metron."""
+    assert COVER_SEARCH_MAX_DISTANCE <= MAX_COVER_HASH_DISTANCE

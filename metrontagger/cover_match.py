@@ -11,7 +11,7 @@ from logging import getLogger
 from typing import TYPE_CHECKING
 
 from imagehash import ImageHash, phash
-from mokkari.utils import MAX_COVER_HASH_DISTANCE, hamming_distance
+from mokkari.utils import hamming_distance
 from PIL import ExifTags, Image, ImageOps
 
 from metrontagger.ui import UIPresenter
@@ -47,7 +47,9 @@ DOUBLE_SPREAD_ASPECT_RATIO = 1.2
 # title: on 802 comics this was the only check that caught a wrong match (a CGC-slab
 # photo whose closest cover was another publisher's issue with the same number), and it
 # cost no correct ones.
-COVER_SEARCH_MAX_DISTANCE = MAX_COVER_HASH_DISTANCE  # the widest Metron allows
+# Kept at the tuned value, not mokkari's MAX_COVER_HASH_DISTANCE, so a wider Metron
+# limit doesn't change the search without retuning.
+COVER_SEARCH_MAX_DISTANCE = 20
 COVER_ACCEPT_DISTANCE = 18
 COVER_ACCEPT_MARGIN = 2
 # Filename years are often the release year, which can differ from the cover year.
