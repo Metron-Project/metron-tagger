@@ -46,6 +46,8 @@
 ## 🧰 Maintenance
 
 - Require darkseid 10.0.0 or later.
+- Require mokkari 5.2.0 or later, and search by cover hash with its
+  `issues_by_cover_hash()`.
 - Drop the pandas dependency.
 - Internal refactoring, more tests, and type checking with pyright.
 
