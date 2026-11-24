@@ -39,7 +39,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from darkseid.comic import Comic
-    from imagehash import ImageHash
     from mokkari.schemas.issue import BaseIssue, CoverMatch
     from mokkari.session import Session
 
@@ -476,19 +475,9 @@ class Talker:
         )
 
     def _search_cover_hash(
-        self, search_hash: ImageHash, params: dict[str, str | int]
+        self, cover_hash: str, params: dict[str, str | int]
     ) -> list[CoverMatch] | None:
-        """Search Metron's covers near search_hash, or None after an error (reported).
-
-        A hash Metron can't search by (not 16 hex digits) is reported rather than
-        sent, since mokkari would raise ValueError for it.
-        """
-        cover_hash = str(search_hash)
-        if not is_cover_hash(cover_hash):
-            self.ui.print_error(
-                f"Can't search by cover hash {cover_hash!r}: not 16 hex digits."
-            )
-            return None
+        """Search Metron's covers near cover_hash, or None after an API error (reported)."""
         return self.client.call(
             lambda: self.api.issues_by_cover_hash(
                 cover_hash, max_distance=COVER_SEARCH_MAX_DISTANCE, params=params
@@ -575,7 +564,15 @@ class Talker:
         # issue's closest distance.
         closest: dict[int, tuple[int, BaseIssue]] = {}
         for search_hash, accept_distance in self.cover_matcher.get_search_hashes(comic):
-            matches = self._search_cover_hash(search_hash, base_params)
+            cover_hash = str(search_hash)
+            if not is_cover_hash(cover_hash):
+                # mokkari raises ValueError for a hash that isn't 16 hex digits. Skip
+                # it: the other hashes, and the filename search, may still match.
+                self.ui.print_warning(
+                    f"Skipping cover hash {cover_hash!r}: not 16 hex digits."
+                )
+                continue
+            matches = self._search_cover_hash(cover_hash, base_params)
             if matches is None:
                 # API error, already reported by MetronClient.call.
                 break

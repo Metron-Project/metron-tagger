@@ -1183,13 +1183,20 @@ def test_search_by_cover_tries_left_half_of_spread(talker):
     assert talker.api.issues_by_cover_hash.call_count == 2
 
 
-def test_search_by_cover_unsearchable_hash(talker):
-    """A hash that isn't 16 hex digits is reported, not sent to Metron."""
+def test_search_by_cover_skips_unsearchable_hash(talker):
+    """A hash that isn't 16 hex digits is warned about and skipped, not sent to Metron.
+
+    The remaining hashes are still searched.
+    """
     big_hash = hex_to_hash("0" * 64)  # a 16x16 hash: 64 hex digits
-    with patch.object(talker.ui, "print_error") as mock_error:
-        assert search_by_cover(talker, [], hashes=(big_hash,)) == CoverMatches()
-    mock_error.assert_called_once()
-    talker.api.issues_by_cover_hash.assert_not_called()
+    issue = cover_issue(9, 2)
+    with patch.object(talker.ui, "print_warning") as mock_warning:
+        result = search_by_cover(talker, [[issue]], hashes=(big_hash, SEARCH_HASH))
+
+    assert result == CoverMatches(accepted=issue)
+    mock_warning.assert_called_once()
+    talker.api.issues_by_cover_hash.assert_called_once()
+    assert talker.api.issues_by_cover_hash.call_args.args == (str(SEARCH_HASH),)
 
 
 def test_search_by_cover_no_results(talker):
