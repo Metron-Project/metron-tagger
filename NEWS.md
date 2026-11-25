@@ -1,6 +1,29 @@
 # 📰 Metron-Tagger News
 
-## Unreleased
+## v5.4.0
+
+## 🚀 Features
+
+- The filename search now searches on the series and title together, so a
+  filename like `Star Wars - The Fall of Kylo Ren 004` finds "Star Wars: The
+  Fall of Kylo Ren" instead of every Star Wars #4. If that finds nothing, or no
+  result's cover matches, it falls back to the series alone, and matches from
+  the series and title search are listed first. A title after the issue number
+  (`Batman v3 050 - The Wedding`) is treated as a story title and isn't
+  searched. @bpepple (#299)
+
+## 🐛 Bug Fixes
+
+- `HC` and `TPB` are now dropped from series names only as whole words, so a
+  series like `TECHCORPS` is searched as it is. (#299)
+
+## 🧰 Maintenance
+
+- Require mokkari 5.2.0 or later, and search by cover hash with its
+  `issues_by_cover_hash()`. (#300)
+- Update dependencies. (#301)
+
+## v5.3.0
 
 ## 🚀 Features
 
@@ -46,8 +69,6 @@
 ## 🧰 Maintenance
 
 - Require darkseid 10.0.0 or later.
-- Require mokkari 5.2.0 or later, and search by cover hash with its
-  `issues_by_cover_hash()`.
 - Drop the pandas dependency.
 - Internal refactoring, more tests, and type checking with pyright.
 
